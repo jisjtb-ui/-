@@ -103,6 +103,11 @@ def build_parser() -> argparse.ArgumentParser:
     sns_schedule.add_argument("--per-day", type=int, default=0, help="1日の件数（既定は時刻の数）")
     sns_schedule.add_argument("--count", type=int, default=0)
     sns_schedule.add_argument("--platforms", default="threads,instagram")
+    sns_schedule.add_argument(
+        "--reschedule",
+        action="store_true",
+        help="既存の予約も含めて開始日から振り直す（既定は未予約分だけ追加）",
+    )
 
     sns_run = sns_sub.add_parser("run", help="予約時刻を過ぎた分を配信する")
     sns_run.add_argument("--platforms", default="threads,instagram")
@@ -725,7 +730,8 @@ def cmd_sns(args, settings: Settings, queue: Queue) -> int:
             return 1
         result = schedule_publications(
             settings, experiments, platforms, start, times,
-            per_day=args.per_day, count=args.count, log=print,
+            per_day=args.per_day, count=args.count,
+            reschedule=args.reschedule, log=print,
         )
         print(f"{result['assigned']} 件に予約時刻を割り当てました")
         return 0

@@ -139,43 +139,71 @@ def schedule_publications(
     times: list[dtime],
     per_day: int = 0,
     count: int = 0,
+    reschedule: bool = False,
     log=print,
 ) -> dict:
     """未配信の実験に予約時刻を割り当てる。
 
-    1日あたりの件数は times の数（または per_day）で決まる。
-    例: times=[09:00, 21:00] なら1日2件、日をまたいで順に埋めていく。
+    既定では**まだ予約が入っていない分だけ**を対象にし、
+    すでに埋まっている枠を飛ばして後ろに追加していく。
+    そのため2回目以降に実行しても、既存の予定はずれない。
+
+    reschedule=True にすると、未配信のすべてを開始日から振り直す。
     """
     assigned = 0
+    details: dict[str, dict] = {}
+
     for platform in platforms:
         pending = [
             p for p in store.publications(platform=platform)
             if p.status == READY_TO_PUBLISH
         ]
         pending.sort(key=lambda p: p.experiment_id)
+
+        if reschedule:
+            targets = pending
+            occupied: set[str] = set()
+        else:
+            targets = [p for p in pending if not p.scheduled_at]
+            occupied = {p.scheduled_at for p in pending if p.scheduled_at}
+
         if count:
-            pending = pending[:count]
+            targets = targets[:count]
 
         slots = times or [dtime(21, 0)]
         limit = per_day or len(slots)
-        limit = min(limit, settings.daily_limit(platform) or limit)
+        platform_limit = settings.daily_limit(platform)
+        if platform_limit:
+            limit = min(limit, platform_limit)
 
-        day = 0
-        index = 0
-        for publication in pending:
-            slot = slots[index % len(slots)]
-            when = datetime.combine((start + timedelta(days=day)).date(), slot)
-            when = when.replace(tzinfo=settings.tz)
+        generator = _slot_generator(start, slots, limit, settings.tz)
+        for publication in targets:
+            when = next(generator)
+            while when.isoformat(timespec="seconds") in occupied:
+                when = next(generator)
             store.set_schedule(publication.id, when)
+            occupied.add(when.isoformat(timespec="seconds"))
             assigned += 1
-            index += 1
-            if index % limit == 0:
-                day += 1
-                index = 0
 
-        log(f"  {platform}: {len(pending)}件を予約（1日{limit}件）")
+        kept = len(pending) - len(targets)
+        details[platform] = {"assigned": len(targets), "kept": kept, "per_day": limit}
+        message = f"  {platform}: {len(targets)}件を予約（1日{limit}件）"
+        if kept:
+            message += f" / 既存の予約 {kept}件はそのまま"
+        log(message)
 
-    return {"assigned": assigned}
+    return {"assigned": assigned, "platforms": details}
+
+
+def _slot_generator(start: datetime, slots: list[dtime], per_day: int, tz):
+    """開始日から、1日 per_day 件の割り当て枠を順に返す。"""
+    day = 0
+    while True:
+        date = (start + timedelta(days=day)).date()
+        for index in range(per_day):
+            slot = slots[index % len(slots)]
+            yield datetime.combine(date, slot).replace(tzinfo=tz)
+        day += 1
 
 
 def publish_due(
