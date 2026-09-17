@@ -389,42 +389,78 @@ TikTokアプリのインボックスに通知が届き、タップすると文�
 
 ---
 
-## C. Instagram
+## C. Instagram（本命2・完全自動投稿）
 
 **前提**：投稿先アカウントが **プロアカウント（ビジネス or クリエイター）** であること。
-個人アカウントではAPI投稿できません（Instagramアプリの設定から切り替え可能）。
+個人アカウントではAPI投稿できません（Instagramアプリの設定から切り替えられます）。
 
-1. https://developers.facebook.com/ でアプリを作成
-2. **Instagram** プロダクトを追加
-3. ログイン方式を選ぶ（`.env` の `META_LOGIN_MODE`）
-   - `instagram`（推奨）… Instagram Login。長期トークン(60日)を**自動更新**できる
-   - `facebook` … Facebook Login for Business。Facebookページ連携が必要。60日ごとに再認証
-4. **有効なOAuthリダイレクトURI** に登録
+| 項目 | 仕様 |
+| --- | --- |
+| 投稿 | コンテナ作成 → 公開 の2段階 |
+| 画像 | **JPEG のみ**・8MB以下・アスペクト比 4:5〜1.91:1・幅320〜1440px |
+| カルーセル | 2〜10枚 |
+| キャプション | 2200文字・ハッシュタグ30個まで |
+| 1日の上限 | 100投稿 / コンテナ作成400件 |
+| Insights | views / reach / likes / comments / saves / shares |
+
+### 手順
+
+1. https://developers.facebook.com/apps/ を開く
+2. **アプリを作成** → ユースケースで **Instagram** を選択
+3. 左メニューの **Instagram → API setup with Instagram login** を開く
+4. **Instagram app ID** と **Instagram app secret** を控える
+   > FacebookのApp IDとは別物です。必ずInstagram側の値を使ってください。
+5. 「ビジネスログインの設定」で **リダイレクトURI** に次を登録（**HTTPS必須**）
    ```
-   http://127.0.0.1:8720/callback/meta
+   https://honeshinri-media.pages.dev/
    ```
-5. 権限（審査対象）
-   - Instagram Login: `instagram_business_basic`, `instagram_business_content_publish`
-   - Facebook Login: `instagram_basic`, `instagram_content_publish`, `pages_read_engagement`
-   - 自分のアカウントでテストする間は開発モードのままで動きます。
-     他人のアカウントでも使う場合はアプリ審査が必要です。
-6. **Instagram アカウントID** を取得して `.env` へ
-   - Instagram Login の場合：接続後に `python autopost.py status` で確認できるユーザーID
-   - Facebook Login の場合：`/me/accounts` → ページの `instagram_business_account.id`
-7. `.env` に記入
+6. 権限（スコープ）に次を追加
+   ```
+   instagram_business_basic
+   instagram_business_content_publish
+   instagram_business_manage_insights
+   ```
+   > `instagram_business_manage_insights` が無いと反応データを取得できません。
+7. **Instagramテスターを追加して承認する**（Threadsと同じ手順です）
+
+   a. 開発者ダッシュボード → **アプリの役割** → **役割** → **人を追加**
+      → **Instagramテスター** で対象アカウントを招待
+   b. Instagramアプリ側で承認
+      ```
+      Instagramアプリ → 設定 → アカウントセンター
+        → ウェブサイトの許可（Website permissions）
+        → テスター招待 → 承認
+      ```
+8. `.env` に記入
 
 ```
-META_APP_ID=
-META_APP_SECRET=
-META_REDIRECT_URI=http://127.0.0.1:8720/callback/meta
+META_APP_ID=（Instagram app ID）
+META_APP_SECRET=（Instagram app secret）
+META_REDIRECT_URI=https://honeshinri-media.pages.dev/
 META_LOGIN_MODE=instagram
-INSTAGRAM_ACCOUNT_ID=
 ```
 
-8. 接続
+> `INSTAGRAM_ACCOUNT_ID` は空のままで構いません。接続時に自動取得します。
+
+9. 接続する（HTTPSのリダイレクトURIなので手動モードを使います）
 
 ```bash
-python autopost.py connect instagram
+python autopost.py connect instagram --manual
+```
+
+10. テスト投稿（同じ experiment_id で Threads と並べて比較できます）
+
+```bash
+python autopost.py experiment new \
+  --hypothesis "恋人の少しキモい行動に愛着を感じる話は共感される" \
+  --category "恋愛/共感" \
+  --hook "彼氏の笑い方キモすぎるのに" \
+  --text "最近これ聞かないと逆に落ち着かない。これ私だけ？" \
+  --image-url https://honeshinri-media.pages.dev/（画像のパス） \
+  --platforms threads,instagram
+
+python autopost.py experiment run
+python autopost.py experiment collect --due
 ```
 
 ---
@@ -467,6 +503,9 @@ python autopost.py run
 | `1349245 The user has not accepted the invite` | Threads側で招待未承認。Threads → 設定 → アカウント → ウェブサイトの許可 → 招待 で承認 |
 | `1349125` 画像URLにアクセスできない | Cloudflare Pages へのデプロイが未完了、またはURLの綴り違い |
 | `1349138` 画像の要件エラー | JPEG/PNG・8MB以下・幅320〜1440px に収める |
+| Instagram: テスター招待エラー | Instagram → 設定 → アカウントセンター → ウェブサイトの許可 → テスター招待 で承認 |
+| Instagram: 画像が拒否される | **JPEGのみ**。アスペクト比4:5〜1.91:1（1080x1440は要件外。本ツールは1152x1440へ自動変換） |
+| Instagram: Insightsが空 | `instagram_business_manage_insights` を追加して再認証 |
 | TikTok `scope_not_authorized` | 開発者ポータルで `video.upload` を追加して再認証 |
 | TikTok `spam_risk_too_many_pending_share` | 下書きの24時間あたり5件の上限。翌日自動で再試行される |
 | TikTok `url_ownership_unverified` | 画像URLのドメインがTikTokで未検証 |

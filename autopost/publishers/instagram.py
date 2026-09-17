@@ -65,6 +65,7 @@ class InstagramPublisher(Publisher):
         self.store = store
         self.pacer = Pacer(PACE_SECONDS)
         self._token = None
+        self._account_id = ""
 
     # ------------------------------------------------------------------
     def preflight(self) -> None:
@@ -72,12 +73,20 @@ class InstagramPublisher(Publisher):
         if missing:
             raise PermanentError(".env の設定が不足しています: " + ", ".join(missing))
         self._token = meta_oauth.ensure_token(self.settings, self.store)
+        self._account_id = (
+            self.settings.instagram_account_id or self._token.account_id
+        )
+        if not self._account_id:
+            raise PermanentError(
+                "InstagramのアカウントIDを取得できません"
+                "（.env の INSTAGRAM_ACCOUNT_ID を設定してください）"
+            )
 
     def account_label(self) -> str:
         token = self.store.load("instagram")
         if token is None:
             return "未接続"
-        return token.account_name or self.settings.instagram_account_id or "接続済み"
+        return token.account_name or token.account_id or self.settings.instagram_account_id or "接続済み"
 
     # ------------------------------------------------------------------
     def publish(
@@ -96,7 +105,7 @@ class InstagramPublisher(Publisher):
         self.preflight()
         token = self._token.access_token
         base = meta_oauth.graph_base(self.settings)
-        ig_id = self.settings.instagram_account_id
+        ig_id = self._account_id
 
         log(f"画像コンテナを作成しています（{len(image_urls)}枚）")
         children: list[str] = []
@@ -176,7 +185,7 @@ class InstagramPublisher(Publisher):
         self.preflight()
         token = self._token.access_token
         base = meta_oauth.graph_base(self.settings)
-        ig_id = self.settings.instagram_account_id
+        ig_id = self._account_id
 
         log("画像コンテナを作成しています")
         container_id = self._create_container(

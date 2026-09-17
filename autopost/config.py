@@ -216,10 +216,11 @@ class Settings:
                 "TIKTOK_REDIRECT_URI": self.tiktok_redirect_uri,
             }
         elif platform == "instagram":
+            # INSTAGRAM_ACCOUNT_ID は接続時に自動取得できるため必須にしない
             keys = {
                 "META_APP_ID": self.meta_app_id,
                 "META_APP_SECRET": self.meta_app_secret,
-                "INSTAGRAM_ACCOUNT_ID": self.instagram_account_id,
+                "META_REDIRECT_URI": self.meta_redirect_uri,
             }
         elif platform == "threads":
             keys = {

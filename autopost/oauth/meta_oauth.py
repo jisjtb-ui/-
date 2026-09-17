@@ -3,10 +3,12 @@
 2通りのログイン方式に対応する（.env の META_LOGIN_MODE）:
 
   instagram : Instagram Login（Instagramアカウントで直接認可）
-              scope = instagram_business_basic, instagram_business_content_publish
+              scope = instagram_business_basic, instagram_business_content_publish,
+                      instagram_business_manage_insights
               APIホスト = graph.instagram.com
   facebook  : Facebook Login for Business（FacebookページとIGプロアカウント連携）
-              scope = instagram_basic, instagram_content_publish, pages_read_engagement
+              scope = instagram_basic, instagram_content_publish,
+                      instagram_manage_insights, pages_read_engagement
               APIホスト = graph.facebook.com
 
 いずれも長期トークン（約60日）へ交換し、期限前に自動更新する。
@@ -27,11 +29,22 @@ TIMEOUT = 30
 IG_AUTHORIZE_URL = "https://www.instagram.com/oauth/authorize"
 IG_TOKEN_URL = "https://api.instagram.com/oauth/access_token"
 IG_GRAPH = "https://graph.instagram.com"
-IG_SCOPES = ("instagram_business_basic", "instagram_business_content_publish")
+# instagram_business_manage_insights が無いと反応データを取得できない
+IG_SCOPES = (
+    "instagram_business_basic",
+    "instagram_business_content_publish",
+    "instagram_business_manage_insights",
+)
 
 FB_AUTHORIZE_URL = "https://www.facebook.com/{version}/dialog/oauth"
 FB_GRAPH = "https://graph.facebook.com"
-FB_SCOPES = ("instagram_basic", "instagram_content_publish", "pages_show_list", "pages_read_engagement")
+FB_SCOPES = (
+    "instagram_basic",
+    "instagram_content_publish",
+    "instagram_manage_insights",
+    "pages_show_list",
+    "pages_read_engagement",
+)
 
 
 class MetaAuthError(RuntimeError):
@@ -93,6 +106,9 @@ def connect(settings: Settings, store: TokenStore) -> Token:
             scope=",".join(IG_SCOPES),
             account_id=str(short.get("user_id", settings.instagram_account_id)),
         )
+        profile = _ig_profile(settings, token.access_token)
+        token.account_name = profile.get("username", "")
+        token.account_id = str(profile.get("user_id") or profile.get("id") or token.account_id)
     else:
         short = _fb_exchange_code(settings, code)
         long_lived = _fb_long_lived(settings, short["access_token"])
@@ -190,6 +206,20 @@ def _fb_long_lived(settings: Settings, short_token: str) -> dict:
         timeout=TIMEOUT,
     )
     return _json(response)
+
+
+def _ig_profile(settings: Settings, access_token: str) -> dict:
+    """接続中アカウントのユーザー名とIDを取得する（表示と自動設定に使う）。"""
+    try:
+        response = requests.get(
+            f"{IG_GRAPH}/{settings.meta_graph_version}/me",
+            params={"fields": "user_id,username", "access_token": access_token},
+            timeout=TIMEOUT,
+        )
+        data = response.json()
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
 
 
 def _json(response: requests.Response) -> dict:
