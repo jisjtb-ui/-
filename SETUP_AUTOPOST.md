@@ -58,6 +58,85 @@ LOCAL_HOST_BASE_URL=https://media.example.com/honne
 
 > どちらの場合も、URLは **HTTPS必須・リダイレクト禁止（TikTokは3xxを無効とみなす）** です。
 
+
+---
+
+## B0. Pinterest（最初の完全自動チャネル）
+
+Pinterestは審査を通さなくても自分のアカウントへPinを作成でき、
+公開HTTPS URLの画像をそのまま投稿できるため、最初の実験チャネルに向いています。
+
+1. https://developers.pinterest.com/apps/ を開く（Pinterestアカウントでログイン）
+2. **Create app** でアプリを作成
+   - アプリ名・説明は自由（例: honeshinri-lab）
+   - 用途を聞かれたら「自分のコンテンツを投稿する」旨を記載
+3. アプリの画面で **App ID** と **App secret key** を控える
+4. **Redirect URIs** に次を登録
+   ```
+   http://localhost:8730/callback/
+   ```
+   > ループバックURIが登録できない場合は、自分が所有するHTTPSのURL
+   > （例: `https://honeshinri-media.pages.dev/`）を登録し、
+   > あとで `--manual` を付けて認証します。
+5. スコープに次を含める
+   ```
+   user_accounts:read, boards:read, boards:write, pins:read, pins:write
+   ```
+6. `.env` に記入
+
+```
+PINTEREST_APP_ID=（App ID）
+PINTEREST_APP_SECRET=（App secret key）
+PINTEREST_REDIRECT_URI=http://localhost:8730/callback/
+```
+
+7. 接続する
+
+```bash
+python autopost.py connect pinterest
+# HTTPSのリダイレクトURIしか登録できなかった場合:
+python autopost.py connect pinterest --manual
+```
+
+8. 投稿先ボードのIDを調べて `.env` に入れる
+
+```bash
+python autopost.py pinterest boards
+```
+
+```
+PINTEREST_BOARD_ID=（表示されたID）
+```
+
+9. 公開済み画像1枚で疎通確認（実際にPinが作成されます）
+
+```bash
+python autopost.py pinterest test-pin \
+  --image-url https://honeshinri-media.pages.dev/test/01.jpg \
+  --title "彼氏の笑い方キモすぎるのに" \
+  --text "最近これ聞かないと逆に落ち着かない" \
+  --hypothesis "恋人の少しキモい行動に愛着を感じる話は共感される" \
+  --category "恋愛/共感"
+```
+
+成功すると実験IDとPin IDが表示され、`experiments.db` に記録されます。
+
+```bash
+python autopost.py experiment show EXP-20260917-0001   # 経過ログと状態
+python autopost.py experiment collect                  # 反応データを取得
+```
+
+### Pinterest APIでできること・できないこと
+
+| 項目 | 可否 | 備考 |
+| --- | --- | --- |
+| 画像URLからのPin作成 | ○ | `media_source.source_type=image_url` |
+| タイトル / 説明 / リンク | ○ | 100 / 800 / 2048文字 |
+| 複数画像のカルーセル | △ | `multiple_image_urls` は2〜5枚（10枚は不可） |
+| 予約投稿 | × | ローカルのキューで管理 |
+| Pin単位の分析 | ○ | インプレッション・保存・クリック等 |
+| サンドボックス | ○ | `PINTEREST_SANDBOX=true`（公開されない検証用） |
+
 ---
 
 ## B. TikTok
@@ -96,6 +175,17 @@ python autopost.py connect tiktok
 ブラウザでTikTokの認可画面が開き、許可すると
 `http://127.0.0.1:3455/callback/` へ戻ってきて「認証に成功しました」と表示されます。
 ポート3455が他のアプリで使用中の場合はエラーになるので、そのアプリを終了してください。
+
+### 投稿方式のフォールバック
+
+`.env` の `TIKTOK_MODE` で挙動を選べます。規約に反する方法（ブラウザ自動操作・
+非公式API・Cookie利用）は実装していません。
+
+| 値 | 挙動 |
+| --- | --- |
+| `direct_post`（既定） | Direct Postを試し、審査等で使えない場合は自動で下書き転送へ切り替え |
+| `upload` | 最初からTikTokアプリの下書き（インボックス）へ転送。公開は手動 |
+| `queue_only` | 送信せずQueueに保持。あとで手動投稿 |
 
 ### 審査について
 

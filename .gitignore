@@ -19,3 +19,8 @@ autopost.db-journal
 .tokens/
 .autopost_cache/
 autopost.log
+
+# 実験データベース
+experiments.db
+experiments.db-wal
+experiments.db-shm

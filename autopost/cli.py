@@ -19,9 +19,11 @@ from pathlib import Path
 
 from .config import Settings
 from .db import Queue, STATUS_POSTED
+from .engine import ExperimentEngine, create_experiment
+from .experiments import ExperimentStore, PUBLISHED
 from .hosting import get_host
-from .loader import LoaderError, load_posts
-from .models import PLATFORMS
+from .loader import LoaderError, load_post, load_posts
+from .models import ALL_PLATFORMS, PLATFORMS
 from .oauth.store import TokenStore
 from .scheduler import LOCK_NAME, Runner, SingleInstance, bulk_schedule
 from .validate import ERROR, summarize, validate_post
@@ -40,10 +42,63 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("status", help="接続状況・設定・キューの概況を表示")
 
     connect = sub.add_parser("connect", help="OAuth認証（ブラウザが開きます）")
-    connect.add_argument("platform", choices=PLATFORMS)
+    connect.add_argument("platform", choices=ALL_PLATFORMS)
+    connect.add_argument(
+        "--manual",
+        action="store_true",
+        help="ローカルサーバを使わず、リダイレクト先URLを貼り付けて認証する（Pinterest向け）",
+    )
 
     disconnect = sub.add_parser("disconnect", help="保存済みトークンを削除")
-    disconnect.add_argument("platform", choices=PLATFORMS)
+    disconnect.add_argument("platform", choices=ALL_PLATFORMS)
+
+    pinterest = sub.add_parser("pinterest", help="Pinterestの補助コマンド")
+    pin_sub = pinterest.add_subparsers(dest="pinterest_command", required=True)
+    pin_sub.add_parser("boards", help="ボード一覧（PINTEREST_BOARD_ID の確認用）")
+    test_pin = pin_sub.add_parser("test-pin", help="公開済み画像1枚でPinを作成して疎通確認する")
+    test_pin.add_argument("--image-url", required=True, help="公開HTTPS URLの画像")
+    test_pin.add_argument("--title", default="テスト投稿", help="Pinのタイトル（100文字まで）")
+    test_pin.add_argument("--text", default="", help="Pinの説明（800文字まで）")
+    test_pin.add_argument("--link", default="", help="Pinのリンク先")
+    test_pin.add_argument("--board-id", default="", help="ボードID（未指定なら .env の値）")
+    test_pin.add_argument("--category", default="test", help="実験カテゴリ")
+    test_pin.add_argument("--hypothesis", default="疎通確認", help="検証したい仮説")
+
+    experiment = sub.add_parser("experiment", help="コンテンツ実験の管理")
+    exp_sub = experiment.add_subparsers(dest="experiment_command", required=True)
+
+    exp_new = exp_sub.add_parser("new", help="実験を登録する")
+    exp_new.add_argument("--hypothesis", default="", help="検証したい仮説")
+    exp_new.add_argument("--category", default="", help="カテゴリ（例: 恋愛/共感）")
+    exp_new.add_argument("--hook", default="", help="Hook（1行目・つかみ）")
+    exp_new.add_argument("--text", default="", help="本文")
+    exp_new.add_argument("--image-url", default="", help="公開済み画像のURL")
+    exp_new.add_argument("--image-prompt", default="", help="画像生成に使った指示")
+    exp_new.add_argument("--link", default="", help="リンク先URL")
+    exp_new.add_argument("--tags", default="", help="カンマ区切りのタグ")
+    exp_new.add_argument("--from-post", default="", help="既存の投稿フォルダから文言を取り込む")
+    exp_new.add_argument("--board-id", default="", help="Pinterestのボードを個別指定する")
+    exp_new.add_argument("--platforms", default="pinterest", help="配信先（カンマ区切り）")
+
+    exp_list = exp_sub.add_parser("list", help="実験一覧")
+    exp_list.add_argument("--limit", type=int, default=20)
+
+    exp_show = exp_sub.add_parser("show", help="実験の詳細とログ")
+    exp_show.add_argument("experiment_id")
+
+    exp_run = exp_sub.add_parser("run", help="公開待ちの実験を配信する")
+    exp_run.add_argument("--platform", choices=ALL_PLATFORMS)
+    exp_run.add_argument("--limit", type=int, default=0, help="処理する件数（0で全件）")
+
+    exp_retry = exp_sub.add_parser("retry", help="失敗した配信を再試行できる状態に戻す")
+    exp_retry.add_argument("--experiment")
+    exp_retry.add_argument("--platform", choices=ALL_PLATFORMS)
+
+    exp_collect = exp_sub.add_parser("collect", help="反応データを取得して保存する")
+    exp_collect.add_argument("--experiment")
+    exp_collect.add_argument("--platform", choices=ALL_PLATFORMS)
+    exp_collect.add_argument("--start-date", default="", help="YYYY-MM-DD")
+    exp_collect.add_argument("--end-date", default="", help="YYYY-MM-DD")
 
     validate = sub.add_parser("validate", help="投稿前の機械的検証")
     validate.add_argument("--folder", default=DEFAULT_FOLDER, help="投稿フォルダ（既定: output）")
@@ -97,6 +152,8 @@ def main(argv: list[str] | None = None) -> int:
         "watch": cmd_watch,
         "retry": cmd_retry,
         "logs": cmd_logs,
+        "pinterest": cmd_pinterest,
+        "experiment": cmd_experiment,
     }
     return handlers[args.command](args, settings, queue)
 
@@ -105,7 +162,7 @@ def main(argv: list[str] | None = None) -> int:
 def cmd_status(args, settings: Settings, queue: Queue) -> int:
     store = TokenStore(settings.token_dir)
     print("=== 接続状況 ===")
-    for platform in PLATFORMS:
+    for platform in ALL_PLATFORMS:
         missing = settings.missing(platform)
         state = store.status(platform)
         if missing:
@@ -117,14 +174,27 @@ def cmd_status(args, settings: Settings, queue: Queue) -> int:
 
     print(f"\n=== 投稿設定 ===")
     print(f"  タイムゾーン       : {settings.timezone}")
+    print(f"  TikTok投稿方式     : {settings.tiktok_mode}"
+          "（direct_post → upload → queue_only の順にフォールバック）")
     print(f"  TikTok公開範囲     : {settings.tiktok_privacy_level}")
+    board = settings.pinterest_board_id or "未設定（pinterest boards で確認）"
+    print(f"  Pinterestボード    : {board}"
+          + ("  ※サンドボックス" if settings.pinterest_sandbox else ""))
     print(f"  TikTok音楽自動付与 : {settings.tiktok_auto_add_music}")
     print(f"  Instagram音楽      : APIでは設定不可（not_supported）")
     print(f"  期限切れ時の挙動   : {settings.catchup_policy}（猶予{settings.catchup_grace_minutes}分）")
     print(f"  投稿後のフォルダ移動: {'あり' if settings.move_after_publish else 'なし（SQLiteのみ更新）'}")
 
+    experiments = ExperimentStore(settings.experiments_db_path)
+    exp_counts = experiments.status_counts()
+    print("\n=== 実験キュー ===")
+    if not exp_counts:
+        print("  （実験なし）")
+    for status, count in sorted(exp_counts.items()):
+        print(f"  {status:<18} {count}件")
+
     counts = queue.counts()
-    print("\n=== キュー ===")
+    print("\n=== 投稿フォルダのキュー ===")
     if not counts:
         print("  （予約なし）")
     for status, count in sorted(counts.items()):
@@ -139,6 +209,10 @@ def cmd_connect(args, settings: Settings, queue: Queue) -> int:
             from .oauth import tiktok_oauth
 
             token = tiktok_oauth.connect(settings, store)
+        elif args.platform == "pinterest":
+            from .oauth import pinterest_oauth
+
+            token = pinterest_oauth.connect(settings, store, manual=args.manual)
         else:
             from .oauth import meta_oauth
 
@@ -291,3 +365,189 @@ def _parse_platforms(raw: str) -> tuple[str, ...]:
     if invalid:
         raise SystemExit(f"[エラー] 不明なプラットフォーム: {', '.join(invalid)}")
     return values or PLATFORMS
+
+
+# ----------------------------------------------------------------------
+# Pinterest
+# ----------------------------------------------------------------------
+def cmd_pinterest(args, settings: Settings, queue: Queue) -> int:
+    from .publishers import PublishError, get_publisher
+
+    store = TokenStore(settings.token_dir)
+    try:
+        publisher = get_publisher("pinterest", settings, store)
+    except Exception as exc:
+        print(f"[エラー] {exc}", file=sys.stderr)
+        return 1
+
+    if args.pinterest_command == "boards":
+        try:
+            boards = publisher.list_boards()
+        except PublishError as exc:
+            print(f"[エラー] ボードを取得できません: {exc}", file=sys.stderr)
+            return 1
+        if not boards:
+            print("ボードがありません。Pinterestでボードを1つ作成してください")
+            return 1
+        print("ボード一覧（PINTEREST_BOARD_ID に設定する値）:")
+        for board in boards:
+            print(f"  {board['id']:<20} {board['name']}  [{board['privacy']}]")
+        return 0
+
+    # test-pin: 公開済み画像1枚で実験を作り、そのまま配信する
+    experiments = ExperimentStore(settings.experiments_db_path)
+    extra = {"board_id": args.board_id} if args.board_id else {}
+    experiment = create_experiment(
+        experiments,
+        ["pinterest"],
+        hypothesis=args.hypothesis,
+        content_category=args.category,
+        hook=args.title,
+        text=args.text,
+        image_url=args.image_url,
+        link=args.link,
+        extra=extra,
+    )
+    print(f"実験を登録しました: {experiment.experiment_id}")
+
+    engine = ExperimentEngine(settings, experiments, log=print)
+    publication = experiments.publication(experiment.experiment_id, "pinterest")
+    ok = engine.publish(publication)
+    _print_experiment(experiments, experiment.experiment_id)
+    return 0 if ok else 1
+
+
+# ----------------------------------------------------------------------
+# 実験
+# ----------------------------------------------------------------------
+def cmd_experiment(args, settings: Settings, queue: Queue) -> int:
+    experiments = ExperimentStore(settings.experiments_db_path)
+    command = args.experiment_command
+
+    if command == "new":
+        return _experiment_new(args, settings, experiments)
+
+    if command == "list":
+        rows = experiments.list_experiments(args.limit)
+        if not rows:
+            print("実験はまだありません")
+            return 0
+        for experiment in rows:
+            publications = experiments.publications(experiment.experiment_id)
+            states = " ".join(f"{p.platform}:{p.status}" for p in publications)
+            print(f"{experiment.experiment_id}  {experiment.content_category or '-':<12} {states}")
+            print(f"    Hook: {experiment.hook or '（未設定）'}")
+        print(f"\n{len(rows)}件")
+        return 0
+
+    if command == "show":
+        return _print_experiment(experiments, args.experiment_id)
+
+    if command == "run":
+        engine = ExperimentEngine(settings, experiments, log=print)
+        report = engine.run_pending(args.platform, args.limit or None)
+        print(report.summary())
+        for label in report.manual:
+            print(f"  手動対応: {label}")
+        return 0 if not report.failed else 1
+
+    if command == "retry":
+        count = experiments.reset_failed(args.experiment, args.platform)
+        print(f"{count} 件を再試行できる状態に戻しました")
+        return 0
+
+    if command == "collect":
+        engine = ExperimentEngine(settings, experiments, log=print)
+        collected = engine.collect_analytics(
+            args.experiment, args.platform, args.start_date, args.end_date
+        )
+        print(f"{len(collected)} 件の反応データを保存しました")
+        return 0
+
+    print(f"[エラー] 不明なサブコマンド: {command}", file=sys.stderr)
+    return 1
+
+
+def _experiment_new(args, settings: Settings, experiments: ExperimentStore) -> int:
+    platforms = [p.strip() for p in args.platforms.split(",") if p.strip()]
+    unknown = [p for p in platforms if p not in ALL_PLATFORMS]
+    if unknown:
+        print(f"[エラー] 不明な配信先: {', '.join(unknown)}", file=sys.stderr)
+        return 1
+
+    hook, text, tags = args.hook, args.text, _split_tags(args.tags)
+    source_post_id = source_folder = ""
+
+    if args.from_post:
+        try:
+            bundle = load_post(Path(args.from_post))
+        except LoaderError as exc:
+            print(f"[エラー] {exc}", file=sys.stderr)
+            return 1
+        source_post_id, source_folder = bundle.post_id, str(bundle.folder)
+        hook = hook or bundle.title
+        text = text or bundle.caption
+        tags = tags or bundle.hashtags
+
+    extra = {"board_id": args.board_id} if args.board_id else {}
+    experiment = create_experiment(
+        experiments,
+        platforms,
+        hypothesis=args.hypothesis,
+        content_category=args.category,
+        hook=hook,
+        text=text,
+        image_prompt=args.image_prompt,
+        image_url=args.image_url,
+        link=args.link,
+        source_post_id=source_post_id,
+        source_folder=source_folder,
+        tags=tags,
+        extra=extra,
+    )
+    print(f"{experiment.experiment_id} を登録しました（配信先: {', '.join(platforms)}）")
+    if not args.image_url:
+        print("  画像URLが未設定のため status=generated です。"
+              "`experiment new --image-url ...` で指定するか、公開後に再登録してください")
+    return 0
+
+
+def _print_experiment(experiments: ExperimentStore, experiment_id: str) -> int:
+    experiment = experiments.get(experiment_id)
+    if experiment is None:
+        print(f"[エラー] 実験が見つかりません: {experiment_id}", file=sys.stderr)
+        return 1
+
+    print(f"=== {experiment.experiment_id} ===")
+    print(f"  仮説        : {experiment.hypothesis or '-'}")
+    print(f"  カテゴリ    : {experiment.content_category or '-'}")
+    print(f"  Hook        : {experiment.hook or '-'}")
+    print(f"  本文        : {(experiment.text or '-')[:120]}")
+    print(f"  画像URL     : {experiment.image_url or '-'}")
+    print(f"  リンク      : {experiment.link or '-'}")
+    print(f"  作成        : {experiment.created_at}")
+
+    print("\n  --- 配信状況 ---")
+    for publication in experiments.publications(experiment_id):
+        print(f"  {publication.platform:<10} {publication.status:<16}"
+              f" 試行{publication.retry_count}回")
+        if publication.external_post_id:
+            print(f"      ID: {publication.external_post_id}  {publication.external_url or ''}")
+        if publication.error_message:
+            print(f"      理由: {publication.error_message[:160]}")
+
+    metrics = experiments.latest_metrics(experiment_id)
+    if metrics:
+        print("\n  --- 反応データ ---")
+        for item in metrics[:5]:
+            print(f"  {item.collected_at[:16]}  {item.platform}: {item.summary()}")
+
+    print("\n  --- ログ ---")
+    for event in experiments.events(experiment_id):
+        target = f"/{event['platform']}" if event["platform"] else ""
+        print(f"  {event['created_at'][11:19]}  [{experiment_id}{target}] {event['message']}")
+    return 0
+
+
+def _split_tags(raw: str) -> list[str]:
+    return [t.strip() for t in (raw or "").split(",") if t.strip()]

@@ -54,7 +54,8 @@ def get_host(settings: Settings) -> ImageHost:
         from .r2 import R2Host
 
         return R2Host(settings)
-    if kind == "local":
+    if kind in ("local", "pages"):
+        # pages = Cloudflare Pages のローカルディレクトリへ置き、デプロイ後に公開URLで配信する
         from .local import LocalDirHost
 
         return LocalDirHost(settings)

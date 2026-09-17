@@ -86,30 +86,124 @@ class TikTokPublisher(Publisher):
         content: PlatformContent,
         log: Callable[[str], None] = lambda message: None,
     ) -> PublishResult:
+        """フォルダ単位（カルーセル）の投稿。"""
+        return self._publish_photos(
+            post_id=bundle.post_id,
+            image_urls=image_urls,
+            title=content.title,
+            description=content.text,
+            auto_music=bundle.music_mode == "auto",
+            log=log,
+        )
+
+    def publish_content(
+        self,
+        experiment,
+        image_url: str,
+        log: Callable[[str], None] = lambda message: None,
+    ) -> PublishResult:
+        """実験単位（画像1枚）の投稿。"""
+        title = (experiment.hook or experiment.text or "")[:90]
+        description = experiment.text or ""
+        return self._publish_photos(
+            post_id=experiment.experiment_id,
+            image_urls=[image_url],
+            title=title,
+            description=description,
+            auto_music=True,
+            log=log,
+        )
+
+    # ------------------------------------------------------------------
+    # 投稿方式のフォールバック
+    #   1. DIRECT_POST（審査済みで利用可能な場合）
+    #   2. MEDIA_UPLOAD（TikTokアプリの下書き＝インボックスへ転送）
+    #   3. どちらも使えなければ ManualRequired（Queueに残して手動公開）
+    # ------------------------------------------------------------------
+    def _publish_photos(
+        self,
+        post_id: str,
+        image_urls: list[str],
+        title: str,
+        description: str,
+        auto_music: bool,
+        log: Callable[[str], None] = lambda message: None,
+    ) -> PublishResult:
         if not image_urls:
             raise PermanentError("画像URLがありません")
+
+        mode = self.settings.tiktok_mode
+        if mode == "queue_only":
+            raise ManualRequired(
+                "TIKTOK_MODE=queue_only のため送信しません。"
+                "コンテンツはQueueに残してあるので、手動で投稿してください"
+            )
+
         self.preflight()
-        token = self._token
+        attempts = ["DIRECT_POST", "MEDIA_UPLOAD"] if mode == "direct_post" else ["MEDIA_UPLOAD"]
+        last_error: Exception | None = None
+
+        for post_mode in attempts:
+            try:
+                return self._send(post_id, image_urls, title, description, auto_music, post_mode, log)
+            except ManualRequired as exc:
+                # Direct Postが審査等で使えない → 下書き転送へ切り替える
+                last_error = exc
+                if post_mode == "DIRECT_POST" and "MEDIA_UPLOAD" in attempts:
+                    log(f"Direct Postを利用できません（{exc}）。下書き転送に切り替えます")
+                    continue
+                raise
+            except PermanentError as exc:
+                last_error = exc
+                if post_mode == "DIRECT_POST" and "MEDIA_UPLOAD" in attempts:
+                    log(f"Direct Postが失敗しました（{exc}）。下書き転送に切り替えます")
+                    continue
+                raise
+
+        raise ManualRequired(
+            "TikTokへ自動投稿できませんでした。コンテンツはQueueに残っています"
+            + (f"（最後のエラー: {last_error}）" if last_error else "")
+        )
+
+    def _send(
+        self,
+        post_id: str,
+        image_urls: list[str],
+        title: str,
+        description: str,
+        auto_music: bool,
+        post_mode: str,
+        log: Callable[[str], None],
+    ) -> PublishResult:
         headers = {
-            "Authorization": f"Bearer {token.access_token}",
+            "Authorization": f"Bearer {self._token.access_token}",
             "Content-Type": "application/json; charset=UTF-8",
         }
+        notes: list[str] = []
+        post_info: dict = {"title": title, "description": description}
 
-        log("creator_info を取得しています")
-        creator = self._creator_info(headers)
-        privacy = self._resolve_privacy(creator)
+        if post_mode == "DIRECT_POST":
+            log("creator_info を取得しています")
+            creator = self._creator_info(headers)
+            privacy = self._resolve_privacy(creator)
+            post_info.update(
+                {
+                    "privacy_level": privacy,
+                    "disable_comment": bool(creator.get("comment_disabled", False)),
+                    "auto_add_music": bool(self.settings.tiktok_auto_add_music and auto_music),
+                    "brand_content_toggle": False,
+                    "brand_organic_toggle": False,
+                }
+            )
+            if privacy != self.settings.tiktok_privacy_level:
+                notes.append(
+                    f"公開範囲を {privacy} に調整しました（希望: {self.settings.tiktok_privacy_level}）"
+                )
+            if post_info["auto_add_music"]:
+                notes.append("auto_add_music=true で投稿しました")
+        else:
+            notes.append("TikTokアプリの下書き（インボックス）へ転送しました。公開は手動です")
 
-        post_info = {
-            "title": content.title,
-            "description": content.text,
-            "privacy_level": privacy,
-            "disable_comment": bool(creator.get("comment_disabled", False)),
-            "auto_add_music": bool(
-                self.settings.tiktok_auto_add_music and bundle.music_mode == "auto"
-            ),
-            "brand_content_toggle": False,
-            "brand_organic_toggle": False,
-        }
         payload = {
             "post_info": post_info,
             "source_info": {
@@ -117,11 +211,11 @@ class TikTokPublisher(Publisher):
                 "photo_cover_index": 0,
                 "photo_images": image_urls,
             },
-            "post_mode": "DIRECT_POST",
+            "post_mode": post_mode,
             "media_type": "PHOTO",
         }
 
-        log(f"投稿を初期化しています（画像{len(image_urls)}枚 / 公開範囲 {privacy}）")
+        log(f"投稿を初期化しています（{post_mode} / 画像{len(image_urls)}枚）")
         self.pacer.wait()
         data = request_json("POST", INIT_URL, headers=headers, json=payload)
         self._raise_for_error(data)
@@ -132,22 +226,29 @@ class TikTokPublisher(Publisher):
         log(f"アップロード中（publish_id: {publish_id[:12]}…）")
         status, detail = self._wait_for_publish(headers, publish_id, log)
 
-        notes = []
-        if privacy != self.settings.tiktok_privacy_level:
-            notes.append(
-                f"公開範囲を {privacy} に調整しました"
-                f"（希望: {self.settings.tiktok_privacy_level}）"
-            )
-        if post_info["auto_add_music"]:
-            notes.append("auto_add_music=true で投稿しました")
         return PublishResult(
             platform=self.name,
-            post_id=bundle.post_id,
+            post_id=post_id,
             platform_post_id=detail.get("post_id", "") or publish_id,
             publish_id=publish_id,
             detail=status,
             notes=notes,
+            extra={"post_mode": post_mode},
         )
+
+    def get_post_status(self, external_post_id: str) -> str:
+        """publish_id から投稿状態を取得する（TikTokは publish_id で追跡する）。"""
+        self.preflight()
+        headers = {
+            "Authorization": f"Bearer {self._token.access_token}",
+            "Content-Type": "application/json; charset=UTF-8",
+        }
+        self.pacer.wait()
+        data = request_json(
+            "POST", STATUS_URL, headers=headers, json={"publish_id": external_post_id}
+        )
+        self._raise_for_error(data)
+        return (data.get("data") or {}).get("status", "unknown")
 
     # ------------------------------------------------------------------
     def _creator_info(self, headers: dict) -> dict:

@@ -319,7 +319,7 @@ python generate.py --validate
 │  └─ cta.json             CTA文言（ここだけ直せば全投稿に反映）
 ├─ autopost.py             自動投稿CLI
 ├─ autopost_gui.py         自動投稿GUI
-├─ autopost/               自動投稿システム（詳細は9章）
+├─ autopost/               自動投稿・実験システム（詳細は9〜10章）
 ├─ SETUP_AUTOPOST.md       APIキー取得と初期設定の手順
 ├─ .env.example            自動投稿の設定サンプル
 ├─ sample_output/          サンプル出力（2投稿分）
@@ -411,3 +411,81 @@ autopost/
 ├─ cli.py / gui.py  操作画面
 ```
 
+---
+
+## 10. コンテンツ実験エンジン
+
+このシステムの目的は「SNSへ自動投稿すること」ではなく、
+**どんなコンテンツが人に刺さるかをAIが実験して学ぶこと**です。
+投稿は実験装置の一部で、記録の単位は投稿ではなく **実験（experiment）** です。
+
+```
+テーマ探索 → 仮説 → コンテンツ生成 → 画像生成 → 公開 → 反応取得 → 分析 → 次の仮説
+                                        ↑                            │
+                                        └────────────────────────────┘
+```
+
+### 実験ID
+
+生成したコンテンツには `EXP-20260917-0001` 形式のIDが付き、
+仮説・Hook・本文・画像・配信状況・反応データがすべてこのIDで紐づきます。
+
+```bash
+python autopost.py experiment new \
+  --hypothesis "恋人の少しキモい行動に愛着を感じる話は共感される" \
+  --category "恋愛/共感" \
+  --hook "彼氏の笑い方キモすぎるのに" \
+  --text "最近これ聞かないと逆に落ち着かない" \
+  --image-url https://honeshinri-media.pages.dev/test/01.jpg \
+  --platforms pinterest
+
+python autopost.py experiment run          # 公開待ちを配信
+python autopost.py experiment show EXP-20260917-0001
+python autopost.py experiment collect      # 反応データを取得
+python autopost.py experiment retry        # 失敗分を再試行対象に戻す
+```
+
+### 保存されるもの（experiments.db）
+
+| テーブル | 内容 |
+| --- | --- |
+| `experiments` | experiment_id / hypothesis / content_category / hook / text / image_prompt / image_url / link / tags |
+| `experiment_publications` | platform ごとの status / external_post_id / published_at / error_message / retry_count / last_attempt_at |
+| `experiment_metrics` | 共通指標（impressions, views, likes, comments, shares, saves, clicks, followers_gained）＋ platform_metrics(JSON) |
+| `experiment_events` | experiment_id 単位の追跡ログ |
+
+プラットフォームによって存在しない指標は `NULL` のままにし、
+固有指標（Pinterestの `SAVE_RATE` など）は `platform_metrics` に保持します。
+
+配信キューの状態は
+`generated → media_ready → ready_to_publish → publishing → published / failed / manual_required`。
+**失敗した実験も消しません**。原因・再試行回数・最終試行時刻を残して再実行できます。
+
+### Publisher Adapter
+
+投稿先はすべて共通インターフェースの背後にあり、差し替え・追加ができます。
+
+```
+Content Engine → Image Generator → Media Hosting → Publisher Adapter
+                                                    ├─ PinterestPublisher  （完全自動）
+                                                    ├─ TikTokPublisher     （Direct Post → 下書き → Queue）
+                                                    └─ InstagramPublisher  （カルーセル）
+```
+
+| メソッド | 役割 |
+| --- | --- |
+| `publish_content(experiment, image_url, log)` | 実験1件を配信する |
+| `publish(bundle, image_urls, content, log)` | 投稿フォルダ（カルーセル）を配信する |
+| `get_post_status(external_post_id)` | 配信済みコンテンツの状態 |
+| `get_analytics(external_post_id, start, end)` | 反応データを共通指標へ正規化 |
+
+新しいチャネル（YouTube / X / Threads）は `Publisher` を実装し、
+`publishers/__init__.py` の `get_publisher` に1行追加するだけで増やせます。
+
+### チャネル別の対応状況
+
+| チャネル | 投稿 | 状態取得 | 分析 | 備考 |
+| --- | --- | --- | --- | --- |
+| Pinterest | ○ 完全自動 | ○ | ○ | 画像1枚＋タイトル＋説明＋リンク |
+| TikTok | △ | ○ | － | Direct Post → 下書き転送 → Queue保持のフォールバック |
+| Instagram | ○ | ○ | － | 10枚カルーセル |

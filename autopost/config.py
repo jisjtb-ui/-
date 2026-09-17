@@ -10,11 +10,17 @@ from zoneinfo import ZoneInfo
 ROOT = Path(__file__).resolve().parent.parent
 ENV_PATH = ROOT / ".env"
 DEFAULT_DB_PATH = ROOT / "autopost.db"
+DEFAULT_EXPERIMENTS_DB = ROOT / "experiments.db"
 DEFAULT_CACHE_DIR = ROOT / ".autopost_cache"
 DEFAULT_TOKEN_DIR = ROOT / ".tokens"
 
 # TikTok Login Kit (Desktop) のリダイレクトURI。開発者ポータルにも同じ値を登録する
 TIKTOK_REDIRECT_URI_DEFAULT = "http://127.0.0.1:3455/callback/"
+# Pinterest のリダイレクトURI（登録値と完全一致させる）
+PINTEREST_REDIRECT_URI_DEFAULT = "http://localhost:8730/callback/"
+
+# TikTokの投稿方式。direct_post が使えない場合の段階的フォールバック
+TIKTOK_MODES = ("direct_post", "upload", "queue_only")
 
 TIKTOK_PRIVACY_LEVELS = (
     "PUBLIC_TO_EVERYONE",
@@ -74,6 +80,16 @@ class Settings:
     tiktok_privacy_level: str = "SELF_ONLY"
     tiktok_auto_add_music: bool = True
 
+    tiktok_mode: str = "direct_post"      # direct_post | upload | queue_only
+
+    # Pinterest
+    pinterest_app_id: str = ""
+    pinterest_app_secret: str = ""
+    pinterest_redirect_uri: str = PINTEREST_REDIRECT_URI_DEFAULT
+    pinterest_board_id: str = ""
+    pinterest_sandbox: bool = False
+    pinterest_default_link: str = ""
+
     # Meta / Instagram
     meta_app_id: str = ""
     meta_app_secret: str = ""
@@ -100,6 +116,7 @@ class Settings:
 
     # パス
     db_path: Path = field(default_factory=lambda: DEFAULT_DB_PATH)
+    experiments_db_path: Path = field(default_factory=lambda: DEFAULT_EXPERIMENTS_DB)
     cache_dir: Path = field(default_factory=lambda: DEFAULT_CACHE_DIR)
     token_dir: Path = field(default_factory=lambda: DEFAULT_TOKEN_DIR)
 
@@ -119,6 +136,17 @@ class Settings:
             tiktok_redirect_uri=_get("TIKTOK_REDIRECT_URI", TIKTOK_REDIRECT_URI_DEFAULT),
             tiktok_privacy_level=privacy,
             tiktok_auto_add_music=_get_bool("TIKTOK_AUTO_ADD_MUSIC", True),
+            tiktok_mode=(
+                _get("TIKTOK_MODE", "direct_post").lower()
+                if _get("TIKTOK_MODE", "direct_post").lower() in TIKTOK_MODES
+                else "direct_post"
+            ),
+            pinterest_app_id=_get("PINTEREST_APP_ID"),
+            pinterest_app_secret=_get("PINTEREST_APP_SECRET"),
+            pinterest_redirect_uri=_get("PINTEREST_REDIRECT_URI", PINTEREST_REDIRECT_URI_DEFAULT),
+            pinterest_board_id=_get("PINTEREST_BOARD_ID"),
+            pinterest_sandbox=_get_bool("PINTEREST_SANDBOX", False),
+            pinterest_default_link=_get("PINTEREST_DEFAULT_LINK"),
             meta_app_id=_get("META_APP_ID"),
             meta_app_secret=_get("META_APP_SECRET"),
             meta_redirect_uri=_get("META_REDIRECT_URI"),
@@ -153,6 +181,9 @@ class Settings:
     def has_tiktok_credentials(self) -> bool:
         return bool(self.tiktok_client_key and self.tiktok_client_secret and self.tiktok_redirect_uri)
 
+    def has_pinterest_credentials(self) -> bool:
+        return bool(self.pinterest_app_id and self.pinterest_app_secret)
+
     def has_meta_credentials(self) -> bool:
         return bool(self.meta_app_id and self.meta_app_secret and self.instagram_account_id)
 
@@ -169,6 +200,12 @@ class Settings:
                 "META_APP_ID": self.meta_app_id,
                 "META_APP_SECRET": self.meta_app_secret,
                 "INSTAGRAM_ACCOUNT_ID": self.instagram_account_id,
+            }
+        elif platform == "pinterest":
+            keys = {
+                "PINTEREST_APP_ID": self.pinterest_app_id,
+                "PINTEREST_APP_SECRET": self.pinterest_app_secret,
+                "PINTEREST_REDIRECT_URI": self.pinterest_redirect_uri,
             }
         elif platform == "hosting":
             if self.image_host == "r2":

@@ -12,6 +12,14 @@ from datetime import datetime
 from pathlib import Path
 
 PLATFORMS = ("tiktok", "instagram")
+# 実験エンジンで配信できるチャネル（Publisher Adapter を追加すればここに増える）
+ALL_PLATFORMS = ("pinterest", "tiktok", "instagram")
+
+# Pinterest の上限（API v5 / OpenAPI 5.28.0）
+PINTEREST_TITLE_LIMIT = 100
+PINTEREST_DESCRIPTION_LIMIT = 800
+PINTEREST_LINK_LIMIT = 2048
+PINTEREST_ALT_TEXT_LIMIT = 500
 
 # TikTok / Instagram の文字数上限（公式ドキュメント基準）
 TIKTOK_TITLE_LIMIT = 90        # UTF-16 runes
