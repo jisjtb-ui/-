@@ -198,6 +198,10 @@ def cmd_status(args, settings: Settings, queue: Queue) -> int:
         if missing:
             state = f"未設定（.env: {', '.join(missing)}）"
         print(f"  {platform:<10} {state}")
+        token = store.load(platform)
+        if token and token.account_id:
+            name = f" / {token.account_name}" if token.account_name else ""
+            print(f"             ID: {token.account_id}{name}")
 
     host = get_host(settings)
     print(f"\n=== 画像ホスティング ===\n  {host.describe()}")
@@ -255,6 +259,14 @@ def cmd_connect(args, settings: Settings, queue: Queue) -> int:
         print(f"[エラー] 認証に失敗しました: {exc}", file=sys.stderr)
         return 1
     print(f"{args.platform} に接続しました: {token.masked()}")
+    if token.account_name:
+        print(f"  アカウント : {token.account_name}")
+    if token.account_id:
+        label = {"threads": "THREADS_USER_ID", "instagram": "INSTAGRAM_ACCOUNT_ID"}.get(
+            args.platform, "アカウントID"
+        )
+        print(f"  {label} : {token.account_id}")
+        print("    ※ .env に書かなくても自動で使われます。固定したい場合だけ記入してください")
     return 0
 
 

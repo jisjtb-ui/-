@@ -112,6 +112,10 @@ THREADS_APP_SECRET=（App secret）
 THREADS_REDIRECT_URI=https://honeshinri-media.pages.dev/
 ```
 
+> `THREADS_USER_ID` は空のままで構いません。接続時に自動取得します。
+> 接続後は `python autopost.py status` で確認できます
+> （`@ユーザー名` ではなく `17841405793187218` のような数値です）。
+
 8. 接続する（HTTPSのリダイレクトURIなので手動モードを使います）
 
 ```bash
