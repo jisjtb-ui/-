@@ -62,7 +62,51 @@ LOCAL_HOST_BASE_URL=https://media.example.com/honne
 
 ---
 
-## B1. Threads（本命1・完全自動投稿）
+## B1. Threads / Instagram を一括でセットアップする（かんたん版）
+
+`.env` に認証情報を入れたら、あとはボタン1つで最後まで進められます。
+
+```
+6_SNSセットアップ.bat をダブルクリック
+```
+
+ウィザードが次を順に実行します（途中で止めても、再実行すれば続きから進みます）。
+
+```
+[1/6] .env の確認
+[2/6] Threads / Instagram へ接続（ブラウザで許可）
+[3/6] コンテンツと画像を生成（件数を指定）
+[4/6] 実験として登録 → Cloudflare Pages 用に書き出し
+[5/6] 予約の割り当て（開始日・時刻・1日の件数）
+[6/6] 毎日の自動配信を登録
+```
+
+| ボタン | 用途 |
+| --- | --- |
+| **6_SNSセットアップ.bat** | 上のウィザード（最初に1回） |
+| **7_SNS予約を実行.bat** | 予約時刻を過ぎた分を今すぐ配信 |
+| **8_SNS状況を確認.bat** | 待ち件数・次の予約・接続状況 |
+| **5_反応データを集める.bat** | 1h/6h/24h/72h の反応データを取得 |
+
+配信ペースは `.env` で調整できます（既定は安全側）。
+
+```
+THREADS_DAILY_LIMIT=10     # API上限は250
+INSTAGRAM_DAILY_LIMIT=5    # API上限は100
+```
+
+コマンドで操作する場合:
+
+```bash
+python autopost.py sns enqueue --folder output --base-url https://honeshinri-media.pages.dev
+python autopost.py sns schedule --start 2026-09-20 --times 09:00,21:00
+python autopost.py sns run        # 予約時刻を過ぎた分を配信
+python autopost.py sns queue      # 予約状況
+```
+
+---
+
+## B1-2. Threads（本命1・完全自動投稿）
 
 TikTokと違い、**APIから直接公開できて、反応データも取得できます**。
 実験ループの主軸になるチャネルです。

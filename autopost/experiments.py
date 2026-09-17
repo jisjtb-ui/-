@@ -70,6 +70,7 @@ CREATE TABLE IF NOT EXISTS experiment_publications (
     experiment_id     TEXT NOT NULL,
     platform          TEXT NOT NULL,
     status            TEXT NOT NULL,
+    scheduled_at      TEXT,
     external_post_id  TEXT,
     external_url      TEXT,
     published_at      TEXT,
@@ -153,6 +154,7 @@ class Publication:
     experiment_id: str
     platform: str
     status: str
+    scheduled_at: str | None = None
     external_post_id: str | None = None
     external_url: str | None = None
     published_at: str | None = None
@@ -219,6 +221,12 @@ class ExperimentStore:
         ):
             if name not in columns:
                 conn.execute(ddl)
+
+        pub_columns = {
+            row["name"] for row in conn.execute("PRAGMA table_info(experiment_publications)")
+        }
+        if "scheduled_at" not in pub_columns:
+            conn.execute("ALTER TABLE experiment_publications ADD COLUMN scheduled_at TEXT")
 
     @contextmanager
     def _connect(self):
@@ -324,6 +332,31 @@ class ExperimentStore:
                 (experiment_id, platform),
             ).fetchone()
         return Publication.from_row(row) if row else None
+
+    def set_schedule(self, publication_id: int, when: datetime) -> None:
+        """配信の予約時刻を設定する。"""
+        with self._connect() as conn:
+            conn.execute(
+                "UPDATE experiment_publications SET scheduled_at=?, updated_at=?"
+                " WHERE id=? AND status<>?",
+                (when.isoformat(timespec="seconds"), _now(), publication_id, PUBLISHED),
+            )
+
+    def due(self, platform: str | None = None, now: datetime | None = None) -> list[Publication]:
+        """予約時刻を過ぎた配信（時刻未設定のものも対象）。"""
+        now = now or datetime.now().astimezone()
+        placeholders = ",".join("?" * len(CLAIMABLE))
+        sql = (
+            f"SELECT * FROM experiment_publications WHERE status IN ({placeholders})"
+            " AND (scheduled_at IS NULL OR scheduled_at <= ?)"
+        )
+        params: list[object] = [*CLAIMABLE, now.isoformat(timespec="seconds")]
+        if platform:
+            sql += " AND platform=?"
+            params.append(platform)
+        sql += " ORDER BY COALESCE(scheduled_at, created_at), experiment_id"
+        with self._connect() as conn:
+            return [Publication.from_row(r) for r in conn.execute(sql, params)]
 
     def runnable(self, platform: str | None = None) -> list[Publication]:
         """公開待ちの配信（published は含めない＝二重投稿しない）。"""

@@ -317,10 +317,15 @@ python generate.py --validate
 │  ├─ captions.json        キャプションの断片
 │  ├─ headers.json         見出し文言のパターン
 │  └─ cta.json             CTA文言（ここだけ直せば全投稿に反映）
-├─ 1_セットアップ.bat      ← Windows用のボタン（ダブルクリックで実行）
+├─ 1_セットアップ.bat      ← TikTok下書き用のボタン
 ├─ 2_下書きを送る.bat
 ├─ 3_毎日自動で送る.bat
 ├─ 4_状況を確認する.bat
+├─ 5_反応データを集める.bat
+├─ 6_SNSセットアップ.bat   ← Threads / Instagram はこれ1つで完了
+├─ 7_SNS予約を実行.bat
+├─ 8_SNS状況を確認.bat
+├─ tools/                  ボタンから呼ばれるPythonスクリプト
 ├─ scripts/                ボタンの中身
 ├─ autopost.py             自動投稿CLI
 ├─ autopost_gui.py         自動投稿GUI

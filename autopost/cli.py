@@ -88,6 +88,29 @@ def build_parser() -> argparse.ArgumentParser:
     )
     tk_export.add_argument("--dest", default="pages_media", help="書き出し先フォルダ")
 
+    sns = sub.add_parser("sns", help="Threads / Instagram の予約投稿")
+    sns_sub = sns.add_subparsers(dest="sns_command", required=True)
+
+    sns_enqueue = sns_sub.add_parser("enqueue", help="投稿フォルダを実験として登録する")
+    sns_enqueue.add_argument("--folder", default=DEFAULT_FOLDER)
+    sns_enqueue.add_argument("--count", type=int, default=0)
+    sns_enqueue.add_argument("--base-url", default="", help="公開済みURLの先頭")
+    sns_enqueue.add_argument("--platforms", default="threads,instagram")
+
+    sns_schedule = sns_sub.add_parser("schedule", help="予約時刻を割り当てる")
+    sns_schedule.add_argument("--start", default="", help="開始日 例: 2026-09-20（既定は今日）")
+    sns_schedule.add_argument("--times", default="21:00", help="投稿時刻をカンマ区切りで（例 09:00,21:00）")
+    sns_schedule.add_argument("--per-day", type=int, default=0, help="1日の件数（既定は時刻の数）")
+    sns_schedule.add_argument("--count", type=int, default=0)
+    sns_schedule.add_argument("--platforms", default="threads,instagram")
+
+    sns_run = sns_sub.add_parser("run", help="予約時刻を過ぎた分を配信する")
+    sns_run.add_argument("--platforms", default="threads,instagram")
+    sns_run.add_argument("--dry-run", action="store_true")
+
+    sns_queue = sns_sub.add_parser("queue", help="予約状況を表示する")
+    sns_queue.add_argument("--platforms", default="threads,instagram")
+
     experiment = sub.add_parser("experiment", help="コンテンツ実験の管理")
     exp_sub = experiment.add_subparsers(dest="experiment_command", required=True)
 
@@ -183,6 +206,7 @@ def main(argv: list[str] | None = None) -> int:
         "logs": cmd_logs,
         "pinterest": cmd_pinterest,
         "tiktok": cmd_tiktok,
+        "sns": cmd_sns,
         "experiment": cmd_experiment,
     }
     return handlers[args.command](args, settings, queue)
@@ -657,3 +681,78 @@ def cmd_tiktok(args, settings: Settings, queue: Queue) -> int:
     print(f"\n送信 {result['sent']}件 / 本日の残り枠 {result['remaining_today']}件"
           f" / キュー残り {result['queued']}件")
     return 0
+
+
+# ----------------------------------------------------------------------
+# Threads / Instagram（予約投稿）
+# ----------------------------------------------------------------------
+def cmd_sns(args, settings: Settings, queue: Queue) -> int:
+    from datetime import datetime, time as dtime
+    from .queueing import enqueue_folder, overview, publish_due, schedule_publications
+
+    experiments = ExperimentStore(settings.experiments_db_path)
+    platforms = _parse_sns_platforms(args.platforms)
+
+    if args.sns_command == "enqueue":
+        try:
+            report = enqueue_folder(
+                settings, experiments, Path(args.folder), platforms,
+                count=args.count, base_url=args.base_url, log=print,
+            )
+        except LoaderError as exc:
+            print(f"[エラー] {exc}", file=sys.stderr)
+            return 1
+        for line in report.created[:5]:
+            print(f"  {line}")
+        if len(report.created) > 5:
+            print(f"  … 他 {len(report.created) - 5} 件")
+        print(report.summary())
+        return 0 if not report.failed else 1
+
+    if args.sns_command == "schedule":
+        try:
+            start = (
+                datetime.strptime(args.start, "%Y-%m-%d")
+                if args.start else datetime.now()
+            )
+            times = []
+            for raw in args.times.split(","):
+                hour, _, minute = raw.strip().partition(":")
+                times.append(dtime(int(hour), int(minute or 0)))
+        except ValueError:
+            print("[エラー] --start は 2026-09-20、--times は 09:00,21:00 の形式です",
+                  file=sys.stderr)
+            return 1
+        result = schedule_publications(
+            settings, experiments, platforms, start, times,
+            per_day=args.per_day, count=args.count, log=print,
+        )
+        print(f"{result['assigned']} 件に予約時刻を割り当てました")
+        return 0
+
+    if args.sns_command == "run":
+        result = publish_due(settings, experiments, platforms, args.dry_run, log=print)
+        print()
+        for platform, info in result.items():
+            state = "未接続" if info.get("error") else f"配信 {info['sent']}件"
+            print(f"  {platform:<10} {state}")
+        return 0
+
+    # queue
+    for platform, info in overview(experiments, settings, platforms).items():
+        print(f"[{platform}]")
+        print(f"  配信待ち   : {info['queued']}件")
+        print(f"  配信済み   : {info['delivered']}件")
+        print(f"  本日の配信 : {info['today']}/{info['daily_limit']}件")
+        if info["next_at"]:
+            print(f"  次の予約   : {info['next_at'][:16].replace('T', ' ')}")
+        print(f"  完了見込み : 約{info['days_needed']}日")
+    return 0
+
+
+def _parse_sns_platforms(raw: str) -> list[str]:
+    values = [p.strip() for p in raw.split(",") if p.strip()]
+    invalid = [p for p in values if p not in ALL_PLATFORMS]
+    if invalid:
+        raise SystemExit(f"[エラー] 不明なプラットフォーム: {', '.join(invalid)}")
+    return values or ["threads", "instagram"]

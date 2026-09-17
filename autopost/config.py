@@ -95,6 +95,11 @@ class Settings:
     pinterest_sandbox: bool = False
     pinterest_default_link: str = ""
 
+    # 1日に配信する件数の上限（API上限より十分低い安全側の既定値）
+    #   Threads: API上限250投稿 / Instagram: API上限100投稿
+    threads_daily_limit: int = 10
+    instagram_daily_limit: int = 5
+
     # Threads
     threads_app_id: str = ""
     threads_app_secret: str = ""
@@ -155,6 +160,8 @@ class Settings:
                 else "direct_post"
             ),
             tiktok_daily_draft_limit=_get_int("TIKTOK_DAILY_DRAFT_LIMIT", 5),
+            threads_daily_limit=_get_int("THREADS_DAILY_LIMIT", 10),
+            instagram_daily_limit=_get_int("INSTAGRAM_DAILY_LIMIT", 5),
             threads_app_id=_get("THREADS_APP_ID"),
             threads_app_secret=_get("THREADS_APP_SECRET"),
             threads_redirect_uri=_get("THREADS_REDIRECT_URI"),
@@ -200,6 +207,14 @@ class Settings:
 
     def has_tiktok_credentials(self) -> bool:
         return bool(self.tiktok_client_key and self.tiktok_client_secret and self.tiktok_redirect_uri)
+
+    def daily_limit(self, platform: str) -> int:
+        """そのプラットフォームで1日に配信する上限。"""
+        return {
+            "threads": self.threads_daily_limit,
+            "instagram": self.instagram_daily_limit,
+            "tiktok": self.tiktok_daily_draft_limit,
+        }.get(platform, 0)
 
     def has_pinterest_credentials(self) -> bool:
         return bool(self.pinterest_app_id and self.pinterest_app_secret)
