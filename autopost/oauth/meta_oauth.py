@@ -73,11 +73,15 @@ def connect(settings: Settings, store: TokenStore) -> Token:
         )
     state = new_state()
     params = wait_for_code(settings.meta_redirect_uri, authorize_url(settings, state))
+    if params.get("error"):
+        raise MetaAuthError(
+            params.get("error_description") or f"認可されませんでした（{params['error']}）"
+        )
     if params.get("state") != state:
         raise MetaAuthError("stateが一致しません（認証をやり直してください）")
     code = params.get("code")
     if not code:
-        raise MetaAuthError(params.get("error_description") or "認可コードを取得できませんでした")
+        raise MetaAuthError("認可コードを取得できませんでした")
 
     if settings.meta_login_mode == "instagram":
         short = _ig_exchange_code(settings, code)

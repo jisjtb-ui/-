@@ -13,6 +13,9 @@ DEFAULT_DB_PATH = ROOT / "autopost.db"
 DEFAULT_CACHE_DIR = ROOT / ".autopost_cache"
 DEFAULT_TOKEN_DIR = ROOT / ".tokens"
 
+# TikTok Login Kit (Desktop) のリダイレクトURI。開発者ポータルにも同じ値を登録する
+TIKTOK_REDIRECT_URI_DEFAULT = "http://127.0.0.1:3455/callback/"
+
 TIKTOK_PRIVACY_LEVELS = (
     "PUBLIC_TO_EVERYONE",
     "MUTUAL_FOLLOW_FRIENDS",
@@ -67,7 +70,7 @@ class Settings:
     # TikTok
     tiktok_client_key: str = ""
     tiktok_client_secret: str = ""
-    tiktok_redirect_uri: str = ""
+    tiktok_redirect_uri: str = TIKTOK_REDIRECT_URI_DEFAULT
     tiktok_privacy_level: str = "SELF_ONLY"
     tiktok_auto_add_music: bool = True
 
@@ -113,7 +116,7 @@ class Settings:
         return cls(
             tiktok_client_key=_get("TIKTOK_CLIENT_KEY"),
             tiktok_client_secret=_get("TIKTOK_CLIENT_SECRET"),
-            tiktok_redirect_uri=_get("TIKTOK_REDIRECT_URI"),
+            tiktok_redirect_uri=_get("TIKTOK_REDIRECT_URI", TIKTOK_REDIRECT_URI_DEFAULT),
             tiktok_privacy_level=privacy,
             tiktok_auto_add_music=_get_bool("TIKTOK_AUTO_ADD_MUSIC", True),
             meta_app_id=_get("META_APP_ID"),

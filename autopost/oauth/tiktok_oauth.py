@@ -1,8 +1,18 @@
-"""TikTok OAuth（Login Kit v2）。
+"""TikTok OAuth（Login Kit for Desktop / OAuth 2.0 + PKCE）。
 
 公式ドキュメント:
   認可      https://www.tiktok.com/v2/auth/authorize/
   トークン  https://open.tiktokapis.com/v2/oauth/token/
+
+デスクトップアプリでは PKCE が必須:
+  - code_verifier は 43〜128文字の unreserved 文字列（毎回新規生成）
+  - code_challenge = SHA256(code_verifier) の **hexエンコード**（TikTok独自仕様）
+  - code_challenge_method は S256 固定
+  - トークン交換時に code_verifier を同送する
+
+リダイレクトURIは 127.0.0.1 のループバックに固定し、
+ローカルHTTPサーバでコールバックを受け取る。
+
 必要スコープ: user.info.basic（アカウント表示用）, video.publish（Direct Post）
 """
 
@@ -13,7 +23,8 @@ import urllib.parse
 import requests
 
 from ..config import Settings
-from .flow import new_state, wait_for_code
+from .flow import CallbackError, new_state, validate_redirect_uri, wait_for_code
+from .pkce import PkcePair, new_pair
 from .store import Token, TokenStore
 
 AUTHORIZE_URL = "https://www.tiktok.com/v2/auth/authorize/"
@@ -27,13 +38,16 @@ class TikTokAuthError(RuntimeError):
     pass
 
 
-def authorize_url(settings: Settings, state: str) -> str:
+def authorize_url(settings: Settings, state: str, pkce: PkcePair) -> str:
+    """認可URLを組み立てる（PKCEパラメータを含む）。"""
     params = {
         "client_key": settings.tiktok_client_key,
         "scope": ",".join(SCOPES),
         "response_type": "code",
         "redirect_uri": settings.tiktok_redirect_uri,
         "state": state,
+        "code_challenge": pkce.challenge,
+        "code_challenge_method": pkce.method,
     }
     return AUTHORIZE_URL + "?" + urllib.parse.urlencode(params)
 
@@ -44,20 +58,37 @@ def connect(settings: Settings, store: TokenStore) -> Token:
         raise TikTokAuthError(
             ".env の TIKTOK_CLIENT_KEY / TIKTOK_CLIENT_SECRET / TIKTOK_REDIRECT_URI を設定してください"
         )
+    try:
+        validate_redirect_uri(settings.tiktok_redirect_uri)
+    except CallbackError as exc:
+        raise TikTokAuthError(str(exc)) from exc
+
     state = new_state()
-    params = wait_for_code(settings.tiktok_redirect_uri, authorize_url(settings, state))
+    pkce = new_pair()                      # 認可のたびに新しい verifier を作る
+    try:
+        params = wait_for_code(
+            settings.tiktok_redirect_uri, authorize_url(settings, state, pkce)
+        )
+    except CallbackError as exc:
+        raise TikTokAuthError(str(exc)) from exc
+
+    if params.get("error"):
+        raise TikTokAuthError(
+            params.get("error_description") or f"認可されませんでした（{params['error']}）"
+        )
     if params.get("state") != state:
         raise TikTokAuthError("stateが一致しません（認証をやり直してください）")
     code = params.get("code")
     if not code:
-        raise TikTokAuthError(params.get("error_description") or "認可コードを取得できませんでした")
-
+        raise TikTokAuthError("認可コードを取得できませんでした")
+    # TikTokの code は URLデコード済みの値を送る必要がある（parse_qs で復号済み）
     payload = {
         "client_key": settings.tiktok_client_key,
         "client_secret": settings.tiktok_client_secret,
         "code": code,
         "grant_type": "authorization_code",
         "redirect_uri": settings.tiktok_redirect_uri,
+        "code_verifier": pkce.verifier,    # PKCE: デスクトップでは必須
     }
     data = _post_token(payload)
     token = Token(

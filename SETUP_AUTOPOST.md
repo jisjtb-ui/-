@@ -64,12 +64,16 @@ LOCAL_HOST_BASE_URL=https://media.example.com/honne
 
 1. https://developers.tiktok.com/ でアカウント作成 → **Manage apps** → アプリ作成
 2. アプリに **Login Kit** と **Content Posting API** を追加
+   - Login Kit のプラットフォームは **Desktop** を選択
 3. Content Posting API の設定で **Direct Post** を有効化
 4. スコープ `user.info.basic` と `video.publish` を申請・有効化
-5. **Redirect URI** に次を登録（このツールがローカルで認証を受け取ります）
+5. **Redirect URI** に次を**そのまま**登録（末尾のスラッシュまで一致させること）
    ```
-   http://127.0.0.1:8720/callback/tiktok
+   http://127.0.0.1:3455/callback/
    ```
+   このツールはローカルHTTPサーバ（127.0.0.1:3455）を一時的に起動し、
+   **OAuth 2.0 + PKCE（S256）** で認可コードを受け取ってトークンへ交換します。
+   client_secret をブラウザへ渡さないため、デスクトップ環境でも安全です。
 6. **URLの所有権を検証**（重要）
    - 開発者ポータルの *URL properties* で、Aで用意したドメイン
      （例 `media.example.com`）またはURLプレフィックスを追加
@@ -80,7 +84,7 @@ LOCAL_HOST_BASE_URL=https://media.example.com/honne
 ```
 TIKTOK_CLIENT_KEY=
 TIKTOK_CLIENT_SECRET=
-TIKTOK_REDIRECT_URI=http://127.0.0.1:8720/callback/tiktok
+TIKTOK_REDIRECT_URI=http://127.0.0.1:3455/callback/
 ```
 
 8. 接続（ブラウザが開きます）
@@ -88,6 +92,10 @@ TIKTOK_REDIRECT_URI=http://127.0.0.1:8720/callback/tiktok
 ```bash
 python autopost.py connect tiktok
 ```
+
+ブラウザでTikTokの認可画面が開き、許可すると
+`http://127.0.0.1:3455/callback/` へ戻ってきて「認証に成功しました」と表示されます。
+ポート3455が他のアプリで使用中の場合はエラーになるので、そのアプリを終了してください。
 
 ### 審査について
 
