@@ -113,6 +113,16 @@ def build_parser() -> argparse.ArgumentParser:
     sns_run.add_argument("--platforms", default="threads,instagram")
     sns_run.add_argument("--dry-run", action="store_true")
 
+    sns_topup = sns_sub.add_parser(
+        "topup", help="配信待ちが減ったら新しいコンテンツを作って予約する"
+    )
+    sns_topup.add_argument("--min", type=int, default=0, help="この件数を下回ったら補充する")
+    sns_topup.add_argument("--count", type=int, default=0, help="1回に生成する件数")
+    sns_topup.add_argument("--base-url", default="", help="画像の公開URLの先頭")
+    sns_topup.add_argument("--times", default="21:00", help="予約時刻をカンマ区切りで")
+    sns_topup.add_argument("--platforms", default="threads,instagram")
+    sns_topup.add_argument("--force", action="store_true", help="下限に関係なく補充する")
+
     sns_queue = sns_sub.add_parser("queue", help="予約状況を表示する")
     sns_queue.add_argument("--platforms", default="threads,instagram")
 
@@ -734,6 +744,26 @@ def cmd_sns(args, settings: Settings, queue: Queue) -> int:
             reschedule=args.reschedule, log=print,
         )
         print(f"{result['assigned']} 件に予約時刻を割り当てました")
+        return 0
+
+    if args.sns_command == "topup":
+        from .queueing import topup
+
+        times = []
+        for raw in args.times.split(","):
+            hour, _, minute = raw.strip().partition(":")
+            try:
+                times.append(dtime(int(hour), int(minute or 0)))
+            except ValueError:
+                pass
+        result = topup(
+            settings, experiments, platforms,
+            minimum=args.min, generate_count=args.count,
+            base_url=args.base_url, times=times, force=args.force, log=print,
+        )
+        if result.get("error"):
+            return 1
+        print(f"\n補充 {result['generated']}件")
         return 0
 
     if args.sns_command == "run":

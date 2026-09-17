@@ -220,6 +220,15 @@ def main() -> int:
     step_task()
 
     print(f"\n{LINE}\n 完了\n{LINE}")
+    if settings.auto_topup:
+        print(f" 自動補充 : 配信待ちが{settings.auto_topup_min}件を下回ると、")
+        print(f"            自動で{settings.auto_topup_count}件を生成して予約まで行います。")
+        if not settings.pages_deploy_command:
+            print("            ※ 画像の公開は手動です。自動化するには .env の")
+            print("               PAGES_DEPLOY_COMMAND にデプロイコマンドを設定してください。")
+    else:
+        print(" 自動補充 : 無効（.env の AUTO_TOPUP=true で有効になります）")
+    print("")
     print(" 状況の確認 : 8_SNS状況を確認.bat")
     print(" 今すぐ配信 : 7_SNS予約を実行.bat")
     print(" 反応データ : 5_反応データを集める.bat")

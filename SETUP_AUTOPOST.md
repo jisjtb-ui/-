@@ -88,6 +88,29 @@ LOCAL_HOST_BASE_URL=https://media.example.com/honne
 | **8_SNS状況を確認.bat** | 待ち件数・次の予約・接続状況 |
 | **5_反応データを集める.bat** | 1h/6h/24h/72h の反応データを取得 |
 
+### 在庫が尽きたらどうなるか
+
+毎日の自動実行には**自動補充**が含まれています。配信待ちが減ると、
+新しいコンテンツを作って予約まで自動で行うため、実験ループは止まりません。
+
+```
+毎日のタスク:
+  1. sns topup    … 配信待ちが少なければ生成して予約
+  2. sns run      … 予約時刻を過ぎた分を配信
+  3. collect --due … 1h/6h/24h/72h の反応データを取得
+```
+
+```
+AUTO_TOPUP=true
+AUTO_TOPUP_MIN=10      # 待ちがこれを下回ったら補充
+AUTO_TOPUP_COUNT=30    # 1回に作る件数
+PAGES_DEPLOY_COMMAND=  # 設定すると画像の公開まで自動化
+```
+
+> `PAGES_DEPLOY_COMMAND` が空だと、補充で作った画像は未公開のままです。
+> 完全自動にするには次を設定してください。
+> `npx wrangler pages deploy pages_media --project-name honeshinri-media`
+
 配信ペースは `.env` で調整できます（既定は安全側）。
 
 ```

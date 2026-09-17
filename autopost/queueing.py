@@ -272,3 +272,86 @@ def overview(store: ExperimentStore, settings: Settings, platforms: list[str]) -
             "next_at": next_at,
         }
     return out
+
+
+# ----------------------------------------------------------------------
+# 自動補充（キューが減ったら作り足す）
+# ----------------------------------------------------------------------
+def topup(
+    settings: Settings,
+    store: ExperimentStore,
+    platforms: list[str],
+    minimum: int = 0,
+    generate_count: int = 0,
+    base_url: str = "",
+    times: list[dtime] | None = None,
+    force: bool = False,
+    log=print,
+) -> dict:
+    """配信待ちが少なくなったら、新しいコンテンツを作って予約まで行う。
+
+      生成 → 実験登録 → 画像書き出し → （設定があれば）公開 → 予約
+
+    これを毎日の自動実行に含めることで、実験ループが止まらなくなる。
+    """
+    import subprocess
+    import sys
+
+    minimum = minimum or settings.auto_topup_min
+    generate_count = generate_count or settings.auto_topup_count
+    base_url = base_url or settings.local_host_base_url or settings.r2_public_base_url
+
+    remaining = {
+        platform: len([
+            p for p in store.publications(platform=platform) if p.status == READY_TO_PUBLISH
+        ])
+        for platform in platforms
+    }
+    lowest = min(remaining.values()) if remaining else 0
+    log(f"  配信待ち: " + " / ".join(f"{k} {v}件" for k, v in remaining.items()))
+
+    if not force and lowest >= minimum:
+        log(f"  補充は不要です（下限 {minimum}件）")
+        return {"generated": 0, "remaining": remaining}
+
+    if not base_url:
+        log("  [中断] 画像の公開URLが未設定です（.env の LOCAL_HOST_BASE_URL など）")
+        return {"generated": 0, "error": "no_base_url"}
+
+    log(f"  待ちが {lowest}件 まで減ったため、{generate_count}件を生成します")
+    root = Path(__file__).resolve().parent.parent
+    result = subprocess.run(
+        [sys.executable, "generate.py", "--posts", str(generate_count)], cwd=root
+    )
+    if result.returncode != 0:
+        log("  [中断] コンテンツ生成に失敗しました")
+        return {"generated": 0, "error": "generate_failed"}
+
+    report = enqueue_folder(settings, store, root / "output", platforms,
+                            base_url=base_url, log=log)
+    log(f"  {report.summary()}")
+
+    # Cloudflare Pages へ配信する形で書き出す
+    subprocess.run(
+        [sys.executable, "autopost.py", "tiktok", "export-media", "--dest", "pages_media"],
+        cwd=root, capture_output=True,
+    )
+
+    if settings.pages_deploy_command:
+        log(f"  画像を公開しています: {settings.pages_deploy_command}")
+        deploy = subprocess.run(
+            settings.pages_deploy_command, cwd=root, shell=True, capture_output=True, text=True
+        )
+        if deploy.returncode != 0:
+            log("  [警告] 画像の公開に失敗しました。手動でデプロイしてください")
+            for line in (deploy.stdout + deploy.stderr).splitlines()[-3:]:
+                log("    " + line)
+    else:
+        log("  [注意] 画像は未公開です。次のコマンドで公開してください:")
+        log("    npx wrangler pages deploy pages_media --project-name honeshinri-media")
+        log("    （.env の PAGES_DEPLOY_COMMAND に設定すると自動化できます）")
+
+    schedule_publications(
+        settings, store, platforms, datetime.now(), times or [dtime(21, 0)], log=log
+    )
+    return {"generated": len(report.created), "remaining": remaining}

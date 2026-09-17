@@ -95,6 +95,13 @@ class Settings:
     pinterest_sandbox: bool = False
     pinterest_default_link: str = ""
 
+    # 自動補充: 待ちが min を下回ったら count 件を生成して予約まで行う
+    auto_topup: bool = True
+    auto_topup_min: int = 10
+    auto_topup_count: int = 30
+    # 画像を公開するコマンド（未設定なら手動デプロイが必要）
+    pages_deploy_command: str = ""
+
     # 1日に配信する件数の上限（API上限より十分低い安全側の既定値）
     #   Threads: API上限250投稿 / Instagram: API上限100投稿
     threads_daily_limit: int = 10
@@ -160,6 +167,10 @@ class Settings:
                 else "direct_post"
             ),
             tiktok_daily_draft_limit=_get_int("TIKTOK_DAILY_DRAFT_LIMIT", 5),
+            auto_topup=_get_bool("AUTO_TOPUP", True),
+            auto_topup_min=_get_int("AUTO_TOPUP_MIN", 10),
+            auto_topup_count=_get_int("AUTO_TOPUP_COUNT", 30),
+            pages_deploy_command=_get("PAGES_DEPLOY_COMMAND"),
             threads_daily_limit=_get_int("THREADS_DAILY_LIMIT", 10),
             instagram_daily_limit=_get_int("INSTAGRAM_DAILY_LIMIT", 5),
             threads_app_id=_get("THREADS_APP_ID"),
