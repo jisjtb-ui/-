@@ -13,7 +13,12 @@ from pathlib import Path
 
 PLATFORMS = ("tiktok", "instagram")
 # 実験エンジンで配信できるチャネル（Publisher Adapter を追加すればここに増える）
-ALL_PLATFORMS = ("pinterest", "tiktok", "instagram")
+ALL_PLATFORMS = ("threads", "instagram", "tiktok", "pinterest")
+
+# Threads の上限（Meta公式 Threads API）
+THREADS_TEXT_LIMIT = 500
+THREADS_MAX_CAROUSEL = 20
+THREADS_DAILY_POST_LIMIT = 250
 
 # Pinterest の上限（API v5 / OpenAPI 5.28.0）
 PINTEREST_TITLE_LIMIT = 100

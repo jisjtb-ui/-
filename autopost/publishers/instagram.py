@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import time
+from pathlib import Path
 from typing import Callable
 
 from ..config import Settings
@@ -24,6 +25,7 @@ from ..models import INSTAGRAM_MAX_CAROUSEL, PlatformContent, PostBundle
 from ..oauth import meta_oauth
 from ..oauth.store import TokenStore
 from .base import (
+    AnalyticsResult,
     Pacer,
     PermanentError,
     PublishResult,
@@ -31,6 +33,20 @@ from .base import (
     TransientError,
     request_json,
 )
+
+# 投稿のInsights。2024年7月以降に作成されたメディアでは impressions が views に置き換わったため、
+# まず新しい指標で取得し、エラーになったら古い指標へ自動でフォールバックする
+MEDIA_METRICS_PRIMARY = ("views", "reach", "likes", "comments", "shares", "saved", "total_interactions")
+MEDIA_METRICS_FALLBACK = ("impressions", "reach", "engagement", "saved")
+METRIC_MAP = {
+    "views": "views",
+    "impressions": "impressions",
+    "reach": "impressions",
+    "likes": "likes",
+    "comments": "comments",
+    "shares": "shares",
+    "saved": "saves",
+}
 
 PACE_SECONDS = 1.0
 STATUS_POLL_SECONDS = 5
@@ -130,6 +146,129 @@ class InstagramPublisher(Publisher):
         )
 
     # ------------------------------------------------------------------
+    # 実験単位の配信（画像1枚。extra["image_urls"] があればカルーセル）
+    # ------------------------------------------------------------------
+    def publish_content(
+        self,
+        experiment,
+        image_url: str,
+        log: Callable[[str], None] = lambda message: None,
+    ) -> PublishResult:
+        from ..models import PlatformContent, PostBundle
+
+        image_urls = (experiment.extra or {}).get("image_urls") or ([image_url] if image_url else [])
+        if not image_urls:
+            raise PermanentError("画像URLがありません")
+
+        caption = _compose_caption(experiment)
+        if len(image_urls) == 1:
+            return self._publish_single(experiment.experiment_id, image_urls[0], caption, log)
+
+        pseudo = PostBundle(post_id=experiment.experiment_id, folder=Path("."), images=[])
+        return self.publish(
+            pseudo, image_urls, PlatformContent(caption=caption, hashtags=[]), log
+        )
+
+    def _publish_single(
+        self, post_id: str, image_url: str, caption: str, log: Callable[[str], None]
+    ) -> PublishResult:
+        """画像1枚の通常投稿。"""
+        self.preflight()
+        token = self._token.access_token
+        base = meta_oauth.graph_base(self.settings)
+        ig_id = self.settings.instagram_account_id
+
+        log("画像コンテナを作成しています")
+        container_id = self._create_container(
+            base, ig_id, token, {"image_url": image_url, "caption": caption}
+        )
+        self._wait_ready(base, container_id, token, log, "画像")
+
+        log("公開しています")
+        self.pacer.wait()
+        data = request_json(
+            "POST",
+            f"{base}/{ig_id}/media_publish",
+            data={"creation_id": container_id, "access_token": token},
+        )
+        self._raise_for_error(data)
+        media_id = str(data.get("id", ""))
+        if not media_id:
+            raise PermanentError(f"公開結果を取得できませんでした: {str(data)[:200]}")
+        time.sleep(PUBLISH_SETTLE_SECONDS)
+        return PublishResult(
+            platform=self.name,
+            post_id=post_id,
+            platform_post_id=media_id,
+            publish_id=container_id,
+            detail="PUBLISHED",
+            external_url=self._permalink(base, media_id, token),
+        )
+
+    # ------------------------------------------------------------------
+    def get_post_status(self, external_post_id: str) -> str:
+        self.preflight()
+        base = meta_oauth.graph_base(self.settings)
+        self.pacer.wait()
+        data = request_json(
+            "GET",
+            f"{base}/{external_post_id}",
+            params={"fields": "id,timestamp", "access_token": self._token.access_token},
+        )
+        self._raise_for_error(data)
+        return "published" if data.get("id") else "unknown"
+
+    def get_analytics(
+        self, external_post_id: str, start_date: str = "", end_date: str = ""
+    ) -> AnalyticsResult:
+        """投稿のInsightsを共通指標へ正規化して返す。"""
+        self.preflight()
+        base = meta_oauth.graph_base(self.settings)
+        token = self._token.access_token
+
+        raw: dict[str, int] = {}
+        for metrics in (MEDIA_METRICS_PRIMARY, MEDIA_METRICS_FALLBACK):
+            try:
+                self.pacer.wait()
+                data = request_json(
+                    "GET",
+                    f"{base}/{external_post_id}/insights",
+                    params={"metric": ",".join(metrics), "access_token": token},
+                )
+                self._raise_for_error(data)
+            except PermanentError:
+                continue          # 指標名が古い/新しい場合はもう一方の組で試す
+            for item in data.get("data", []):
+                name = item.get("name", "")
+                values = item.get("values") or []
+                value = item.get("total_value", {}).get("value")
+                if value is None and values:
+                    value = values[0].get("value")
+                if isinstance(value, (int, float)):
+                    raw[name] = int(value)
+            if raw:
+                break
+
+        result = AnalyticsResult(
+            platform=self.name, external_post_id=external_post_id, platform_metrics=raw
+        )
+        for metric, attribute in METRIC_MAP.items():
+            if metric in raw and getattr(result, attribute) is None:
+                setattr(result, attribute, raw[metric])
+        return result
+
+    def _permalink(self, base: str, media_id: str, token: str) -> str:
+        try:
+            self.pacer.wait()
+            data = request_json(
+                "GET", f"{base}/{media_id}",
+                params={"fields": "permalink", "access_token": token},
+            )
+            return str(data.get("permalink", ""))
+        except Exception:
+            return ""
+
+    # ------------------------------------------------------------------
     def _create_container(self, base: str, ig_id: str, token: str, params: dict) -> str:
         self.pacer.wait()
         payload = dict(params)
@@ -183,3 +322,19 @@ class InstagramPublisher(Publisher):
         if code in (1, 2):                  # 一時的な内部エラー
             raise TransientError(f"一時的なエラー（code={code}）: {message}")
         raise PermanentError(f"Instagramエラー（code={code}）: {message}")
+
+
+def _compose_caption(experiment) -> str:
+    """Hook・本文・ハッシュタグをキャプションに組み立てる。"""
+    from ..models import INSTAGRAM_CAPTION_LIMIT
+
+    tags = getattr(experiment, "tags", None) or []
+    tag_line = " ".join(t if t.startswith("#") else f"#{t}" for t in tags)
+    body = (experiment.text or "").strip()
+    hook = (experiment.hook or "").strip()
+    if hook and not body.startswith(hook):
+        body = f"{hook}\n\n{body}".strip()
+    caption = "\n\n".join(part for part in (body, tag_line) if part)
+    if len(caption) > INSTAGRAM_CAPTION_LIMIT:
+        caption = caption[: INSTAGRAM_CAPTION_LIMIT - 1] + "…"
+    return caption

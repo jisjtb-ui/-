@@ -89,6 +89,8 @@ CREATE TABLE IF NOT EXISTS experiment_metrics (
     experiment_id     TEXT NOT NULL,
     platform          TEXT NOT NULL,
     collected_at      TEXT NOT NULL,
+    snapshot          TEXT NOT NULL DEFAULT '',
+    hours_since_post  REAL,
     period_start      TEXT,
     period_end        TEXT,
     impressions       INTEGER,
@@ -173,6 +175,8 @@ class Metrics:
     experiment_id: str
     platform: str
     collected_at: str = ""
+    snapshot: str = ""              # 1h / 6h / 24h / 72h など
+    hours_since_post: float | None = None
     period_start: str | None = None
     period_end: str | None = None
     impressions: int | None = None
@@ -191,7 +195,8 @@ class Metrics:
             for name in COMMON_METRICS
             if getattr(self, name) is not None
         ]
-        return " ".join(parts) or "（取得できた指標なし）"
+        head = f"[{self.snapshot}] " if self.snapshot else ""
+        return head + (" ".join(parts) or "（取得できた指標なし）")
 
 
 class ExperimentStore:
@@ -202,6 +207,18 @@ class ExperimentStore:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self._connect() as conn:
             conn.executescript(SCHEMA)
+            self._migrate(conn)
+
+    @staticmethod
+    def _migrate(conn) -> None:
+        """既存DBに後から追加した列を足す（データは消さない）。"""
+        columns = {row["name"] for row in conn.execute("PRAGMA table_info(experiment_metrics)")}
+        for name, ddl in (
+            ("snapshot", "ALTER TABLE experiment_metrics ADD COLUMN snapshot TEXT NOT NULL DEFAULT ''"),
+            ("hours_since_post", "ALTER TABLE experiment_metrics ADD COLUMN hours_since_post REAL"),
+        ):
+            if name not in columns:
+                conn.execute(ddl)
 
     @contextmanager
     def _connect(self):
@@ -414,6 +431,16 @@ class ExperimentStore:
                 list(data.values()),
             )
         self.log(metrics.experiment_id, f"反応データを保存: {metrics.summary()}", metrics.platform)
+
+    def collected_snapshots(self, experiment_id: str, platform: str) -> set[str]:
+        """すでに取得済みのスナップショット名。"""
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT DISTINCT snapshot FROM experiment_metrics"
+                " WHERE experiment_id=? AND platform=? AND snapshot<>''",
+                (experiment_id, platform),
+            ).fetchall()
+        return {row["snapshot"] for row in rows}
 
     def latest_metrics(self, experiment_id: str, platform: str | None = None) -> list[Metrics]:
         sql = ("SELECT * FROM experiment_metrics WHERE experiment_id=?")

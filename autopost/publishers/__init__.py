@@ -26,6 +26,10 @@ __all__ = [
 
 def get_publisher(platform: str, settings, store):
     """プラットフォーム名から Publisher を返す。"""
+    if platform == "threads":
+        from .threads import ThreadsPublisher
+
+        return ThreadsPublisher(settings, store)
     if platform == "pinterest":
         from .pinterest import PinterestPublisher
 

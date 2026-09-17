@@ -489,8 +489,25 @@ Content Engine → Image Generator → Media Hosting → Publisher Adapter
 
 ### チャネル別の対応状況
 
-| チャネル | 投稿 | 状態取得 | 分析 | 備考 |
-| --- | --- | --- | --- | --- |
-| Pinterest | ○ 完全自動 | ○ | ○ | 画像1枚＋タイトル＋説明＋リンク |
-| TikTok | △ | ○ | － | Direct Post → 下書き転送（インボックス通知→本人が公開）→ Queue保持 |
-| Instagram | ○ | ○ | － | 10枚カルーセル |
+| チャネル | 投稿 | 状態取得 | 分析 | 1日の上限 | 備考 |
+| --- | --- | --- | --- | --- | --- |
+| **Threads** | ○ 完全自動 | ○ | ○ views/likes/replies/reposts/quotes | 250投稿 | 本文500字・カルーセル2〜20枚 |
+| **Instagram** | ○ 完全自動 | ○ | ○ views/reach/likes/comments/saves/shares | 100投稿 | 画像1枚もカルーセル10枚も可 |
+| TikTok | △ 下書きまで | ○ | － | **保留中5件/24h** | インボックス通知→本人が公開。音楽は編集画面で選ぶ |
+| Pinterest | ○ 完全自動 | ○ | ○ impressions/saves/clicks | － | 画像1枚＋タイトル＋説明＋リンク |
+
+### 反応データのスナップショット
+
+投稿直後の数字だけでは「初速」と「伸び」を区別できないため、
+投稿からの経過時間ごとに記録します。
+
+```bash
+python autopost.py experiment collect --due    # 取得時期が来たものだけ（定期実行向け）
+```
+
+| 経過 | 保存内容 |
+| --- | --- |
+| 1h / 6h / 24h / 72h | 共通指標 + platform_metrics を時系列で保存 |
+
+同じ `experiment_id` で複数チャネルへ配信するため、
+**同じコンテンツがSNSごとにどう反応されたか**を並べて比較できます。

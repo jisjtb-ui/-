@@ -18,6 +18,9 @@ DEFAULT_TOKEN_DIR = ROOT / ".tokens"
 TIKTOK_REDIRECT_URI_DEFAULT = "http://127.0.0.1:3455/callback/"
 # Pinterest のリダイレクトURI（登録値と完全一致させる）
 PINTEREST_REDIRECT_URI_DEFAULT = "http://localhost:8730/callback/"
+# Threads はHTTPSのリダイレクトURIが必要（Cloudflare Pages のURLなどを登録する）
+THREADS_API_HOST_DEFAULT = "https://graph.threads.net"
+THREADS_API_VERSION_DEFAULT = "v1.0"
 
 # TikTokの投稿方式。direct_post が使えない場合の段階的フォールバック
 TIKTOK_MODES = ("direct_post", "upload", "queue_only")
@@ -92,6 +95,14 @@ class Settings:
     pinterest_sandbox: bool = False
     pinterest_default_link: str = ""
 
+    # Threads
+    threads_app_id: str = ""
+    threads_app_secret: str = ""
+    threads_redirect_uri: str = ""
+    threads_user_id: str = ""
+    threads_api_host: str = THREADS_API_HOST_DEFAULT
+    threads_api_version: str = THREADS_API_VERSION_DEFAULT
+
     # Meta / Instagram
     meta_app_id: str = ""
     meta_app_secret: str = ""
@@ -144,6 +155,12 @@ class Settings:
                 else "direct_post"
             ),
             tiktok_daily_draft_limit=_get_int("TIKTOK_DAILY_DRAFT_LIMIT", 5),
+            threads_app_id=_get("THREADS_APP_ID"),
+            threads_app_secret=_get("THREADS_APP_SECRET"),
+            threads_redirect_uri=_get("THREADS_REDIRECT_URI"),
+            threads_user_id=_get("THREADS_USER_ID"),
+            threads_api_host=_get("THREADS_API_HOST", THREADS_API_HOST_DEFAULT),
+            threads_api_version=_get("THREADS_API_VERSION", THREADS_API_VERSION_DEFAULT),
             pinterest_app_id=_get("PINTEREST_APP_ID"),
             pinterest_app_secret=_get("PINTEREST_APP_SECRET"),
             pinterest_redirect_uri=_get("PINTEREST_REDIRECT_URI", PINTEREST_REDIRECT_URI_DEFAULT),
@@ -203,6 +220,12 @@ class Settings:
                 "META_APP_ID": self.meta_app_id,
                 "META_APP_SECRET": self.meta_app_secret,
                 "INSTAGRAM_ACCOUNT_ID": self.instagram_account_id,
+            }
+        elif platform == "threads":
+            keys = {
+                "THREADS_APP_ID": self.threads_app_id,
+                "THREADS_APP_SECRET": self.threads_app_secret,
+                "THREADS_REDIRECT_URI": self.threads_redirect_uri,
             }
         elif platform == "pinterest":
             keys = {

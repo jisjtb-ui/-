@@ -121,6 +121,11 @@ def build_parser() -> argparse.ArgumentParser:
     exp_collect = exp_sub.add_parser("collect", help="反応データを取得して保存する")
     exp_collect.add_argument("--experiment")
     exp_collect.add_argument("--platform", choices=ALL_PLATFORMS)
+    exp_collect.add_argument(
+        "--due",
+        action="store_true",
+        help="取得時期（1h/6h/24h/72h）が来たものだけを取得する。定期実行向け",
+    )
     exp_collect.add_argument("--start-date", default="", help="YYYY-MM-DD")
     exp_collect.add_argument("--end-date", default="", help="YYYY-MM-DD")
 
@@ -234,6 +239,10 @@ def cmd_connect(args, settings: Settings, queue: Queue) -> int:
             from .oauth import tiktok_oauth
 
             token = tiktok_oauth.connect(settings, store)
+        elif args.platform == "threads":
+            from .oauth import threads_oauth
+
+            token = threads_oauth.connect(settings, store, manual=args.manual)
         elif args.platform == "pinterest":
             from .oauth import pinterest_oauth
 
@@ -482,11 +491,14 @@ def cmd_experiment(args, settings: Settings, queue: Queue) -> int:
         return 0
 
     if command == "collect":
-        engine = ExperimentEngine(settings, experiments, log=print)
-        collected = engine.collect_analytics(
-            args.experiment, args.platform, args.start_date, args.end_date
-        )
-        print(f"{len(collected)} 件の反応データを保存しました")
+        from .collector import AnalyticsCollector
+
+        collector = AnalyticsCollector(settings, experiments, log=print)
+        if args.due:
+            report = collector.collect_due(args.platform)
+        else:
+            report = collector.collect_now(args.experiment, args.platform)
+        print(report.summary())
         return 0
 
     print(f"[エラー] 不明なサブコマンド: {command}", file=sys.stderr)

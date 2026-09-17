@@ -59,6 +59,76 @@ LOCAL_HOST_BASE_URL=https://media.example.com/honne
 > どちらの場合も、URLは **HTTPS必須・リダイレクト禁止（TikTokは3xxを無効とみなす）** です。
 
 
+
+---
+
+## B1. Threads（本命1・完全自動投稿）
+
+TikTokと違い、**APIから直接公開できて、反応データも取得できます**。
+実験ループの主軸になるチャネルです。
+
+| 項目 | 仕様 |
+| --- | --- |
+| 投稿 | コンテナ作成 → 公開 の2段階 |
+| 本文 | 500文字まで |
+| 画像 | JPEG / PNG・8MB以下・幅320〜1440px |
+| カルーセル | 2〜20枚 |
+| 1日の上限 | **250投稿**（TikTokの5件とは桁が違う） |
+| Insights | views / likes / replies / reposts / quotes |
+
+### 手順
+
+1. https://developers.facebook.com/apps/ を開く
+2. **アプリを作成** → ユースケースで **Threads API** を選択
+3. 「Threads」の設定画面で **App ID** と **App secret** を控える
+4. **有効なOAuthリダイレクトURI** に次を登録（**HTTPS必須**。ループバック不可）
+   ```
+   https://honeshinri-media.pages.dev/
+   ```
+5. 権限（スコープ）に次を追加
+   ```
+   threads_basic, threads_content_publish, threads_manage_insights
+   ```
+6. **Threadsテスターを追加**：アプリの「役割」で、投稿先のThreadsアカウントを
+   テスターとして追加し、Threadsアプリ側で招待を承認する
+   （自分のアカウントへ投稿するだけならアプリ審査は不要です）
+7. `.env` に記入
+
+```
+THREADS_APP_ID=（App ID）
+THREADS_APP_SECRET=（App secret）
+THREADS_REDIRECT_URI=https://honeshinri-media.pages.dev/
+```
+
+8. 接続する（HTTPSのリダイレクトURIなので手動モードを使います）
+
+```bash
+python autopost.py connect threads --manual
+```
+
+表示されたURLをブラウザで開いて許可 → 戻ってきたURL全体をコピーして貼り付けます。
+
+9. テスト投稿（既存の公開画像1枚で実際に公開されます）
+
+```bash
+python autopost.py experiment new \
+  --hypothesis "恋人の少しキモい行動に愛着を感じる話は共感される" \
+  --category "恋愛/共感" \
+  --hook "彼氏の笑い方キモすぎるのに" \
+  --text "最近これ聞かないと逆に落ち着かない。これ私だけ？" \
+  --image-url https://honeshinri-media.pages.dev/（画像のパス） \
+  --platforms threads
+
+python autopost.py experiment run --platform threads
+python autopost.py experiment show EXP-20260917-0001
+```
+
+10. 反応データを集める（投稿から1h / 6h / 24h / 72h の時点で自動判定）
+
+```bash
+python autopost.py experiment collect --due
+```
+
 ---
 
 ## B0. Pinterest（最初の完全自動チャネル）
