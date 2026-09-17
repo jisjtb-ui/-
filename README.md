@@ -317,9 +317,97 @@ python generate.py --validate
 │  ├─ captions.json        キャプションの断片
 │  ├─ headers.json         見出し文言のパターン
 │  └─ cta.json             CTA文言（ここだけ直せば全投稿に反映）
+├─ autopost.py             自動投稿CLI
+├─ autopost_gui.py         自動投稿GUI
+├─ autopost/               自動投稿システム（詳細は9章）
+├─ SETUP_AUTOPOST.md       APIキー取得と初期設定の手順
+├─ .env.example            自動投稿の設定サンプル
 ├─ sample_output/          サンプル出力（2投稿分）
 ├─ output/ ready/ posted/  運用フォルダ
 └─ history.json            生成履歴（自動生成）
 ```
 
 `output/` `ready/` `posted/` `history.json` は `.gitignore` 済みです。
+
+---
+
+## 9. 自動投稿（TikTok / Instagram）
+
+生成した投稿フォルダを、そのまま TikTok と Instagram へ予約投稿できます。
+**投稿処理でLLM APIは一切呼びません**（保存済みの caption.txt / meta.json を読むだけ）。
+
+```bash
+python autopost.py status                                   # 接続状況の確認
+python autopost.py validate --folder output                 # 投稿前チェック
+python autopost.py schedule --folder output \
+       --start 2026-09-20 --time 21:00 --interval 1 --count 100   # 100投稿を一括予約
+python autopost.py run                                      # 予約時刻を過ぎた分を投稿
+python autopost.py watch                                    # 常駐して自動投稿
+python autopost_gui.py                                      # 簡易GUI
+```
+
+セットアップ（APIキーの取得・ドメイン検証・画像ホスティング）は
+**[SETUP_AUTOPOST.md](SETUP_AUTOPOST.md)** を参照してください。
+
+### 仕組み
+
+```
+output/post_001/  ─┐
+  01〜10.png       │ 画像を 4:5 JPEG へ変換（白背景に余白を足すだけ。内容は変えない）
+  caption.txt      │        ↓
+  meta.json        │ 1回だけアップロード → 公開HTTPS URL
+                   │        ↓
+                   ├→ TikTok    : creator_info → content/init(PHOTO) → status/fetch
+                   └→ Instagram : 画像コンテナ×10 → CAROUSEL → media_publish
+                            ↓
+                   SQLite（autopost.db）に結果を記録
+```
+
+- **画像は共通**：同じURLを両プラットフォームで使うため、二重アップロードしません
+- **1080x1440（3:4）は Instagram の要件外**（4:5〜1.91:1）のため、左右に白を足して
+  1152x1440（4:5）のJPEGへ自動変換します。白背景なので見た目は変わりません
+- **状態はSQLiteが正本**：ファイルは移動しないので、投稿中に参照が壊れません
+  （`MOVE_AFTER_PUBLISH=true` にすると、両方成功した投稿だけ `posted/` へ移動します）
+- **二重投稿しない**：`post_id × platform` はUNIQUE。`posted` になった組み合わせは
+  通常実行では二度と投稿されません
+- **片方が失敗しても巻き込まない**：TikTok成功・Instagram失敗なら、Instagramだけ再試行します
+- **PCが止まっていた場合**：既定では期限切れのうち1投稿だけ投稿し、残りは翌日以降へ
+  自動で再スケジュールします（`CATCHUP_POLICY` で変更可能）
+
+### プラットフォーム別の文言
+
+共通の caption を使いますが、必要なら post フォルダに `publish.json` を置くか、
+`meta.json` に `"publish"` セクションを足すと個別に上書きできます（後方互換）。
+
+```json
+{
+  "title": "恋人とやってみて",
+  "caption_tiktok": "TikTok用の本文",
+  "caption_instagram": "Instagram用の本文",
+  "hashtags_instagram": ["#心理テスト", "#カップル"],
+  "music": { "mode": "auto" },
+  "schedule": { "scheduled_at": "2026-09-20T21:00:00+09:00" },
+  "platforms": { "tiktok": { "enabled": true }, "instagram": { "enabled": true } }
+}
+```
+
+解決順は **上書き設定 → caption.txt → meta.json → 固定テンプレート** の決定論的フォールバックです。
+
+### 主なファイル
+
+```
+autopost.py / autopost_gui.py   CLI / GUI の入口
+autopost/
+├─ config.py        .env 読み込み（秘密情報はここだけ）
+├─ models.py        共通Postモデル（プラットフォーム差分の解決）
+├─ loader.py        投稿フォルダ・meta.json・caption.txt の読み込み
+├─ validate.py      投稿前の機械的検証
+├─ imageprep.py     4:5 JPEG への変換（キャッシュ付き）
+├─ db.py            SQLiteキュー（状態・ログ・アップロード済みURL）
+├─ scheduler.py     予約実行・catch-up・リトライ・二重投稿防止
+├─ hosting/         画像ホスティング（Cloudflare R2 / ローカル公開ディレクトリ）
+├─ publishers/      TikTokPublisher / InstagramPublisher（共通IFで追加可能）
+├─ oauth/           TikTok・Meta の認証とトークン保存
+├─ cli.py / gui.py  操作画面
+```
+

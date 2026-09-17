@@ -10,3 +10,12 @@ posted/
 
 # 生成履歴はローカル運用データ
 history.json
+
+# 自動投稿システム
+.env
+*.env.local
+autopost.db
+autopost.db-journal
+.tokens/
+.autopost_cache/
+autopost.log
