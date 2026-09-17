@@ -64,6 +64,30 @@ def build_parser() -> argparse.ArgumentParser:
     test_pin.add_argument("--category", default="test", help="実験カテゴリ")
     test_pin.add_argument("--hypothesis", default="疎通確認", help="検証したい仮説")
 
+    tiktok = sub.add_parser("tiktok", help="TikTokの下書き転送")
+    tk_sub = tiktok.add_subparsers(dest="tiktok_command", required=True)
+
+    tk_enqueue = tk_sub.add_parser("enqueue", help="投稿フォルダを実験として登録し、画像URLを紐付ける")
+    tk_enqueue.add_argument("--folder", default=DEFAULT_FOLDER)
+    tk_enqueue.add_argument("--count", type=int, default=0, help="登録する件数（0で全件）")
+    tk_enqueue.add_argument(
+        "--base-url",
+        default="",
+        help="公開済みURLの先頭（例: https://honeshinri-media.pages.dev）。"
+             "指定するとアップロードせずURLだけ組み立てる",
+    )
+
+    tk_drafts = tk_sub.add_parser("drafts", help="1日の上限まで下書きへ送る")
+    tk_drafts.add_argument("--max", type=int, default=0, help="今回送る最大件数")
+    tk_drafts.add_argument("--dry-run", action="store_true")
+
+    tk_sub.add_parser("queue", help="下書きキューの残件と完了見込み")
+
+    tk_export = tk_sub.add_parser(
+        "export-media", help="Cloudflare Pages へ配信する形で画像を書き出す"
+    )
+    tk_export.add_argument("--dest", default="pages_media", help="書き出し先フォルダ")
+
     experiment = sub.add_parser("experiment", help="コンテンツ実験の管理")
     exp_sub = experiment.add_subparsers(dest="experiment_command", required=True)
 
@@ -153,6 +177,7 @@ def main(argv: list[str] | None = None) -> int:
         "retry": cmd_retry,
         "logs": cmd_logs,
         "pinterest": cmd_pinterest,
+        "tiktok": cmd_tiktok,
         "experiment": cmd_experiment,
     }
     return handlers[args.command](args, settings, queue)
@@ -551,3 +576,60 @@ def _print_experiment(experiments: ExperimentStore, experiment_id: str) -> int:
 
 def _split_tags(raw: str) -> list[str]:
     return [t.strip() for t in (raw or "").split(",") if t.strip()]
+
+
+# ----------------------------------------------------------------------
+# TikTok（下書き転送）
+# ----------------------------------------------------------------------
+def cmd_tiktok(args, settings: Settings, queue: Queue) -> int:
+    from .tiktok_drafts import enqueue_folder, queue_overview, send_drafts
+
+    experiments = ExperimentStore(settings.experiments_db_path)
+
+    if args.tiktok_command == "enqueue":
+        try:
+            report = enqueue_folder(
+                settings, experiments, Path(args.folder),
+                count=args.count, base_url=args.base_url, log=print,
+            )
+        except LoaderError as exc:
+            print(f"[エラー] {exc}", file=sys.stderr)
+            return 1
+        for line in report.created[:5]:
+            print(f"  {line}")
+        if len(report.created) > 5:
+            print(f"  … 他 {len(report.created) - 5} 件")
+        print(report.summary())
+        overview = queue_overview(experiments, settings)
+        print(f"\n下書き待ち {overview['queued']}件 /"
+              f" 1日{overview['daily_limit']}件ずつで約{overview['days_needed']}日")
+        return 0 if not report.failed else 1
+
+    if args.tiktok_command == "queue":
+        overview = queue_overview(experiments, settings)
+        print(f"下書き待ち     : {overview['queued']}件")
+        print(f"転送済み       : {overview['delivered']}件")
+        print(f"本日の送信     : {overview['today']}/{overview['daily_limit']}件")
+        print(f"完了見込み     : 約{overview['days_needed']}日"
+              "（TikTokの制限: 保留中の共有は24時間あたり5件）")
+        return 0
+
+    if args.tiktok_command == "export-media":
+        from .tiktok_drafts import export_media
+
+        result = export_media(settings, experiments, Path(args.dest), log=print)
+        print(f"\nこのフォルダをそのまま Cloudflare Pages へデプロイしてください:")
+        print(f"  {result['destination']}")
+        print("  例: npx wrangler pages deploy "
+              f"{result['destination']} --project-name honeshinri-media")
+        return 0
+
+    # drafts
+    if settings.tiktok_mode == "queue_only":
+        print("[注意] TIKTOK_MODE=queue_only のため送信しません。"
+              ".env を upload に変更してください", file=sys.stderr)
+        return 1
+    result = send_drafts(settings, experiments, args.max, args.dry_run, log=print)
+    print(f"\n送信 {result['sent']}件 / 本日の残り枠 {result['remaining_today']}件"
+          f" / キュー残り {result['queued']}件")
+    return 0

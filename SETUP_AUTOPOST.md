@@ -208,6 +208,76 @@ python autopost.py connect tiktok
 自分のアカウントで動作確認したうえで、公開投稿したい場合は開発者ポータルから
 **audit（審査）** を申請し、通過後に `.env` を `PUBLIC_TO_EVERYONE` へ変更してください。
 
+
+---
+
+## D. TikTok下書きを100件まとめて仕込む
+
+**仕様上の制約（公式ドキュメントで確認）**
+
+| 項目 | 実際 |
+| --- | --- |
+| 下書き転送（MEDIA_UPLOAD）で送れる項目 | **title と description のみ** |
+| 音楽 | **APIでは付けられない**（`auto_add_music` は Direct Post 専用）。編集画面で選ぶ |
+| ハッシュタグ | description に含めて送る（編集画面に入った状態で開く） |
+| 1日の上限 | **保留中の共有は24時間あたり5件**（`spam_risk_too_many_pending_share`） |
+| リクエスト制限 | アクセストークンあたり6リクエスト/分 |
+
+つまり100件を一度には送れません。**1日5件 × 20日**で自動的に消化します。
+
+### 手順
+
+```bash
+# 0) 最新のコードを取得
+git pull
+
+# 1) 100投稿を生成（画像1000枚 / 約2分）
+python generate.py --posts 100 --seed 20260917
+
+# 2) 実験として登録し、公開URLを紐付ける
+python autopost.py tiktok enqueue --folder output \
+       --base-url https://honeshinri-media.pages.dev
+
+# 3) Cloudflare Pages へデプロイする形で画像を書き出す（約87MB）
+python autopost.py tiktok export-media --dest pages_media
+npx wrangler pages deploy pages_media --project-name honeshinri-media
+
+# 4) .env を下書きモードにする
+#    TIKTOK_MODE=upload
+#    TIKTOK_DAILY_DRAFT_LIMIT=5
+
+# 5) TikTokに接続（video.upload スコープが必要）
+python autopost.py connect tiktok
+
+# 6) 今日の分（5件）を下書きへ送る
+python autopost.py tiktok drafts
+
+# 残りと見込みの確認
+python autopost.py tiktok queue
+```
+
+### 毎日自動で送る（Windows）
+
+タスクスケジューラで次を1日1回実行するだけです。中断しても続きから再開します。
+
+```
+プログラム : C:\path\to\python.exe
+引数       : autopost.py tiktok drafts
+開始場所   : C:\path\to\honne-test
+```
+
+### 送られる内容
+
+```
+title       : 見出し（90文字まで）
+description : 本文 + ハッシュタグ
+画像        : 10枚（4:5 JPEGに変換済み・Cloudflare Pagesの公開URL）
+音楽        : 未設定（TikTokの編集画面で選ぶ）
+```
+
+TikTokアプリのインボックスに通知が届き、タップすると文言が入った編集画面が開きます。
+音楽を選んで投稿ボタンを押せば公開されます。
+
 ---
 
 ## C. Instagram

@@ -25,13 +25,16 @@ MEDIA_READY = "media_ready"            # 画像生成済み
 READY_TO_PUBLISH = "ready_to_publish"  # 公開URLまで用意できた
 PUBLISHING = "publishing"              # 送信中
 PUBLISHED = "published"                # 公開済み
+DRAFT_CREATED = "draft_created"        # 下書きとして転送済み（公開は本人が行う）
 FAILED = "failed"                      # 失敗（記録は消さない）
 MANUAL_REQUIRED = "manual_required"    # APIでは完結できず手作業が必要
 
 STATUSES = (
     GENERATED, MEDIA_READY, READY_TO_PUBLISH,
-    PUBLISHING, PUBLISHED, FAILED, MANUAL_REQUIRED,
+    PUBLISHING, PUBLISHED, DRAFT_CREATED, FAILED, MANUAL_REQUIRED,
 )
+# 送信が完了した状態（1日の上限計算と二重送信防止に使う）
+DELIVERED = (PUBLISHED, DRAFT_CREATED)
 # 実行対象にできる状態（published は対象外＝二重投稿しない）
 CLAIMABLE = (READY_TO_PUBLISH, FAILED)
 RUNNABLE = CLAIMABLE + (PUBLISHING,)
@@ -357,14 +360,20 @@ class ExperimentStore:
             return cursor.rowcount == 1
 
     def mark_published(
-        self, publication_id: int, external_post_id: str, external_url: str = "", extra: dict | None = None
+        self,
+        publication_id: int,
+        external_post_id: str,
+        external_url: str = "",
+        extra: dict | None = None,
+        status: str = PUBLISHED,
     ) -> None:
+        """送信完了を記録する（下書き転送の場合は status=draft_created）。"""
         now = _now()
         with self._connect() as conn:
             conn.execute(
                 "UPDATE experiment_publications SET status=?, external_post_id=?, external_url=?,"
                 " published_at=?, error_message=NULL, extra=?, updated_at=? WHERE id=?",
-                (PUBLISHED, external_post_id, external_url, now,
+                (status, external_post_id, external_url, now,
                  json.dumps(extra or {}, ensure_ascii=False), now, publication_id),
             )
 
@@ -439,6 +448,20 @@ class ExperimentStore:
                 "SELECT * FROM experiment_events WHERE experiment_id=? ORDER BY id LIMIT ?",
                 (experiment_id, limit),
             ))
+
+    def published_today(self, platform: str, now: datetime | None = None) -> int:
+        """その日に公開（下書き転送を含む）した件数。1日の上限管理に使う。"""
+        now = now or datetime.now().astimezone()
+        day = now.strftime("%Y-%m-%d")
+        placeholders = ",".join("?" * len(DELIVERED))
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT COUNT(*) c FROM experiment_publications"
+                f" WHERE platform=? AND status IN ({placeholders})"
+                " AND substr(published_at,1,10)=?",
+                (platform, *DELIVERED, day),
+            ).fetchone()
+        return int(row["c"])
 
     def status_counts(self) -> dict[str, int]:
         with self._connect() as conn:

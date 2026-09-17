@@ -14,6 +14,8 @@ from typing import Callable
 
 from .config import Settings
 from .experiments import (
+    DELIVERED,
+    DRAFT_CREATED,
     Experiment,
     ExperimentStore,
     MANUAL_REQUIRED,
@@ -77,24 +79,25 @@ class ExperimentEngine:
             return False
 
         label = f"[{experiment.experiment_id}] {publication.platform}"
-        if not self.store.claim(publication):
-            self.log(f"{label}: 他のプロセスが処理中のためスキップ")
-            return False
 
         def event(message: str, level: str = "info") -> None:
             self.store.log(experiment.experiment_id, message, publication.platform, level)
             self.log(f"  {label}: {message}")
 
+        # 実行権を取る前に前提条件を確認する（失敗で claim を消費しないため）
         if not experiment.image_url:
             self.store.mark_failed(publication.id, "画像の公開URLがありません")
             event("画像の公開URLがないため配信できません", "error")
             return False
-
         try:
             publisher = self.publisher(publication.platform)
-        except ValueError as exc:
-            self.store.mark_failed(publication.id, str(exc))
-            event(str(exc), "error")
+        except Exception as exc:
+            self.store.mark_failed(publication.id, f"配信先を初期化できません: {exc}")
+            event(f"配信先を初期化できません: {exc}", "error")
+            return False
+
+        if not self.store.claim(publication):
+            self.log(f"{label}: 他のプロセスが処理中のためスキップ")
             return False
 
         event("配信を開始します")
@@ -117,12 +120,19 @@ class ExperimentEngine:
             event(f"予期しないエラー: {exc}", "error")
             return False
 
+        # 下書き転送（TikTokのインボックス）は「公開」と区別して記録する
+        is_draft = (
+            result.extra.get("post_mode") == "MEDIA_UPLOAD"
+            or result.detail == "SEND_TO_USER_INBOX"
+        )
+        status = DRAFT_CREATED if is_draft else PUBLISHED
         self.store.mark_published(
-            publication.id, result.platform_post_id, result.external_url, result.extra
+            publication.id, result.platform_post_id, result.external_url, result.extra, status
         )
         for note in result.notes:
             event(note)
-        event(f"公開完了 ID={result.platform_post_id} {result.external_url}".strip())
+        label_text = "下書きへ転送しました" if is_draft else "公開完了"
+        event(f"{label_text} ID={result.platform_post_id} {result.external_url}".strip())
         return True
 
     def run_pending(self, platform: str | None = None, limit: int | None = None) -> EngineReport:
@@ -139,7 +149,7 @@ class ExperimentEngine:
             current = self.store.publication(publication.experiment_id, publication.platform)
             if current and current.status == MANUAL_REQUIRED:
                 report.manual.append(label)
-            elif current and current.status == PUBLISHED:
+            elif current and current.status in DELIVERED:
                 report.skipped.append(label)
             else:
                 report.failed.append(label)
@@ -153,8 +163,8 @@ class ExperimentEngine:
         """公開済みの配信から反応データを集める。"""
         collected: list[Metrics] = []
         publications = [
-            p for p in self.store.publications(experiment_id, PUBLISHED, platform)
-            if p.external_post_id
+            p for p in self.store.publications(experiment_id, None, platform)
+            if p.external_post_id and p.status in DELIVERED
         ]
         for publication in publications:
             label = f"[{publication.experiment_id}] {publication.platform}"

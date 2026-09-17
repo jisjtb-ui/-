@@ -81,6 +81,8 @@ class Settings:
     tiktok_auto_add_music: bool = True
 
     tiktok_mode: str = "direct_post"      # direct_post | upload | queue_only
+    # TikTokは「24時間あたり保留中の共有5件まで」という制限があるため既定を5にする
+    tiktok_daily_draft_limit: int = 5
 
     # Pinterest
     pinterest_app_id: str = ""
@@ -141,6 +143,7 @@ class Settings:
                 if _get("TIKTOK_MODE", "direct_post").lower() in TIKTOK_MODES
                 else "direct_post"
             ),
+            tiktok_daily_draft_limit=_get_int("TIKTOK_DAILY_DRAFT_LIMIT", 5),
             pinterest_app_id=_get("PINTEREST_APP_ID"),
             pinterest_app_secret=_get("PINTEREST_APP_SECRET"),
             pinterest_redirect_uri=_get("PINTEREST_REDIRECT_URI", PINTEREST_REDIRECT_URI_DEFAULT),

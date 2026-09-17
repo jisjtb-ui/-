@@ -43,14 +43,19 @@ STATUS_POLL_SECONDS = 10
 STATUS_MAX_POLLS = 30
 
 # 恒久エラーとして扱うTikTokのエラーコード
+# 1日の上限に達しただけなので、翌日に再試行すればよい（恒久エラーにしない）
+DAILY_LIMIT_CODES = {
+    "spam_risk_too_many_posts",
+    "spam_risk_too_many_pending_share",
+    "reached_active_user_cap",
+}
+
 PERMANENT_CODES = {
     "url_ownership_unverified",
     "invalid_file_upload",
     "picture_size_check_failed",
     "privacy_level_option_mismatch",
-    "spam_risk_too_many_posts",
     "spam_risk_user_banned_from_posting",
-    "reached_active_user_cap",
     "unaudited_client_can_only_post_to_private_accounts",
 }
 TOKEN_CODES = {"access_token_invalid"}
@@ -107,12 +112,13 @@ class TikTokPublisher(Publisher):
         image_url: str,
         log: Callable[[str], None] = lambda message: None,
     ) -> PublishResult:
-        """実験単位（画像1枚）の投稿。"""
+        """実験単位の投稿。extra["image_urls"] があれば複数枚のカルーセルにする。"""
         title = (experiment.hook or experiment.text or "")[:90]
         description = experiment.text or ""
+        image_urls = (experiment.extra or {}).get("image_urls") or [image_url]
         return self._publish_photos(
             post_id=experiment.experiment_id,
-            image_urls=[image_url],
+            image_urls=image_urls,
             title=title,
             description=description,
             auto_music=True,
@@ -330,6 +336,11 @@ class TikTokPublisher(Publisher):
                 f"必要なスコープが許可されていません（{code}）。"
                 "TikTok開発者ポータルでアプリに video.publish / video.upload を追加し、"
                 "`python autopost.py connect tiktok` で再認証してください"
+            )
+        if code in DAILY_LIMIT_CODES:
+            raise TransientError(
+                f"TikTokの1日の上限に達しました（{code}）。"
+                "翌日に自動で再試行されます: " + message
             )
         if code in PERMANENT_CODES:
             if code == "url_ownership_unverified":
