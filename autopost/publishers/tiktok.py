@@ -53,7 +53,12 @@ PERMANENT_CODES = {
     "reached_active_user_cap",
     "unaudited_client_can_only_post_to_private_accounts",
 }
-TOKEN_CODES = {"access_token_invalid", "scope_not_authorized", "scope_permission_missed"}
+TOKEN_CODES = {"access_token_invalid"}
+# スコープ不足は再認証しない限り直らないので、一時エラー扱いにしない
+SCOPE_CODES = {"scope_not_authorized", "scope_permission_missed"}
+
+# 投稿方式ごとに必要なスコープ
+REQUIRED_SCOPES = {"DIRECT_POST": "video.publish", "MEDIA_UPLOAD": "video.upload"}
 
 
 class TikTokPublisher(Publisher):
@@ -141,6 +146,14 @@ class TikTokPublisher(Publisher):
 
         self.preflight()
         attempts = ["DIRECT_POST", "MEDIA_UPLOAD"] if mode == "direct_post" else ["MEDIA_UPLOAD"]
+        attempts = [m for m in attempts if self._has_scope(m)]
+        if not attempts:
+            needed = REQUIRED_SCOPES["MEDIA_UPLOAD"] if mode == "upload" else " / ".join(REQUIRED_SCOPES.values())
+            raise ManualRequired(
+                f"TikTokの必要スコープ（{needed}）が許可されていないため送信できません。"
+                "開発者ポータルでスコープを追加し、`connect tiktok` で再認証してください。"
+                "コンテンツはQueueに残しています"
+            )
         last_error: Exception | None = None
 
         for post_mode in attempts:
@@ -164,6 +177,14 @@ class TikTokPublisher(Publisher):
             "TikTokへ自動投稿できませんでした。コンテンツはQueueに残っています"
             + (f"（最後のエラー: {last_error}）" if last_error else "")
         )
+
+    def _has_scope(self, post_mode: str) -> bool:
+        """保存済みトークンがその投稿方式に必要なスコープを持っているか。"""
+        token = self._token or self.store.load("tiktok")
+        if token is None or not token.scope:
+            return True                    # 判定できない場合は実際に試して判断する
+        granted = {s.strip() for s in token.scope.replace(",", " ").split()}
+        return REQUIRED_SCOPES[post_mode] in granted
 
     def _send(
         self,
@@ -304,6 +325,12 @@ class TikTokPublisher(Publisher):
         message = error.get("message", "")
         if code in TOKEN_CODES:
             raise TransientError(f"認証エラー（{code}）: {message}")
+        if code in SCOPE_CODES:
+            raise ManualRequired(
+                f"必要なスコープが許可されていません（{code}）。"
+                "TikTok開発者ポータルでアプリに video.publish / video.upload を追加し、"
+                "`python autopost.py connect tiktok` で再認証してください"
+            )
         if code in PERMANENT_CODES:
             if code == "url_ownership_unverified":
                 raise PermanentError(

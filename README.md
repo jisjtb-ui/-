@@ -487,5 +487,5 @@ Content Engine → Image Generator → Media Hosting → Publisher Adapter
 | チャネル | 投稿 | 状態取得 | 分析 | 備考 |
 | --- | --- | --- | --- | --- |
 | Pinterest | ○ 完全自動 | ○ | ○ | 画像1枚＋タイトル＋説明＋リンク |
-| TikTok | △ | ○ | － | Direct Post → 下書き転送 → Queue保持のフォールバック |
+| TikTok | △ | ○ | － | Direct Post → 下書き転送（インボックス通知→本人が公開）→ Queue保持 |
 | Instagram | ○ | ○ | － | 10枚カルーセル |

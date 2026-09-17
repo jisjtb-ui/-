@@ -13,7 +13,10 @@
 リダイレクトURIは 127.0.0.1 のループバックに固定し、
 ローカルHTTPサーバでコールバックを受け取る。
 
-必要スコープ: user.info.basic（アカウント表示用）, video.publish（Direct Post）
+必要スコープ:
+  user.info.basic … アカウント表示
+  video.publish   … Direct Post（APIから直接公開）
+  video.upload    … 下書き転送（インボックスへ送り、公開はユーザーが行う）
 """
 
 from __future__ import annotations
@@ -30,7 +33,10 @@ from .store import Token, TokenStore
 AUTHORIZE_URL = "https://www.tiktok.com/v2/auth/authorize/"
 TOKEN_URL = "https://open.tiktokapis.com/v2/oauth/token/"
 USER_INFO_URL = "https://open.tiktokapis.com/v2/user/info/"
-SCOPES = ("user.info.basic", "video.publish")
+# video.publish = Direct Post（そのまま公開）
+# video.upload  = 下書き転送（TikTokアプリのインボックスへ送り、公開は本人が行う）
+# どちらも開発者ポータルでアプリに追加し、ユーザーが認可する必要がある
+SCOPES = ("user.info.basic", "video.publish", "video.upload")
 TIMEOUT = 30
 
 

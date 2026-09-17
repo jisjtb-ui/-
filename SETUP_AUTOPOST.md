@@ -145,7 +145,11 @@ python autopost.py experiment collect                  # 反応データを取�
 2. アプリに **Login Kit** と **Content Posting API** を追加
    - Login Kit のプラットフォームは **Desktop** を選択
 3. Content Posting API の設定で **Direct Post** を有効化
-4. スコープ `user.info.basic` と `video.publish` を申請・有効化
+4. スコープを申請・有効化する
+   - `user.info.basic` … アカウント表示
+   - `video.publish` … Direct Post（APIから直接公開）
+   - `video.upload` … **下書き転送**（TikTokアプリのインボックスへ送る。公開は本人が行う）
+   > `video.upload` が無いと下書き転送のフォールバックが使えません。両方追加してください。
 5. **Redirect URI** に次を**そのまま**登録（末尾のスラッシュまで一致させること）
    ```
    http://127.0.0.1:3455/callback/
@@ -186,6 +190,16 @@ python autopost.py connect tiktok
 | `direct_post`（既定） | Direct Postを試し、審査等で使えない場合は自動で下書き転送へ切り替え |
 | `upload` | 最初からTikTokアプリの下書き（インボックス）へ転送。公開は手動 |
 | `queue_only` | 送信せずQueueに保持。あとで手動投稿 |
+
+**下書き転送（`upload`）でどうなるか**
+
+1. APIが画像をTikTokへ送る（`post_mode=MEDIA_UPLOAD`）
+2. TikTokアプリの**インボックスに通知**が届く
+3. 通知をタップすると編集画面が開く（タイトル・説明はAPIで送った内容が入る）
+4. 本人が確認して投稿する
+
+つまり「APIで下書きまで作り、公開は人がワンタップ」という運用になります。
+自動公開ではありませんが、審査が通っていなくても実運用でき、規約にも沿います。
 
 ### 審査について
 
