@@ -19,6 +19,7 @@ from pathlib import Path
 
 from night_test.builder import build_post, post_folder_name
 from night_test.captions import load_caption_data, load_header_data, pick_header
+from night_test.cta import CtaConfig, CtaError, empty as empty_cta
 from night_test.config import DEFAULT_SIZE, PRESET_SIZES, TESTS_PER_POST, Layout
 from night_test.content import (
     RANDOM_CATEGORY,
@@ -37,6 +38,7 @@ DATA_DIR = ROOT / "data"
 TESTS_DIR = DATA_DIR / "tests"
 CAPTIONS_PATH = DATA_DIR / "captions.json"
 HEADERS_PATH = DATA_DIR / "headers.json"
+CTA_PATH = DATA_DIR / "cta.json"
 DEFAULT_OUTPUT = ROOT / "output"
 DEFAULT_HISTORY = ROOT / "history.json"
 
@@ -71,6 +73,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--header",
         help="画像上部の見出し文言を固定する（未指定なら投稿ごとにパターンから選ぶ）",
     )
+    parser.add_argument(
+        "--cta-set",
+        help="使用するCTAセット（data/cta.json で管理。未指定なら active のセット）",
+    )
+    parser.add_argument("--no-cta", action="store_true", help="CTAを表示しない")
+    parser.add_argument("--list-cta", action="store_true", help="CTAセット一覧を表示して終了")
     parser.add_argument(
         "--tests-per-post", type=int, default=TESTS_PER_POST, help="1投稿の問題数（既定: 5）"
     )
@@ -142,6 +150,23 @@ def main(argv: list[str] | None = None) -> int:
         validate_items(items)
         return 0
 
+    try:
+        cta_config = CtaConfig.load(CTA_PATH)
+        cta = empty_cta() if args.no_cta else cta_config.select(args.cta_set)
+    except CtaError as exc:
+        print(f"[エラー] {exc}", file=sys.stderr)
+        return 1
+
+    if args.list_cta:
+        print(f"CTAセット（既定: {cta_config.active}）:")
+        for name in cta_config.names:
+            texts = cta_config.sets[name]
+            print(f"  {name:<10} {texts.label}")
+            print(f"    1枚目   : {texts.first_page or '（なし）'}")
+            for line in texts.final_lines or ["（なし）"]:
+                print(f"    最終ページ: {line}")
+        return 0
+
     categories = available_categories(items)
     if args.list_categories:
         print("利用できるカテゴリ:")
@@ -181,6 +206,7 @@ def main(argv: list[str] | None = None) -> int:
 
     start_id = args.start_index if args.start_index is not None else history.next_post_id()
     print(f"ネタ {len(items)} 件 / カテゴリ: {args.category} / サイズ: {width}x{height}")
+    print(f"CTA: {cta.name}" + (f"（{cta.first_page}）" if cta.first_page else "（なし）"))
     print(f"フォント: {font_path}")
     print(f"出力先: {output_dir}")
     print("-" * 56)
@@ -202,9 +228,19 @@ def main(argv: list[str] | None = None) -> int:
         if args.dry_run:
             print(f"{post_folder_name(post_id)}  （dry-run）  見出し: {header}")
             for test in tests:
-                print(f"  {test['number']}. [{test['category']}/{test['form_label']}] {test['title']}")
+                head = (test["question"].replace("\n", " ")).strip()
+                print(
+                    f"  Q{test['number']} L{test.get('level', 1)}"
+                    f" [{test.get('theme', test['category'])}/{test['form_label']}]"
+                    f" {test['title']}"
+                )
+                print(f"        {head}")
+                print(f"        A {test['choices'].get('A','')} / B {test['choices'].get('B','')}"
+                      f" / C {test['choices'].get('C','')} / D {test['choices'].get('D','')}")
             created += 1
-            history.record_post(post_id, args.category, post_folder_name(post_id), tests)
+            history.record_post(
+                post_id, args.category, post_folder_name(post_id), tests, cta_set=cta.name
+            )
             continue
 
         try:
@@ -219,12 +255,15 @@ def main(argv: list[str] | None = None) -> int:
                 layout=layout,
                 make_preview=args.preview,
                 overwrite=args.overwrite,
+                cta=cta,
             )
         except FileExistsError as exc:
             print(f"[スキップ] {exc}（上書きするなら --overwrite）", file=sys.stderr)
             continue
 
-        history.record_post(post_id, args.category, result.folder.name, tests)
+        history.record_post(
+            post_id, args.category, result.folder.name, tests, cta_set=cta.name
+        )
         created += 1
         titles = " / ".join(t["title"] for t in tests)
         print(f"{result.folder.name}  画像{len(result.images)}枚  [{header}]")

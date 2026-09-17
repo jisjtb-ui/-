@@ -11,18 +11,23 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 
 from .config import (
     BLACK,
+    CTA_GAP_RATIO,
+    CTA_GAP_RATIO_QUESTION,
     FIT_STEP,
     HAIRLINE,
+    HARD_MIN_FIT_SCALE,
     MIN_FIT_SCALE,
     WHITE,
     Layout,
 )
+from . import emoji
 from .fonts import load_font
 from .textlayout import Block, Stack, text_width, wrap, wrap_balanced
 
@@ -42,13 +47,22 @@ class Renderer:
     # ------------------------------------------------------------------
     # 公開API
     # ------------------------------------------------------------------
-    def render_question(self, test: dict, number: int) -> Image.Image:
-        """問題画像。答えは一切載せない。"""
-        return self._render(lambda s: self._build_question(test, number, s))
+    def render_question(self, test: dict, number: int, cta_top: str = "") -> Image.Image:
+        """問題画像。答えは一切載せない。
 
-    def render_answer(self, test: dict, number: int) -> Image.Image:
-        """答え画像。直前の問題に対応する結果のみを載せる。"""
-        return self._render(lambda s: self._build_answer(test, number, s))
+        cta_top は1枚目だけに入れる小さなCTA（例: 恋人とやってみて🌸）。
+        本文より目立たせないため、見出しより小さいサイズで最上部に置く。
+        """
+        return self._render(lambda s: self._build_question(test, number, s, cta_top))
+
+    def render_answer(
+        self, test: dict, number: int, cta_lines: Sequence[str] = ()
+    ) -> Image.Image:
+        """答え画像。直前の問題に対応する結果のみを載せる。
+
+        cta_lines は最終ページだけに入れるCTA（保存 → 共有 → コメントの順）。
+        """
+        return self._render(lambda s: self._build_answer(test, number, s, list(cta_lines)))
 
     # ------------------------------------------------------------------
     # 自動フィット
@@ -57,9 +71,12 @@ class Renderer:
         lay = self.layout
         scale = 1.0
         stack = build(scale)
-        while stack.total_height > lay.safe_height and scale > MIN_FIT_SCALE:
-            scale = round(scale - FIT_STEP, 3)
-            stack = build(scale)
+        # 推奨下限まで段階的に縮小し、それでも収まらない場合だけ絶対下限まで縮める
+        # （文字切れ・画像外へのはみ出しは絶対に避ける）
+        for floor in (MIN_FIT_SCALE, HARD_MIN_FIT_SCALE):
+            while stack.total_height > lay.safe_height and scale > floor:
+                scale = round(scale - FIT_STEP, 3)
+                stack = build(scale)
         image = self._background()
         self._draw_stack(image, stack)
         return image
@@ -87,12 +104,14 @@ class Renderer:
                     fill=HAIRLINE,
                 )
             elif block.kind == "text":
-                self._draw_text_block(draw, block, y)
+                self._draw_text_block(image, draw, block, y)
             y += block.height
             if index != len(stack.blocks) - 1:
                 y += block.space_after
 
-    def _draw_text_block(self, draw: ImageDraw.ImageDraw, block: Block, top: int) -> None:
+    def _draw_text_block(
+        self, image: Image.Image, draw: ImageDraw.ImageDraw, block: Block, top: int
+    ) -> None:
         lay = self.layout
         font = block.font
         pad = max(0, (block.line_height - font.size) // 2)
@@ -103,16 +122,17 @@ class Renderer:
         for i, line in enumerate(block.lines):
             y = top + i * block.line_height + pad
             if block.align == "center":
-                self._draw_line(draw, lay.center_x, y, line, font, block.tracking, "center")
+                self._draw_line(image, draw, lay.center_x, y, line, font, block.tracking, "center")
                 continue
 
             x = block.x if block.x is not None else lay.safe_left
             if block.hanging and i == 0:
-                self._draw_line(draw, x, y, block.hanging, font, 0, "left")
-            self._draw_line(draw, x + label_width, y, line, font, block.tracking, "left")
+                self._draw_line(image, draw, x, y, block.hanging, font, 0, "left")
+            self._draw_line(image, draw, x + label_width, y, line, font, block.tracking, "left")
 
     def _draw_line(
         self,
+        image: Image.Image,
         draw: ImageDraw.ImageDraw,
         x: int,
         y: int,
@@ -122,6 +142,9 @@ class Renderer:
         align: str,
     ) -> None:
         if not text:
+            return
+        if emoji.has_emoji(text):
+            self._draw_line_with_emoji(image, draw, x, y, text, font, tracking, align)
             return
         if tracking <= 0:
             anchor = "ma" if align == "center" else "la"
@@ -133,6 +156,36 @@ class Renderer:
         for ch, w in zip(text, widths):
             draw.text((cursor, y), ch, font=font, fill=BLACK, anchor="la")
             cursor += w + tracking
+
+    def _draw_line_with_emoji(
+        self,
+        image: Image.Image,
+        draw: ImageDraw.ImageDraw,
+        x: int,
+        y: int,
+        text: str,
+        font: ImageFont.FreeTypeFont,
+        tracking: int,
+        align: str,
+    ) -> None:
+        """絵文字を含む行を描く（本文フォントは絵文字を持たないため合成する）。"""
+        runs = emoji.split_runs(text)
+        glyph_size = int(font.size * 0.96)
+        widths = [
+            glyph_size if is_emoji else text_width(font, run) for run, is_emoji in runs
+        ]
+        total = sum(widths) + tracking * max(0, len(runs) - 1)
+        cursor = x - total / 2 if align == "center" else x
+
+        for (run, is_emoji), width in zip(runs, widths):
+            if is_emoji:
+                sprite = emoji.emoji_image(run, glyph_size)
+                if sprite is not None:
+                    offset_y = y + int((font.size - sprite.height) * 0.45)
+                    image.paste(sprite, (int(cursor), offset_y), sprite)
+            else:
+                draw.text((cursor, y), run, font=font, fill=BLACK, anchor="la")
+            cursor += width + tracking
 
     # ------------------------------------------------------------------
     # ブロック組み立て
@@ -159,10 +212,14 @@ class Renderer:
             space_after=space_after,
         )
 
-    def _build_question(self, test: dict, number: int, scale: float) -> Stack:
+    def _build_question(
+        self, test: dict, number: int, scale: float, cta_top: str = ""
+    ) -> Stack:
         lay = self.layout
         sp = lay.spacing
         stack = Stack()
+        # CTAを足した分、本文を極端に縮めずに済むよう余白側を詰める
+        gap_ratio = CTA_GAP_RATIO_QUESTION if cta_top else 1.0
 
         f_eyebrow = self._font(lay.sizes.eyebrow, scale)
         f_number = self._font(lay.sizes.number, scale)
@@ -171,13 +228,26 @@ class Renderer:
         f_choice = self._font(lay.sizes.choice, scale)
         f_footer = self._font(lay.sizes.footer, scale)
 
+        # 1枚目だけの冒頭CTA。問題文より目立たないよう、見出しより小さく置く
+        if cta_top:
+            f_cta = self._font(lay.sizes.cta_top, scale)
+            stack.add(
+                Block(
+                    lines=[cta_top],
+                    font=f_cta,
+                    line_height=self._lh(f_cta, lay.line_heights.cta),
+                    tracking=lay.px(2 * scale),
+                    space_after=lay.px(sp.after_cta_top * scale),
+                )
+            )
+
         stack.add(
             Block(
                 lines=[test.get("header") or EYEBROW_QUESTION],
                 font=f_eyebrow,
                 line_height=self._lh(f_eyebrow, lay.line_heights.eyebrow),
                 tracking=lay.px(6 * scale),
-                space_after=lay.px(sp.after_eyebrow * scale),
+                space_after=lay.px(sp.after_eyebrow * gap_ratio * scale),
             )
         )
         stack.add(
@@ -186,7 +256,7 @@ class Renderer:
                 font=f_number,
                 line_height=self._lh(f_number, lay.line_heights.number),
                 tracking=lay.px(4 * scale),
-                space_after=lay.px(sp.after_number * scale),
+                space_after=lay.px(sp.after_number * gap_ratio * scale),
             )
         )
 
@@ -197,18 +267,18 @@ class Renderer:
                     lines=wrap_balanced(title, f_title, self._wrap_width(f_title)),
                     font=f_title,
                     line_height=self._lh(f_title, lay.line_heights.title),
-                    space_after=lay.px(sp.after_title * scale),
+                    space_after=lay.px(sp.after_title * gap_ratio * scale),
                 )
             )
 
-        stack.add(self._divider(lay.px(sp.after_divider * scale)))
+        stack.add(self._divider(lay.px(sp.after_divider * gap_ratio * scale)))
 
         stack.add(
             Block(
                 lines=wrap_balanced(test["question"], f_question, self._wrap_width(f_question)),
                 font=f_question,
                 line_height=self._lh(f_question, lay.line_heights.question),
-                space_after=lay.px(sp.after_question * scale),
+                space_after=lay.px(sp.after_question * gap_ratio * scale),
             )
         )
 
@@ -228,7 +298,9 @@ class Renderer:
                     align="left",
                     x=group_x,
                     space_after=lay.px(
-                        (sp.after_choices if last else sp.between_choices) * scale
+                        (sp.after_choices if last else sp.between_choices)
+                        * gap_ratio
+                        * scale
                     ),
                 )
             )
@@ -243,10 +315,14 @@ class Renderer:
         )
         return stack
 
-    def _build_answer(self, test: dict, number: int, scale: float) -> Stack:
+    def _build_answer(
+        self, test: dict, number: int, scale: float, cta_lines: list[str] | None = None
+    ) -> Stack:
+        cta_lines = [line for line in (cta_lines or []) if line]
         lay = self.layout
         sp = lay.spacing
         stack = Stack()
+        gap_ratio = CTA_GAP_RATIO if cta_lines else 1.0
 
         f_eyebrow = self._font(lay.sizes.eyebrow, scale)
         f_number = self._font(lay.sizes.number, scale)
@@ -260,7 +336,7 @@ class Renderer:
                 font=f_eyebrow,
                 line_height=self._lh(f_eyebrow, lay.line_heights.eyebrow),
                 tracking=lay.px(8 * scale),
-                space_after=lay.px(sp.after_eyebrow * scale),
+                space_after=lay.px(sp.after_eyebrow * gap_ratio * scale),
             )
         )
         stack.add(
@@ -269,7 +345,7 @@ class Renderer:
                 font=f_number,
                 line_height=self._lh(f_number, lay.line_heights.number),
                 tracking=lay.px(4 * scale),
-                space_after=lay.px(sp.after_number * scale),
+                space_after=lay.px(sp.after_number * gap_ratio * scale),
             )
         )
 
@@ -280,11 +356,11 @@ class Renderer:
                     lines=wrap_balanced(title, f_title, self._wrap_width(f_title)),
                     font=f_title,
                     line_height=self._lh(f_title, lay.line_heights.title),
-                    space_after=lay.px(sp.after_title * 0.7 * scale),
+                    space_after=lay.px(sp.after_title * 0.7 * gap_ratio * scale),
                 )
             )
 
-        stack.add(self._divider(lay.px(sp.after_divider * scale)))
+        stack.add(self._divider(lay.px(sp.after_divider * gap_ratio * scale)))
 
         answers = test["answers"]
         keys = [k for k in CHOICE_KEYS if k in answers]
@@ -305,7 +381,9 @@ class Renderer:
                     hanging=key,
                     hanging_gap=gap,
                     space_after=lay.px(
-                        (sp.after_answers if last else sp.between_answers) * scale
+                        (sp.after_answers if last else sp.between_answers)
+                        * gap_ratio
+                        * scale
                     ),
                 )
             )
@@ -317,6 +395,27 @@ class Renderer:
                     lines=wrap_balanced(closing, f_closing, self._wrap_width(f_closing)),
                     font=f_closing,
                     line_height=self._lh(f_closing, lay.line_heights.closing),
+                    space_after=lay.px(sp.before_cta * scale) if cta_lines else 0,
+                )
+            )
+
+        # 最終ページのCTA。優先順位は 回答結果 > 保存 > 共有・コメント
+        for index, line in enumerate(cta_lines):
+            primary = index == 0
+            f_cta = self._font(
+                lay.sizes.cta_primary if primary else lay.sizes.cta_secondary, scale
+            )
+            if index == 0:
+                space_after = lay.px(sp.between_cta_primary * scale)
+            else:
+                space_after = lay.px(sp.between_cta * scale)
+            stack.add(
+                Block(
+                    lines=wrap_balanced(line, f_cta, self._wrap_width(f_cta)),
+                    font=f_cta,
+                    line_height=self._lh(f_cta, lay.line_heights.cta),
+                    tracking=lay.px((2 if primary else 1) * scale),
+                    space_after=space_after if index < len(cta_lines) - 1 else 0,
                 )
             )
         return stack

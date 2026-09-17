@@ -34,7 +34,12 @@ TESTS_PER_POST = 5
 
 # 自動縮小の下限（これ以上小さくしない。超える場合は本文を削るべきサイン）
 MIN_FIT_SCALE = 0.74
+# 最終手段の下限。画像外へのはみ出しだけは絶対に避けるため、ここまでは縮める
+HARD_MIN_FIT_SCALE = 0.60
 FIT_STEP = 0.02
+# CTAを載せる画像では、本文を極端に小さくせずに済むよう余白側を詰める倍率
+CTA_GAP_RATIO = 0.74           # 最終ページ（CTA3行ぶんを吸収する）
+CTA_GAP_RATIO_QUESTION = 0.82  # 1枚目（冒頭CTA1行ぶんを吸収する）
 
 
 @dataclass(frozen=True)
@@ -52,6 +57,9 @@ class FontSizes:
     answer: int = 35        # 答えの本文
     closing: int = 33       # 締めの一文
     footer: int = 27        # 「答えは次へ」
+    cta_top: int = 25       # 1枚目だけの冒頭CTA（本文より小さく）
+    cta_primary: int = 29   # 最終ページの保存CTA
+    cta_secondary: int = 25 # 最終ページの共有・コメントCTA
 
 
 @dataclass(frozen=True)
@@ -66,6 +74,7 @@ class LineHeights:
     answer: float = 1.66
     closing: float = 1.7
     footer: float = 1.4
+    cta: float = 1.42
 
 
 @dataclass(frozen=True)
@@ -81,6 +90,10 @@ class Spacing:
     after_choices: int = 52
     between_answers: int = 30
     after_answers: int = 52
+    after_cta_top: int = 34      # 冒頭CTAと見出しの間
+    before_cta: int = 52         # 本文と最終ページCTAの間
+    between_cta_primary: int = 22  # 保存CTAと共有CTAの間
+    between_cta: int = 14        # 共有CTAとコメントCTAの間
     divider_width_ratio: float = 0.22   # 区切り線の長さ（安全エリア幅に対する比）
 
 

@@ -1,0 +1,41 @@
+{
+  "active": "default",
+  "note": "CTA文言はここだけで管理する。generate.py --cta-set <名前> で切り替え、--no-cta で非表示。",
+  "sets": {
+    "default": {
+      "label": "恋人とやってみて（標準）",
+      "first_page": "恋人とやってみて🌸",
+      "final_save": "保存してあとで二人でやってみて🌸",
+      "final_share": "恋人にもやらせてみて",
+      "final_comment": "コメントで結果を教えて"
+    },
+    "crush": {
+      "label": "好きな人と",
+      "first_page": "好きな人とやってみて🌸",
+      "final_save": "保存してあとでやってみて🌸",
+      "final_share": "これ好きな人にも送ってみて",
+      "final_comment": "A/B/C/Dどれだった？"
+    },
+    "couple": {
+      "label": "カップル向け",
+      "first_page": "カップルでやってみて🌸",
+      "final_save": "保存して二人で答え合わせ🌸",
+      "final_share": "これ恋人にも送ってみて",
+      "final_comment": "二人の結果、同じだった？"
+    },
+    "friends": {
+      "label": "友達と",
+      "first_page": "友達とやってみて🌸",
+      "final_save": "保存してあとでやってみて🌸",
+      "final_share": "友達にも当てさせてみて",
+      "final_comment": "コメントで結果を教えて"
+    },
+    "none": {
+      "label": "CTAなし",
+      "first_page": "",
+      "final_save": "",
+      "final_share": "",
+      "final_comment": ""
+    }
+  }
+}

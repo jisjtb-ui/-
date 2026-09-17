@@ -11,6 +11,7 @@ from pathlib import Path
 
 from .captions import build_caption
 from .config import Layout
+from .cta import CtaTexts, empty as empty_cta
 from .renderer import Renderer, build_contact_sheet
 
 PREVIEW_NAME = "preview.jpg"
@@ -39,12 +40,17 @@ def build_post(
     layout: Layout,
     make_preview: bool = True,
     overwrite: bool = False,
+    cta: CtaTexts | None = None,
 ) -> PostResult:
     """画像10枚と caption.txt / meta.json を1フォルダに書き出す。
 
     ファイル名は 01_question.png / 02_answer.png ... と連番になるため、
     TikTokで10枚まとめて選ぶだけで「問題→答え」の順番が崩れない。
+
+    CTAは広告臭くならないよう、1枚目（冒頭CTA）と最終ページ
+    （保存→共有→コメント）にだけ入れる。02〜09はテスト体験に集中させる。
     """
+    cta = cta or empty_cta()
     folder = output_dir / post_folder_name(post_id)
     if folder.exists():
         if not overwrite:
@@ -55,10 +61,16 @@ def build_post(
     images: list[Path] = []
     for index, test in enumerate(tests):
         number = index + 1
+        is_first = index == 0
+        is_last = index == len(tests) - 1
         q_path = folder / f"{number * 2 - 1:02d}_question.png"
         a_path = folder / f"{number * 2:02d}_answer.png"
-        renderer.render_question(test, number).save(q_path, "PNG", optimize=True)
-        renderer.render_answer(test, number).save(a_path, "PNG", optimize=True)
+        renderer.render_question(
+            test, number, cta.first_page if is_first else ""
+        ).save(q_path, "PNG", optimize=True)
+        renderer.render_answer(
+            test, number, cta.final_lines if is_last else ()
+        ).save(a_path, "PNG", optimize=True)
         images.extend([q_path, a_path])
 
     caption = build_caption(caption_data, rng, category, tests)
@@ -73,6 +85,13 @@ def build_post(
         "image_size": {"width": layout.width, "height": layout.height},
         "image_count": len(images),
         "caption": caption,
+        "cta": cta.to_meta()
+        | {
+            "placement": {
+                "first_page": "01_question.png" if cta.first_page else None,
+                "final": f"{len(tests) * 2:02d}_answer.png" if cta.final_lines else None,
+            }
+        },
         "tests": [
             {
                 "number": t["number"],
@@ -81,6 +100,8 @@ def build_post(
                 "form": t["form"],
                 "form_label": t["form_label"],
                 "motif": t["motif"],
+                "theme": t.get("theme", ""),
+                "level": t.get("level", 1),
                 "title": t["title"],
                 "question": t["question"],
                 "choices": t["choices"],

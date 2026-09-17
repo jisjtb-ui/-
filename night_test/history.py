@@ -131,6 +131,10 @@ class History:
     def recent_motifs(self, window: int = MOTIF_WINDOW) -> set[str]:
         return {t.get("motif", "") for t in self.recent_items(window) if t.get("motif")}
 
+    def recent_themes(self, window: int = MOTIF_WINDOW) -> set[str]:
+        """直近のテーマ（ホテル・マチアプ等）。同じテーマの連発を防ぐために使う。"""
+        return {t.get("theme", "") for t in self.recent_items(window) if t.get("theme")}
+
     def use_count(self, item_id: str) -> int:
         return int(self.usage.get(item_id, {}).get("count", 0))
 
@@ -163,13 +167,21 @@ class History:
         return best
 
     # ------------------------------------------------------------------
-    def record_post(self, post_id: int, category: str, folder: str, tests: list[dict]) -> None:
+    def record_post(
+        self,
+        post_id: int,
+        category: str,
+        folder: str,
+        tests: list[dict],
+        cta_set: str = "",
+    ) -> None:
         """1投稿分の生成結果を履歴に追加する。"""
         entry = {
             "post_id": post_id,
             "folder": folder,
             "category": category,
             "header": tests[0].get("header", "") if tests else "",
+            "cta_set": cta_set,
             "created_at": datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds"),
             "tests": [
                 {
@@ -177,6 +189,8 @@ class History:
                     "category": t["category"],
                     "form": t["form"],
                     "motif": t["motif"],
+                    "theme": t.get("theme", ""),
+                    "level": t.get("level", 1),
                     "title": t["title"],
                     "question": t["question"],
                     "choices": list(t["choices"].values()),

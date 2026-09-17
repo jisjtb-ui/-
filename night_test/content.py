@@ -22,6 +22,16 @@ from .history import (
 RANDOM_CATEGORY = "random"
 CHOICE_KEYS = ("A", "B", "C", "D")
 
+# 質問の刺激度。後半にいくほど踏み込む構成にするために使う
+#   1: 普通（連絡頻度・理想のデート・好きなタイプ）
+#   2: 本音（元恋人・裏アカ・マチアプ・外見・浮気の境界線・秘密）
+#   3: ちょっと際どい（ホテル・泊まり・キス・そういう雰囲気・リード・一人の時間）
+LEVELS = (1, 2, 3)
+# 1投稿5問の並び。1問目は入りやすく、後半ほど本音が出る問いにする
+LEVEL_LADDER: tuple[tuple[int, ...], ...] = ((1,), (1, 2), (2,), (2, 3), (3,))
+# 同じテーマ（ホテルばかり等）が続かないよう、直近この件数のテーマを避ける
+THEME_WINDOW = 14
+
 FORM_LABELS = {
     "scene": "情景選択型",
     "action": "行動選択型",
@@ -45,6 +55,8 @@ class Item:
     label: str
     form: str
     motif: str
+    theme: str
+    level: int
     titles: tuple[str, ...]
     questions: tuple[str, ...]
     choices: dict[str, str]
@@ -75,6 +87,8 @@ class Item:
             "form": self.form,
             "form_label": FORM_LABELS.get(self.form, self.form),
             "motif": self.motif,
+            "theme": self.theme,
+            "level": self.level,
             "title": self.titles[t],
             "question": self.questions[q],
             "choices": dict(self.choices),
@@ -134,12 +148,18 @@ def _build_item(entry: dict, category: str, label: str, path: Path) -> Item:
     if missing:
         raise ContentError(f"{path.name}: {item_id} の答えが不足しています: {missing}")
 
+    level = int(entry.get("level", 1))
+    if level not in LEVELS:
+        raise ContentError(f"{path.name}: {item_id} の level は 1〜3 で指定してください")
+
     return Item(
         id=item_id,
         category=entry.get("category", category),
         label=entry.get("label", label),
         form=entry.get("form", "scene"),
         motif=entry.get("motif", ""),
+        theme=entry.get("theme", entry.get("category", category)),
+        level=level,
         titles=_as_tuple("titles", "title"),
         questions=_as_tuple("questions", "question"),
         closings=_as_tuple("closings", "closing"),
@@ -161,6 +181,8 @@ class SelectionRules:
 
     avoid_recent_ids: bool = True
     avoid_recent_motifs: bool = True
+    avoid_recent_themes: bool = True
+    follow_level_ladder: bool = True
     similarity_threshold: float = SIMILARITY_THRESHOLD
     use_prefix_rule: bool = True
     max_same_form: int = 2
@@ -171,6 +193,8 @@ class SelectionRules:
         return SelectionRules(
             avoid_recent_ids=self.avoid_recent_ids and step < 2,
             avoid_recent_motifs=self.avoid_recent_motifs and step < 1,
+            avoid_recent_themes=self.avoid_recent_themes and step < 1,
+            follow_level_ladder=self.follow_level_ladder and step < 3,
             similarity_threshold=min(1.01, self.similarity_threshold + 0.12 * step),
             use_prefix_rule=self.use_prefix_rule and step < 2,
             max_same_form=self.max_same_form + (1 if step >= 1 else 0),
@@ -241,50 +265,90 @@ def _try_select(
     rules: SelectionRules,
     category: str,
 ) -> list[dict] | None:
+    """1投稿分を「刺激度のラダー」に沿って1問ずつ埋めていく。
+
+    Q1は入りやすい問い、後半にいくほど本音が出る問いになるよう、
+    スロットごとに狙うレベルを決めてから候補を絞る。
+    """
     recent_ids = history.recent_item_ids(RECENT_POST_WINDOW) if rules.avoid_recent_ids else set()
     recent_motifs = history.recent_motifs(MOTIF_WINDOW) if rules.avoid_recent_motifs else set()
+    recent_themes = history.recent_themes(THEME_WINDOW) if rules.avoid_recent_themes else set()
 
     candidates = _ordered_candidates(pool, history, rng)
     selected: list[dict] = []
+    used_ids: set[str] = set()
     used_motifs: set[str] = set()
+    used_themes: set[str] = set()
     form_counts: dict[str, int] = {}
     category_counts: dict[str, int] = {}
 
-    for item in candidates:
-        if len(selected) >= count:
-            break
-        if item.id in recent_ids:
-            continue
-        if item.motif and (item.motif in used_motifs or item.motif in recent_motifs):
-            continue
-        if form_counts.get(item.form, 0) >= rules.max_same_form:
-            continue
-        # random 指定時は、1投稿内でテーマを散らす
-        if category == RANDOM_CATEGORY and category_counts.get(item.category, 0) >= rules.max_same_category:
-            continue
+    for slot in range(count):
+        wanted = _slot_levels(slot, count) if rules.follow_level_ladder else LEVELS
+        picked: dict | None = None
 
-        variant = _pick_variant(item, history, rng)
-        test = item.render(variant, len(selected) + 1)
+        for levels in _level_fallbacks(wanted, rules.follow_level_ladder):
+            for item in candidates:
+                if item.id in used_ids or item.id in recent_ids:
+                    continue
+                if item.level not in levels:
+                    continue
+                if item.motif and (item.motif in used_motifs or item.motif in recent_motifs):
+                    continue
+                if item.theme and item.theme in used_themes:
+                    continue
+                if item.theme and item.theme in recent_themes:
+                    continue
+                if form_counts.get(item.form, 0) >= rules.max_same_form:
+                    continue
+                if (
+                    category == RANDOM_CATEGORY
+                    and category_counts.get(item.category, 0) >= rules.max_same_category
+                ):
+                    continue
 
-        conflict = history.conflict_score(
-            test,
-            RECENT_ITEM_WINDOW,
-            rules.similarity_threshold,
-            rules.use_prefix_rule,
-        )
-        if conflict > rules.similarity_threshold:
-            continue
-        if _conflicts_within_post(test, selected, rules.similarity_threshold):
-            continue
+                test = item.render(_pick_variant(item, history, rng), len(selected) + 1)
+                conflict = history.conflict_score(
+                    test,
+                    RECENT_ITEM_WINDOW,
+                    rules.similarity_threshold,
+                    rules.use_prefix_rule,
+                )
+                if conflict > rules.similarity_threshold:
+                    continue
+                if _conflicts_within_post(test, selected, rules.similarity_threshold):
+                    continue
 
-        selected.append(test)
-        used_motifs.add(item.motif)
-        form_counts[item.form] = form_counts.get(item.form, 0) + 1
-        category_counts[item.category] = category_counts.get(item.category, 0) + 1
+                picked = test
+                used_ids.add(item.id)
+                used_motifs.add(item.motif)
+                used_themes.add(item.theme)
+                form_counts[item.form] = form_counts.get(item.form, 0) + 1
+                category_counts[item.category] = category_counts.get(item.category, 0) + 1
+                break
+            if picked:
+                break
 
-    if len(selected) < count:
-        return None
+        if picked is None:
+            return None
+        selected.append(picked)
+
     return selected
+
+
+def _slot_levels(slot: int, count: int) -> tuple[int, ...]:
+    """スロット番号から狙う刺激度を決める（5問以外でも比率を保つ）。"""
+    if count <= 0:
+        return LEVELS
+    index = min(int(slot * len(LEVEL_LADDER) / count), len(LEVEL_LADDER) - 1)
+    return LEVEL_LADDER[index]
+
+
+def _level_fallbacks(wanted: tuple[int, ...], strict: bool) -> list[tuple[int, ...]]:
+    """狙いのレベルで見つからない時に、少しずつ許容範囲を広げる。"""
+    if not strict:
+        return [LEVELS]
+    widened = tuple(sorted({lv + d for lv in wanted for d in (-1, 0, 1)} & set(LEVELS)))
+    return [wanted, widened, LEVELS]
 
 
 def _ordered_candidates(pool: list[Item], history: History, rng: random.Random) -> list[Item]:
