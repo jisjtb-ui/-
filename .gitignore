@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# 運用フォルダ（生成物はコミットしない）
+output/
+ready/
+posted/
+
+# 生成履歴はローカル運用データ
+history.json
