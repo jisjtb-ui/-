@@ -225,7 +225,20 @@ python autopost.py connect tiktok
 
 つまり100件を一度には送れません。**1日5件 × 20日**で自動的に消化します。
 
-### 手順
+### 手順（かんたん版・Windows）
+
+```
+1. git pull
+2. scripts\tiktok_setup.bat をダブルクリック    ← 生成・登録・書き出しが一度に終わる
+3. 表示されたコマンドで画像をPagesへデプロイ
+4. python autopost.py connect tiktok            ← 初回のみ
+5. scripts\register_daily_task.ps1 を実行       ← 毎日21時に自動送信
+```
+
+登録後は放置で構いません。1日5件ずつ下書きが入り、20日で100件に到達します。
+今すぐ1回だけ送りたいときは `scripts\tiktok_drafts.bat` をダブルクリックします。
+
+### 手順（コマンド版）
 
 ```bash
 # 0) 最新のコードを取得
