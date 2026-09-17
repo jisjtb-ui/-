@@ -1,8 +1,6 @@
 @echo off
 chcp 65001 >nul
-rem ============================================================
-rem  投稿の反応データ（1h/6h/24h/72h）を取得するボタン
-rem  何度押しても、取得時期が来たものだけを集めます
-rem ============================================================
 cd /d "%~dp0"
-call "%~dp0scripts\collect_metrics.bat" %*
+python autopost.py experiment collect --due
+echo.
+pause

@@ -1,8 +1,8 @@
 @echo off
 chcp 65001 >nul
-rem ============================================================
-rem  今日の分（既定5件）をTikTokの下書きへ送るボタン
-rem  いつ押しても、その日の残り枠だけ送ります
-rem ============================================================
 cd /d "%~dp0"
-call "%~dp0scripts\tiktok_drafts.bat" %*
+python autopost.py tiktok drafts
+echo.
+python autopost.py tiktok queue
+echo.
+pause

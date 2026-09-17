@@ -149,7 +149,24 @@ def send_drafts(
             log(f"  （dry-run）{publication.experiment_id} を下書きへ送信予定")
         return {"sent": 0, "remaining_today": remaining, "queued": len(pending)}
 
+    # 先に一度だけ接続を確認する（未接続のままキューを消費しないため）
     engine = ExperimentEngine(settings, store, log=log)
+    try:
+        engine.publisher(TIKTOK).preflight()
+    except Exception as exc:
+        log("")
+        log("[中断] TikTokへ接続できていないため送信しませんでした。")
+        log(f"  理由: {exc}")
+        log("")
+        log("  次の手順で接続してください:")
+        log("    1. .env に TIKTOK_CLIENT_KEY / TIKTOK_CLIENT_SECRET を設定")
+        log("    2. TikTok開発者ポータルで video.upload スコープを有効化")
+        log("    3. python autopost.py connect tiktok")
+        log("")
+        log("  キューはそのまま残っています（1件も消費していません）。")
+        return {"sent": 0, "remaining_today": remaining, "queued": len(pending),
+                "error": "not_connected"}
+
     sent = 0
     for publication in targets:
         if engine.publish(publication):

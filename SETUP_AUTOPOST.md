@@ -321,6 +321,9 @@ python autopost.py connect tiktok
 | **2_下書きを送る.bat** | 今すぐ送りたいとき | その日の残り枠（最大5件）を下書きへ転送 |
 | **3_毎日自動で送る.bat** | 最初に1回 | 毎日決まった時刻の自動送信を登録（以降は放置） |
 | **4_状況を確認する.bat** | いつでも | 残り件数・本日の送信数・接続状況を表示 |
+| **5_反応データを集める.bat** | いつでも | 1h/6h/24h/72h の反応データを取得 |
+
+> 未接続のまま押しても、キューは消費されません（接続方法が表示されます）。
 
 ```
 1. git pull
@@ -510,3 +513,20 @@ python autopost.py run
 | TikTok `spam_risk_too_many_pending_share` | 下書きの24時間あたり5件の上限。翌日自動で再試行される |
 | TikTok `url_ownership_unverified` | 画像URLのドメインがTikTokで未検証 |
 | Pinterest `PINTEREST_BOARD_ID` 未設定 | `python autopost.py pinterest boards` でIDを確認 |
+
+---
+
+## 秘密情報を漏らしてしまったら
+
+client secret / app secret / アクセストークンを、チャットや画面共有、
+スクリーンショットなどで外部に出してしまった場合は、**必ず再発行してください**。
+漏れた秘密情報でアカウントを操作される可能性があります。
+
+| プラットフォーム | 再発行する場所 |
+| --- | --- |
+| TikTok | developers.tiktok.com → Manage apps → 対象アプリ → Client secret の **Reset** |
+| Meta（Threads / Instagram） | developers.facebook.com → アプリ → 設定 → ベーシック → app secret の **リセット** |
+| Pinterest | developers.pinterest.com/apps → 対象アプリ → App secret の再生成 |
+
+再発行したら `.env` の値だけ差し替えて、`connect` をやり直してください。
+`.env` と `.tokens/` は `.gitignore` 済みなので、Gitには入りません。

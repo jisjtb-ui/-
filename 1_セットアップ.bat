@@ -1,8 +1,5 @@
 @echo off
 chcp 65001 >nul
-rem ============================================================
-rem  最初に1回だけ実行するボタン
-rem  100投稿の生成 → 実験登録 → Cloudflare Pages配信用の書き出し
-rem ============================================================
 cd /d "%~dp0"
-call "%~dp0scripts\tiktok_setup.bat" %*
+python tools\setup_all.py %*
+pause

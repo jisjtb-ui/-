@@ -116,8 +116,14 @@ class ExperimentEngine:
             event(f"一時的な失敗（再試行できます）: {exc}", "warn")
             return False
         except Exception as exc:                       # 想定外でも記録は残す
-            self.store.mark_failed(publication.id, f"予期しないエラー: {exc}")
-            event(f"予期しないエラー: {exc}", "error")
+            message = str(exc)
+            # 未接続・トークン切れは設定の問題なので、手動対応として記録する
+            if any(word in message for word in ("未接続", "トークン", "認証", "スコープ")):
+                self.store.mark_failed(publication.id, message, manual=True)
+                event(f"接続の設定が必要です: {message}", "warn")
+            else:
+                self.store.mark_failed(publication.id, f"予期しないエラー: {message}")
+                event(f"予期しないエラー: {message}", "error")
             return False
 
         # 下書き転送（TikTokのインボックス）は「公開」と区別して記録する
