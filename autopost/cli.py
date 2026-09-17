@@ -199,6 +199,17 @@ def build_parser() -> argparse.ArgumentParser:
 
     logs = sub.add_parser("logs", help="最近のログ")
     logs.add_argument("--limit", type=int, default=50)
+
+    doctor_parser = sub.add_parser(
+        "doctor", help="不具合の切り分け（秘密情報を含まない診断レポートを出す）"
+    )
+    doctor_parser.add_argument(
+        "--offline", action="store_true",
+        help="APIへの疎通確認を行わず、設定とキューだけを見る",
+    )
+    doctor_parser.add_argument(
+        "--out", default="診断結果.txt", help="レポートの保存先",
+    )
     return parser
 
 
@@ -223,8 +234,16 @@ def main(argv: list[str] | None = None) -> int:
         "tiktok": cmd_tiktok,
         "sns": cmd_sns,
         "experiment": cmd_experiment,
+        "doctor": cmd_doctor,
     }
     return handlers[args.command](args, settings, queue)
+
+
+# ----------------------------------------------------------------------
+def cmd_doctor(args, settings: Settings, queue: Queue) -> int:
+    from . import doctor
+
+    return doctor.run(settings, live=not args.offline, output=Path(args.out))
 
 
 # ----------------------------------------------------------------------
@@ -792,3 +811,8 @@ def _parse_sns_platforms(raw: str) -> list[str]:
     if invalid:
         raise SystemExit(f"[エラー] 不明なプラットフォーム: {', '.join(invalid)}")
     return values or ["threads", "instagram"]
+
+
+# `python -m autopost.cli` でも動くようにする（通常の入口は autopost.py）
+if __name__ == "__main__":
+    raise SystemExit(main())

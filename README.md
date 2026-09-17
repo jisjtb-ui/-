@@ -325,6 +325,7 @@ python generate.py --validate
 ├─ 6_SNSセットアップ.bat   ← Threads / Instagram はこれ1つで完了
 ├─ 7_SNS予約を実行.bat
 ├─ 8_SNS状況を確認.bat
+- `9_不具合を調べる.bat` … 診断レポートを出す（秘密情報を含まない）
 ├─ tools/                  ボタンから呼ばれるPythonスクリプト
 ├─ scripts/                ボタンの中身
 ├─ autopost.py             自動投稿CLI

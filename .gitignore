@@ -24,3 +24,7 @@ autopost.log
 experiments.db
 experiments.db-wal
 experiments.db-shm
+
+# 診断レポート（秘密情報は含まないが共有用なのでcommitしない）
+診断結果.txt
+diagnose*.txt
