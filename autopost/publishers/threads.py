@@ -24,6 +24,7 @@ from ..oauth import threads_oauth
 from ..oauth.store import TokenStore
 from .base import (
     AnalyticsResult,
+    ManualRequired,
     Pacer,
     PermanentError,
     PublishResult,
@@ -41,6 +42,19 @@ STATUS_POLL_SECONDS = 5
 STATUS_MAX_POLLS = 12
 
 MEDIA_METRICS = ("views", "likes", "replies", "reposts", "quotes", "shares")
+
+# Threads固有のエラーコードと、利用者がすぐ動ける対処
+THREADS_ERROR_HINTS = {
+    1349245: (
+        "Threadsアプリでテスターの招待が承認されていません。\n"
+        "      Threadsアプリ → 設定 → アカウント → ウェブサイトの許可（Website permissions）\n"
+        "      → 招待（Invites）を開いて承認してください。\n"
+        "      承認後にもう一度 `python autopost.py connect threads --manual` を実行します"
+    ),
+    1349138: "画像の形式または大きさが要件を満たしていません（JPEG/PNG・8MB以下・幅320〜1440px）",
+    1349125: "画像URLへアクセスできません（公開HTTPSのURLか確認してください）",
+    1349048: "このThreadsアカウントではAPI投稿が許可されていません",
+}
 # 共通指標へのマッピング（存在しない指標は platform_metrics にだけ残す）
 METRIC_MAP = {
     "views": "views",
@@ -271,13 +285,33 @@ class ThreadsPublisher(Publisher):
 
     # ------------------------------------------------------------------
     def _raise_for_error(self, data: dict) -> None:
-        error = data.get("error") if isinstance(data, dict) else None
+        """Threadsの2種類のエラー形式を両方扱う。
+
+          1. {"error": {"message": ..., "code": ...}}          … Graph API共通
+          2. {"error_message": ..., "error_code": 1349245}     … Threads固有
+        """
+        if not isinstance(data, dict):
+            return
+
+        # 形式2（Threads固有）
+        if data.get("error_message") or data.get("error_code"):
+            code = data.get("error_code")
+            message = data.get("error_message", "")
+            hint = THREADS_ERROR_HINTS.get(code)
+            if hint:
+                raise ManualRequired(f"{hint}\n      （Threads error_code={code}）")
+            raise PermanentError(f"Threadsエラー（error_code={code}）: {message}")
+
+        error = data.get("error")
         if not error:
             return
         if not isinstance(error, dict):
             raise PermanentError(f"Threadsエラー: {error}")
         message = error.get("error_user_msg") or error.get("message", "")
         code = error.get("code")
+        hint = THREADS_ERROR_HINTS.get(code)
+        if hint:
+            raise ManualRequired(f"{hint}\n      （Threads code={code}）")
         if code in (4, 17, 32, 613):
             raise TransientError(f"レート制限（code={code}）: {message}")
         if code == 190:

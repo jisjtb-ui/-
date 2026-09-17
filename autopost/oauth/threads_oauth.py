@@ -184,14 +184,42 @@ def _fetch_profile(settings: Settings, access_token: str) -> dict:
         return {}
 
 
+# エラーコードごとの対処（利用者がすぐ動けるように具体的に書く）
+ERROR_HINTS = {
+    1349245: (
+        "Threadsアプリでテスターの招待が承認されていません。\n"
+        "  1. Threadsアプリを開く（またはブラウザで https://www.threads.net/ ）\n"
+        "  2. 設定 → アカウント → ウェブサイトの許可（Website permissions）\n"
+        "  3. 招待（Invites）から、このアプリの招待を承認する\n"
+        "  4. 承認後にもう一度このコマンドを実行してください"
+    ),
+    1349048: "このThreadsアカウントではAPIの利用が許可されていません",
+}
+
+
 def _json(response: requests.Response) -> dict:
     try:
         data = response.json()
     except ValueError as exc:
         raise ThreadsAuthError(f"応答を解釈できません（HTTP {response.status_code}）") from exc
+
+    # Threads固有のエラー形式 {"error_message": ..., "error_code": ...}
+    if isinstance(data, dict) and (data.get("error_message") or data.get("error_code")):
+        code = data.get("error_code")
+        hint = ERROR_HINTS.get(code)
+        if hint:
+            raise ThreadsAuthError(hint + f"\n  （Threads error_code={code}）")
+        raise ThreadsAuthError(
+            f"Threadsエラー（error_code={code}）: {data.get('error_message', '')}"
+        )
+
     if isinstance(data, dict) and data.get("error"):
         error = data["error"]
         message = error.get("message") if isinstance(error, dict) else str(error)
+        code = error.get("code") if isinstance(error, dict) else None
+        hint = ERROR_HINTS.get(code)
+        if hint:
+            raise ThreadsAuthError(hint + f"\n  （Threads code={code}）")
         raise ThreadsAuthError(f"Threads APIエラー: {message}")
     if not data.get("access_token"):
         raise ThreadsAuthError(

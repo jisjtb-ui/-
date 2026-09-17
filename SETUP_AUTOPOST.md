@@ -89,9 +89,21 @@ TikTokと違い、**APIから直接公開できて、反応データも取得で
    ```
    threads_basic, threads_content_publish, threads_manage_insights
    ```
-6. **Threadsテスターを追加**：アプリの「役割」で、投稿先のThreadsアカウントを
-   テスターとして追加し、Threadsアプリ側で招待を承認する
-   （自分のアカウントへ投稿するだけならアプリ審査は不要です）
+6. **Threadsテスターを追加して、Threads側で承認する**（ここでつまずきやすい）
+
+   a. 開発者ダッシュボード → **アプリの役割（App roles）** → **役割（Roles）**
+      → **人を追加（Add People）** → **Threads Tester** を選び、対象アカウントを招待
+   b. **Threads側で承認する**（この操作を忘れると投稿時に
+      `error_code=1349245 The user has not accepted the invite` になります）
+      ```
+      Threadsアプリ（または https://www.threads.net/）
+        → 設定
+        → アカウント
+        → ウェブサイトの許可（Website permissions）
+        → 招待（Invites）
+        → 該当アプリの招待を「承認」
+      ```
+   自分のアカウントへ投稿するだけならアプリ審査は不要です。
 7. `.env` に記入
 
 ```
@@ -441,3 +453,17 @@ python autopost.py run
 | Instagram側での予約投稿 | × | ローカルのキューで予約を管理 |
 | ローカルPNGの直接アップロード | × | 公開HTTPS URLが必須（Aのホスティング） |
 | 個人アカウントへの投稿 | × | プロアカウントが必要 |
+
+---
+
+## よくあるエラー
+
+| エラー | 原因と対処 |
+| --- | --- |
+| `1349245 The user has not accepted the invite` | Threads側で招待未承認。Threads → 設定 → アカウント → ウェブサイトの許可 → 招待 で承認 |
+| `1349125` 画像URLにアクセスできない | Cloudflare Pages へのデプロイが未完了、またはURLの綴り違い |
+| `1349138` 画像の要件エラー | JPEG/PNG・8MB以下・幅320〜1440px に収める |
+| TikTok `scope_not_authorized` | 開発者ポータルで `video.upload` を追加して再認証 |
+| TikTok `spam_risk_too_many_pending_share` | 下書きの24時間あたり5件の上限。翌日自動で再試行される |
+| TikTok `url_ownership_unverified` | 画像URLのドメインがTikTokで未検証 |
+| Pinterest `PINTEREST_BOARD_ID` 未設定 | `python autopost.py pinterest boards` でIDを確認 |
