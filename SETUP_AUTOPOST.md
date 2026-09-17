@@ -227,12 +227,22 @@ python autopost.py connect tiktok
 
 ### 手順（かんたん版・Windows）
 
+フォルダを開くと、一番上に4つのボタン（.bat）が並んでいます。順番に押すだけです。
+
+| ボタン | いつ押すか | 何が起きるか |
+| --- | --- | --- |
+| **1_セットアップ.bat** | 最初に1回 | 100投稿の生成 → 実験登録 → 画像の書き出し（約3分） |
+| **2_下書きを送る.bat** | 今すぐ送りたいとき | その日の残り枠（最大5件）を下書きへ転送 |
+| **3_毎日自動で送る.bat** | 最初に1回 | 毎日決まった時刻の自動送信を登録（以降は放置） |
+| **4_状況を確認する.bat** | いつでも | 残り件数・本日の送信数・接続状況を表示 |
+
 ```
 1. git pull
-2. scripts\tiktok_setup.bat をダブルクリック    ← 生成・登録・書き出しが一度に終わる
+2. 「1_セットアップ.bat」をダブルクリック
 3. 表示されたコマンドで画像をPagesへデプロイ
-4. python autopost.py connect tiktok            ← 初回のみ
-5. scripts\register_daily_task.ps1 を実行       ← 毎日21時に自動送信
+     npx wrangler pages deploy pages_media --project-name honeshinri-media
+4. python autopost.py connect tiktok            ← 初回のみ（ブラウザで許可）
+5. 「3_毎日自動で送る.bat」をダブルクリック
 ```
 
 登録後は放置で構いません。1日5件ずつ下書きが入り、20日で100件に到達します。

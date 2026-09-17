@@ -1,4 +1,5 @@
 @echo off
+chcp 65001 >nul
 rem TikTokへ今日の分（既定5件）の下書きを送る。
 rem ダブルクリックするか、タスクスケジューラから1日1回実行する。
 setlocal

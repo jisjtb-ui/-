@@ -1,4 +1,5 @@
 @echo off
+chcp 65001 >nul
 rem 100投稿の生成 → 実験登録 → Pages配信用の書き出し までを一度に行う。
 setlocal
 cd /d "%~dp0.."

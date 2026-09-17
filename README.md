@@ -317,6 +317,11 @@ python generate.py --validate
 │  ├─ captions.json        キャプションの断片
 │  ├─ headers.json         見出し文言のパターン
 │  └─ cta.json             CTA文言（ここだけ直せば全投稿に反映）
+├─ 1_セットアップ.bat      ← Windows用のボタン（ダブルクリックで実行）
+├─ 2_下書きを送る.bat
+├─ 3_毎日自動で送る.bat
+├─ 4_状況を確認する.bat
+├─ scripts/                ボタンの中身
 ├─ autopost.py             自動投稿CLI
 ├─ autopost_gui.py         自動投稿GUI
 ├─ autopost/               自動投稿・実験システム（詳細は9〜10章）
