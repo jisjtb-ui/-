@@ -1,11 +1,10 @@
 {
-  "version": "1.4.0",
-  "released_at": "2026-09-18T07:54:09+00:00",
+  "version": "1.4.1",
+  "released_at": "2026-09-18T07:55:17+00:00",
   "channel": "main",
   "notes": [
-    "スマホ用の投稿ページを追加。PCで作ったものをケーブルなしでスマホから投稿できる",
-    "キャプションのコピーと、画像10枚・Reel動画のまとめ保存に対応",
-    "推測されにくいURLに置き、検索避けを入れた"
+    "生成物（pages_media）が誤ってGitに入っていたのを取り除いた。配布物には含まれていない",
+    "生成物がGitに入った状態ではリリースできないよう検査を追加"
   ],
   "files": {
     ".env.example": {
@@ -17,8 +16,8 @@
       "size": 170
     },
     ".gitignore": {
-      "sha256": "35b7cdfd5cb3edec8e8caef721130ec42790120bf2f8af3bf38d01f3137d19b4",
-      "size": 743
+      "sha256": "8c836d492e16a8a59e0eb9307a0737d7d90c32cc273bf60175e69b8444c04943",
+      "size": 822
     },
     "0_更新を確認.bat": {
       "sha256": "bfd9a0e4bdfca0434466df016146fc76b35c9300abefd17583695bddbaf24564",
@@ -69,8 +68,8 @@
       "size": 70
     },
     "CHANGELOG.md": {
-      "sha256": "3cf415126addce7ed4c75818e700f2243c32b50b2c3ddfa8046ef7a8bc3d9383",
-      "size": 2032
+      "sha256": "36ebbfa71eb4782ab19785b67039029b1af409dcce3a4dafc2833c4d7bfc1782",
+      "size": 2253
     },
     "README.md": {
       "sha256": "6821c2534bcea51742509dfc5bad464e05d754cac57b00b870a456ab10310c73",
@@ -81,7 +80,7 @@
       "size": 32252
     },
     "VERSION": {
-      "sha256": "78b591400c56b7b67b8cb3b2b8a8e65e9093897f02ce0878e6b5405c68620fa7",
+      "sha256": "7d072b48526b023950e4c48db01e8c273554a6401119f5691e7589ba9bc65d9d",
       "size": 6
     },
     "autopost.py": {
@@ -545,8 +544,8 @@
       "size": 2911
     },
     "tools/release.py": {
-      "sha256": "53e9a2f14dd986074fb70198c5544ff92a304db0bf700c298f708f0e21b6f379",
-      "size": 8025
+      "sha256": "9924e9882016694c54474a28c73f09d6ceee7cf92a2e6d826a27d23ed1e6b025",
+      "size": 9188
     },
     "tools/selftest.py": {
       "sha256": "75496c1485d9c839e0a38e81af08903f7266de33bcba61d7bda65f88a48b817c",

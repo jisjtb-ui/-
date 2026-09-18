@@ -37,3 +37,6 @@ reels_ready/
 
 # スマホ用ページの推測されにくいフォルダ名
 .mobile_slug
+
+# Pagesへ配信する生成物（アプリ本体ではない）
+pages_media/

@@ -59,6 +59,29 @@ def tracked_files() -> list[str]:
     )
 
 
+# アプリ本体ではないもの。配布物に混ざると、利用者の環境へ持ち込まれる。
+NEVER_SHIP = ("pages_media/", "reels_ready/", "output/", "ready/", "posted/",
+              "backups/", ".tokens/", ".autopost_cache/")
+
+
+def assert_no_generated_files() -> None:
+    """生成物がGitに入っていないか確かめる。入っていたらリリースを止める。
+
+    tracked_files() は保護対象を除いたあとの一覧なので、ここでは使えない。
+    Gitが持っているものを直接見る必要がある。
+    """
+    result = run(["git", "ls-files", "-z"], capture_output=True, check=True)
+    everything = [p for p in result.stdout.split("\0") if p]
+    bad = [p for p in everything if p.startswith(NEVER_SHIP)]
+    if bad:
+        raise SystemExit(
+            "[中止] 生成物がGitに入っています。配布物に混ざるため先に取り除いてください:\n"
+            + "\n".join(f"  {p}" for p in bad[:10])
+            + (f"\n  …ほか{len(bad) - 10}件" if len(bad) > 10 else "")
+            + "\n\n  git rm -r --cached <フォルダ>"
+        )
+
+
 def build_manifest(version: str, notes: list[str], branch: str) -> Manifest:
     files: dict[str, dict] = {}
     for relative in tracked_files():
@@ -117,6 +140,8 @@ def main() -> int:
         version = bump(installed, level_name)
 
     print(f"現在: v{installed}  →  新: v{version}")
+
+    assert_no_generated_files()
 
     # 1. テスト
     if args.skip_tests:
