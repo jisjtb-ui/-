@@ -46,6 +46,10 @@ def page_slug() -> str:
     return slug
 
 
+# Workerから投稿できるチャネル（Reelは音源を手で付けるため対象外）
+API_PLATFORMS = ("threads", "instagram")
+
+
 @dataclass
 class Card:
     experiment_id: str
@@ -56,6 +60,7 @@ class Card:
     scheduled_at: str = ""
     platforms: str = ""
     done: bool = False
+    api_platforms: list[str] = None  # type: ignore[assignment]
 
 
 def _collect(settings: Settings, store: ExperimentStore, destination: Path,
@@ -91,8 +96,13 @@ def _collect(settings: Settings, store: ExperimentStore, destination: Path,
             prefix = urls[0].rsplit("/", 3)[0]
             video_url = f"{prefix}/{experiment.source_post_id}/reel.mp4"
 
+        pending_api = sorted(
+            {p.platform for p in publications
+             if p.platform in API_PLATFORMS and p.status not in DELIVERED}
+        )
         cards.append(
             Card(
+                api_platforms=pending_api,
                 experiment_id=experiment.experiment_id,
                 post_id=experiment.source_post_id,
                 caption=experiment.text or "",
@@ -120,7 +130,9 @@ def build(settings: Settings, destination: Path | None = None,
 
     folder = destination / slug
     folder.mkdir(parents=True, exist_ok=True)
-    (folder / "index.html").write_text(_render(cards), encoding="utf-8")
+    (folder / "index.html").write_text(
+        _render(cards, settings.publish_worker_url), encoding="utf-8"
+    )
     (destination / "robots.txt").write_text(ROBOTS, encoding="utf-8")
 
     base = (settings.local_host_base_url or "").rstrip("/")
@@ -131,7 +143,61 @@ def build(settings: Settings, destination: Path | None = None,
 
 
 # ----------------------------------------------------------------------
-def _render(cards: list[Card]) -> str:
+def sync(settings: Settings, log: LogFn = print) -> dict:
+    """スマホから投稿されたものをPC側へ取り込む。
+
+    これを行わないと、スマホで投稿したものをPCの予約投稿がもう一度出してしまう。
+    """
+    import requests
+
+    from .experiments import PUBLISHED
+
+    if not settings.publish_worker_url:
+        log("PUBLISH_WORKER_URL が未設定です（スマホからの投稿を使っていなければ不要）")
+        return {"marked": 0}
+    if not settings.publish_passphrase:
+        log("[エラー] PUBLISH_PASSPHRASE が未設定です")
+        return {"marked": 0, "error": "no passphrase"}
+
+    url = f"{settings.publish_worker_url}/published"
+    try:
+        response = requests.get(
+            url, headers={"x-passphrase": settings.publish_passphrase}, timeout=30
+        )
+    except requests.RequestException as exc:
+        log(f"[エラー] 取得できませんでした（{type(exc).__name__}）")
+        return {"marked": 0, "error": str(exc)}
+
+    if response.status_code == 401:
+        log("[エラー] 合言葉が違います（.env の PUBLISH_PASSPHRASE を確認してください）")
+        return {"marked": 0, "error": "unauthorized"}
+    if response.status_code != 200:
+        log(f"[エラー] 取得できませんでした（HTTP {response.status_code}）")
+        return {"marked": 0, "error": f"http {response.status_code}"}
+
+    items = (response.json() or {}).get("items") or {}
+    store = ExperimentStore(settings.experiments_db_path)
+    marked = 0
+    for experiment_id, record in items.items():
+        for platform, detail in ((record or {}).get("platforms") or {}).items():
+            publication = store.publication(experiment_id, platform)
+            if publication is None or publication.status in DELIVERED:
+                continue
+            store.mark_published(
+                publication.id, str(detail.get("id", "")), "",
+                {"published_from": "mobile"}, PUBLISHED,
+            )
+            store.log(experiment_id, "スマホから投稿されたため取り込みました", platform)
+            log(f"  取り込み: {experiment_id} / {platform}")
+            marked += 1
+
+    log(f"スマホからの投稿 {marked}件を取り込みました" if marked
+        else "取り込むものはありませんでした")
+    return {"marked": marked}
+
+
+# ----------------------------------------------------------------------
+def _render(cards: list[Card], worker_url: str = "") -> str:
     payload = json.dumps(
         [
             {
@@ -143,14 +209,18 @@ def _render(cards: list[Card]) -> str:
                 "scheduled": c.scheduled_at,
                 "platforms": c.platforms,
                 "done": c.done,
+                "api": c.api_platforms or [],
             }
             for c in cards
         ],
         ensure_ascii=False,
     )
     built = datetime.now().strftime("%Y-%m-%d %H:%M")
-    return TEMPLATE.replace("__DATA__", payload).replace("__BUILT__", built).replace(
-        "__VERSION__", current_version()
+    return (
+        TEMPLATE.replace("__DATA__", payload)
+        .replace("__BUILT__", built)
+        .replace("__VERSION__", current_version())
+        .replace("__WORKER__", json.dumps(worker_url.rstrip("/")))
     )
 
 
@@ -249,6 +319,7 @@ TEMPLATE = """<!DOCTYPE html>
 
 <script>
 const DATA = __DATA__;
+const WORKER = __WORKER__;
 const list = document.getElementById("list");
 const toastEl = document.getElementById("toast");
 let showAll = false;
@@ -309,6 +380,64 @@ async function shareFiles(button, urls, label) {
   button.textContent = original;
 }
 
+function passphrase(force) {
+  let saved = "";
+  try { saved = localStorage.getItem("pass") || ""; } catch (e) { saved = ""; }
+  if (saved && !force) return saved;
+  const input = prompt("合言葉を入力してください（この端末に保存されます）");
+  if (!input) return "";
+  try { localStorage.setItem("pass", input); } catch (e) { /* 保存できなくても続行 */ }
+  return input;
+}
+
+async function publishNow(button, item) {
+  if (!WORKER) {
+    toast("投稿用のWorkerが設定されていません");
+    return;
+  }
+  const pass = passphrase(false);
+  if (!pass) return;
+  if (!confirm(`${item.post} を今すぐ投稿します。よろしいですか？\n\n対象: ${item.api.join(", ")}`)) {
+    return;
+  }
+
+  const original = button.textContent;
+  button.disabled = true;
+  button.textContent = "投稿しています…";
+  try {
+    const response = await fetch(WORKER + "/publish", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-passphrase": pass },
+      body: JSON.stringify({
+        experiment_id: item.id,
+        platforms: item.api,
+        caption: item.caption,
+        images: item.images,
+      }),
+    });
+    const data = await response.json();
+    if (response.status === 401) {
+      passphrase(true);
+      toast("合言葉が違います。入れ直してください");
+    } else if (data.ok) {
+      toast("投稿しました");
+      button.textContent = "投稿しました";
+      button.closest(".card").classList.add("done");
+      return;
+    } else {
+      const failed = Object.entries(data.results || {})
+        .filter(([, r]) => !r.ok)
+        .map(([name, r]) => `${name}: ${r.error}`)
+        .join(" / ");
+      toast(failed || data.error || "失敗しました");
+    }
+  } catch (e) {
+    toast("通信に失敗しました: " + (e && e.message ? e.message : e));
+  }
+  button.disabled = false;
+  button.textContent = original;
+}
+
 function card(item) {
   const el = document.createElement("div");
   el.className = "card" + (item.done ? " done" : "");
@@ -338,8 +467,16 @@ function card(item) {
 
   const actions = el.querySelector(".actions");
 
+  if (WORKER && item.api && item.api.length && !item.done) {
+    const now = document.createElement("button");
+    now.className = "act";
+    now.textContent = `今すぐ投稿（${item.api.join(" / ")}）`;
+    now.onclick = () => publishNow(now, item);
+    actions.appendChild(now);
+  }
+
   const copy = document.createElement("button");
-  copy.className = "act";
+  copy.className = WORKER && item.api && item.api.length && !item.done ? "act ghost" : "act";
   copy.textContent = "キャプションをコピー";
   copy.onclick = () => copyText(item.caption);
   actions.appendChild(copy);

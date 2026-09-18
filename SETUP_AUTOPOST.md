@@ -599,6 +599,71 @@ Instagramアプリでリールとして開き、音源を付けて投稿して�
 
 毎日の自動実行にも組み込んであるので、放っておいても内容は最新になります。
 
+## スマホからワンタップで投稿する（任意）
+
+PCを起動していなくても、スマホの一覧ページから Threads と Instagram へ
+投稿できるようにできます。**設定しなくても、PCの自動投稿はこれまでどおり動きます。**
+
+### できること・できないこと
+
+| | ワンタップ投稿 |
+| --- | --- |
+| Threads | できる |
+| Instagram（カルーセル） | できる |
+| Instagram Reel | **できない**（音源をご自分で付けるため手動のまま） |
+| TikTok | **できない**（下書きまで。APIに下書きを公開する機能がない） |
+
+### なぜWorkerを挟むのか
+
+ページは公開URLなので、**投稿トークンをページやスマホに置くと危険**です。
+トークンはCloudflareのSecretとして保管し、スマホからは**合言葉だけ**を送ります。
+
+```
+スマホ ──合言葉──> Worker ──トークン──> Threads / Instagram
+```
+
+### 設定手順（1回だけ）
+
+`worker/wrangler.jsonc` の `ALLOWED_IMAGE_PREFIX` と `ALLOWED_ORIGIN` を
+ご自分のPagesのURLに書き換えてから、`worker` フォルダで次を実行します。
+
+```
+cd worker
+
+npx wrangler kv namespace create PUBLISHED
+  → 表示された id を wrangler.jsonc の kv_namespaces に貼る
+
+npx wrangler secret put PUBLISH_PASSPHRASE     ← 好きな合言葉を決めて入力
+npx wrangler secret put THREADS_ACCESS_TOKEN   ← .tokens/threads.json の access_token
+npx wrangler secret put THREADS_USER_ID
+npx wrangler secret put INSTAGRAM_ACCESS_TOKEN ← .tokens/instagram.json の access_token
+npx wrangler secret put INSTAGRAM_ACCOUNT_ID
+
+npx wrangler deploy
+```
+
+最後に表示されたURLと合言葉を、PCの `.env` に書きます。
+
+```
+PUBLISH_WORKER_URL=https://honeshinri-publish.<あなた>.workers.dev
+PUBLISH_PASSPHRASE=決めた合言葉
+```
+
+`11_スマホ用ページを作る.bat` を押し直すと、カードに **「今すぐ投稿」** が出ます。
+スマホで初回だけ合言葉を聞かれ、以降はその端末に保存されます。
+
+### 二重投稿について
+
+スマホから投稿したものは Worker に記録され、PCが取りに来て
+「投稿済み」にします。そのためPCの予約投稿が同じものをもう一度出すことはありません。
+毎日の自動実行にも組み込んであります。
+
+```
+python autopost.py mobile --sync    # 手動で取り込む場合
+```
+
+トークンを入れ直したとき（60日ごと）は、Workerのsecretも更新してください。
+
 ## Instagram Reel（縦動画）
 
 同じ心理テストを、カルーセルとは別に**縦動画のReel**としても出せます。

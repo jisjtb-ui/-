@@ -585,3 +585,18 @@ python tools/check_layout.py output           # 安全域からはみ出して�
 
 割り当て結果は `meta.json` の `cta_actions` に残るため、後から
 「どのアクションにどの強さを置いた投稿が伸びたか」を集計できます。
+
+## スマホからの投稿（Cloudflare Worker）
+
+`worker/` に、スマホの「今すぐ投稿」を受ける Worker がある。
+トークンは Cloudflare の Secret として保管し、スマホからは合言葉だけを送る。
+ページにもスマホにもトークンを置かない。
+
+```
+node worker/test.mjs        # デプロイも通信もせずに動作確認
+cd worker && npx wrangler deploy
+```
+
+投稿したものは KV に記録し、PC が `autopost.py mobile --sync` で取り込んで
+「投稿済み」にする。これにより予約投稿との二重投稿を防ぐ。
+設定手順は SETUP_AUTOPOST.md を参照。

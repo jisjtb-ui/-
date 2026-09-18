@@ -206,6 +206,10 @@ def build_parser() -> argparse.ArgumentParser:
     mobile = sub.add_parser("mobile", help="スマホから投稿するための一覧ページを作る")
     mobile.add_argument("--dest", default="pages_media", help="書き出し先")
     mobile.add_argument("--deploy", action="store_true", help="作成後にPagesへデプロイする")
+    mobile.add_argument(
+        "--sync", action="store_true",
+        help="スマホから投稿された分をPCへ取り込む（二重投稿を防ぐ）",
+    )
 
     reel = sub.add_parser("reel", help="Instagram Reel（手動投稿）の書き出し")
     reel_sub = reel.add_subparsers(dest="reel_command", required=True)
@@ -290,6 +294,12 @@ def cmd_mobile(args, settings: Settings, queue: Queue) -> int:
     import subprocess
 
     from . import mobile
+
+    # 先に取り込む。ページに「投稿済み」を正しく反映させるため。
+    mobile.sync(settings)
+
+    if args.sync:
+        return 0
 
     result = mobile.build(settings, Path(args.dest))
     print(f"\n置き場所: {result['folder']}")

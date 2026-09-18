@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -167,6 +168,19 @@ def main() -> int:
               rspec.seconds_for(n, i, 10) for i, n in enumerate(names, 1)))
     check("全体が90秒以内", rspec.total_seconds(names) <= 90,
           f"{rspec.total_seconds(names):.1f}秒")
+
+    section("Worker（スマホからの投稿）")
+    node = shutil.which("node")
+    if not node:
+        print("  --  Node.js が無いため省略（Worker のテストは node worker/test.mjs）")
+    else:
+        result = subprocess.run([node, "worker/test.mjs"], cwd=ROOT,
+                                capture_output=True, text=True, timeout=180)
+        for line in result.stdout.splitlines():
+            if line.strip().startswith(("OK", "NG")):
+                print("  " + line.strip())
+        check("Workerの動作", result.returncode == 0,
+              (result.stderr or result.stdout).strip()[-300:])
 
     section("CLI")
     for args in (["version"], ["doctor", "--offline", "--out", tempfile.mkstemp(suffix=".txt")[1]],

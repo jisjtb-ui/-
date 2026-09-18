@@ -112,6 +112,10 @@ class Settings:
 
     # 1日に配信する件数の上限（API上限より十分低い安全側の既定値）
     #   Threads: API上限250投稿 / Instagram: API上限100投稿
+    # スマホからの「今すぐ投稿」（Cloudflare Worker 経由）
+    publish_worker_url: str = ""
+    publish_passphrase: str = ""
+
     # Reel（手動投稿）
     reel_output_dir: str = "reels_ready"
     reel_seconds_question: float = 3.0
@@ -187,6 +191,8 @@ class Settings:
             auto_topup_min=_get_int("AUTO_TOPUP_MIN", 10),
             auto_topup_count=_get_int("AUTO_TOPUP_COUNT", 30),
             pages_deploy_command=_get("PAGES_DEPLOY_COMMAND"),
+            publish_worker_url=_get("PUBLISH_WORKER_URL").rstrip("/"),
+            publish_passphrase=_get("PUBLISH_PASSPHRASE"),
             reel_output_dir=_get("REEL_OUTPUT_DIR", "reels_ready"),
             reel_seconds_question=_get_float("REEL_SECONDS_QUESTION", 3.0),
             reel_seconds_answer=_get_float("REEL_SECONDS_ANSWER", 2.5),

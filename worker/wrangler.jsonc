@@ -1,0 +1,28 @@
+{
+  // スマホから「今すぐ投稿」を受け取るWorker。
+  // トークンは Secret として保管する（このファイルには書かない）。
+  //
+  //   npx wrangler kv namespace create PUBLISHED
+  //   ↑ で出た id を下の kv_namespaces に書く
+  //
+  //   npx wrangler secret put PUBLISH_PASSPHRASE
+  //   npx wrangler secret put THREADS_ACCESS_TOKEN
+  //   npx wrangler secret put THREADS_USER_ID
+  //   npx wrangler secret put INSTAGRAM_ACCESS_TOKEN
+  //   npx wrangler secret put INSTAGRAM_ACCOUNT_ID
+  //   npx wrangler deploy
+  "name": "honeshinri-publish",
+  "main": "src/index.js",
+  "compatibility_date": "2026-09-18",
+  "vars": {
+    // 自分のPagesのURLだけを許可する（他人の画像を投稿させないため）
+    "ALLOWED_IMAGE_PREFIX": "https://honeshinri-media.pages.dev/",
+    "ALLOWED_ORIGIN": "https://honeshinri-media.pages.dev"
+  },
+  "kv_namespaces": [
+    {
+      "binding": "PUBLISHED",
+      "id": "ここに kv namespace create の id を貼る"
+    }
+  ]
+}

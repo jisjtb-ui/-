@@ -1,15 +1,16 @@
 {
-  "version": "1.4.1",
-  "released_at": "2026-09-18T07:55:17+00:00",
+  "version": "1.5.0",
+  "released_at": "2026-09-18T08:14:10+00:00",
   "channel": "main",
   "notes": [
-    "生成物（pages_media）が誤ってGitに入っていたのを取り除いた。配布物には含まれていない",
-    "生成物がGitに入った状態ではリリースできないよう検査を追加"
+    "スマホから Threads と Instagram へワンタップ投稿できるようにした（Cloudflare Worker経由）",
+    "トークンはCloudflareのSecretに置き、スマホからは合言葉だけを送る",
+    "スマホから投稿した分をPCが取り込み、予約投稿との二重投稿を防ぐ"
   ],
   "files": {
     ".env.example": {
-      "sha256": "5973075ebc4b4cc2f4da6c19b76fa0fe23b2f30934df7aeb87d5d21ed2f6dfc5",
-      "size": 6933
+      "sha256": "25e74f8d6ffd770779db59a260773d78155d8d4d0ccf57104f299af93be83f8b",
+      "size": 7189
     },
     ".gitattributes": {
       "sha256": "3fa230e012e5907422ba6c650fd2a1798f7cb7b07a2912285e64790e2ff97fc6",
@@ -68,19 +69,19 @@
       "size": 70
     },
     "CHANGELOG.md": {
-      "sha256": "36ebbfa71eb4782ab19785b67039029b1af409dcce3a4dafc2833c4d7bfc1782",
-      "size": 2253
+      "sha256": "e2be403e0cfc3e601258da55a78f9a78b313a379dbf24bbf2667be9a79ba727c",
+      "size": 2569
     },
     "README.md": {
-      "sha256": "6821c2534bcea51742509dfc5bad464e05d754cac57b00b870a456ab10310c73",
-      "size": 28772
+      "sha256": "86dd9728ef7c6bd544cd7c9f0c1d5d6e688a1989d6e152a4f1b2c8400759bba4",
+      "size": 29421
     },
     "SETUP_AUTOPOST.md": {
-      "sha256": "23139d2edc63124adfbb9c83bd9d6b265135ae96e05fe7f539b80e006239d661",
-      "size": 32252
+      "sha256": "07bb0fe787f62bdb80bf0c3d1b2868a284ff9a28db7e55e99f8d7119f56c1c4d",
+      "size": 34836
     },
     "VERSION": {
-      "sha256": "7d072b48526b023950e4c48db01e8c273554a6401119f5691e7589ba9bc65d9d",
+      "sha256": "acb57a7135b2d7d6e665f67f056e21353023b93835f54def1ae523bf76f1bfb3",
       "size": 6
     },
     "autopost.py": {
@@ -92,16 +93,16 @@
       "size": 412
     },
     "autopost/cli.py": {
-      "sha256": "af4fe2ed352c280194ffde0c46213bb3340b070efdbb413828e55b3e3a0474be",
-      "size": 47095
+      "sha256": "7fcda32ddf2276b3b5fbabb184a448ddcf01a70c344165e3ea8a01be0dce6cf4",
+      "size": 47419
     },
     "autopost/collector.py": {
       "sha256": "6ecdb17571daa83dbd312e3e9c50146280929571b7ea8eb135434e90329f5492",
       "size": 7243
     },
     "autopost/config.py": {
-      "sha256": "68435016e8f1fe4305bb62f93b18c207d28b4ff970bd6be16a2fec26a2c5e41c",
-      "size": 12639
+      "sha256": "8fc4da59b063e92cdc7994a6ed596d22b5f5f609ca4c70293c5a5e3f69e83a0e",
+      "size": 12912
     },
     "autopost/db.py": {
       "sha256": "8028294bf1aa283e90e24a0c3f32f43ce7d81cd3c98de3814740f3d1df527d17",
@@ -148,8 +149,8 @@
       "size": 3191
     },
     "autopost/mobile.py": {
-      "sha256": "f20059d711204daddc020a31b59927033b298d3cd4bdbbcca27c6c76ef1310a4",
-      "size": 14411
+      "sha256": "4194b44876cced5d6d7fc21e91790b1e6053beee05ee197f771539f74dcdf01e",
+      "size": 19806
     },
     "autopost/models.py": {
       "sha256": "4f2ed6eac6627f24f94f558693c2e7235a9b5b15b85ce51c8744d6cbdf97c4b3",
@@ -516,8 +517,8 @@
       "size": 141
     },
     "scripts/sns_publish_task.cmd": {
-      "sha256": "da28fcc744bf5798ec6082eeb825f259c3b94ae8e8ec772742bd63962ca9a5d3",
-      "size": 366
+      "sha256": "ae79dbcec4cb715761b5fbd993565e5c435d4285bc8bb1e20de025ecfcdec053",
+      "size": 439
     },
     "scripts/tiktok_drafts.bat": {
       "sha256": "09b11976934bffc07b675bdb64441ae35725812686791ce41d50cd87fdb27fb8",
@@ -548,8 +549,8 @@
       "size": 9188
     },
     "tools/selftest.py": {
-      "sha256": "75496c1485d9c839e0a38e81af08903f7266de33bcba61d7bda65f88a48b817c",
-      "size": 8481
+      "sha256": "96182068a7ab9c6dfc1a75da34211d388498ebc594120a75dfea1e2ca7a31cfd",
+      "size": 9120
     },
     "tools/setup_all.py": {
       "sha256": "3ae62954f4d1cf845e51af0b575ad2fc5a9f8f203b1effe07a10eeb28db8996c",
@@ -558,6 +559,18 @@
     "tools/sns_setup.py": {
       "sha256": "26d11b36c2e50eca64a349f8fbf651b5fef19b86c8c4540eb8e1bd62dd65370f",
       "size": 9907
+    },
+    "worker/src/index.js": {
+      "sha256": "52b927905261005266a559e9b9e0b0b469b50d8594a42c8db5ad9f1ad4d0198e",
+      "size": 10127
+    },
+    "worker/test.mjs": {
+      "sha256": "e0e5ac5b203e12497b820f4c30103a0748b7b640f38513ac9f558ea2203e69c1",
+      "size": 4700
+    },
+    "worker/wrangler.jsonc": {
+      "sha256": "210dd980727159ac14c83cbac90e9b91bba561f1232963848974ff7e9e7c1a3c",
+      "size": 1029
     }
   }
 }
