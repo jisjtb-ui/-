@@ -1,12 +1,9 @@
 {
-  "version": "1.1.0",
-  "released_at": "2026-09-18T02:03:47+00:00",
+  "version": "1.1.1",
+  "released_at": "2026-09-18T02:07:42+00:00",
   "channel": "main",
   "notes": [
-    "ソフトの自動更新機能を追加（「更新を確認」ボタン）",
-    "不具合の切り分け用に、秘密情報を含まない診断レポートを追加",
-    "配信待ちが減ったときの自動補充を追加",
-    "予約済みの投稿時刻が2回目の実行で上書きされる問題を修正"
+    "更新中に同名フォルダがあると更新漏れが起きる問題を修正"
   ],
   "files": {
     ".gitattributes": {
@@ -14,8 +11,8 @@
       "size": 170
     },
     ".gitignore": {
-      "sha256": "23cec905135cff29afdcfb6119ff272a7a460fc50cb00b025efdd9a787703a54",
-      "size": 494
+      "sha256": "f246a76be61ad2e29452f411c7eaf57fd8dc41596b43fd66bb9aa85513510c89",
+      "size": 591
     },
     "0_更新を確認.bat": {
       "sha256": "bfd9a0e4bdfca0434466df016146fc76b35c9300abefd17583695bddbaf24564",
@@ -58,19 +55,19 @@
       "size": 70
     },
     "CHANGELOG.md": {
-      "sha256": "b40668cf811153c7be925e0de85eb63b40bd2901949c177166c3a6b3390d82cd",
-      "size": 807
+      "sha256": "da47252c2986096985b56380fc42360dea4faaf521fa18cda39730f95ff8e72a",
+      "size": 903
     },
     "README.md": {
-      "sha256": "956004f8016205b586595a7f4623356d0486bff5b11449d41a4bdadb155705aa",
-      "size": 25532
+      "sha256": "2051998273e14e15f6aa1eb00bb8c5c2026d79e0ba8fb34b5103edfb5575cf84",
+      "size": 26768
     },
     "SETUP_AUTOPOST.md": {
-      "sha256": "5d7ab8f9f629601d6125a770d48b312ff68183e14cbcde03edf39a60823105c9",
-      "size": 25916
+      "sha256": "982ababd92912091f4a2fb9ad2eeaa843203954c65c9e91bcd75ca765b1623f8",
+      "size": 28093
     },
     "VERSION": {
-      "sha256": "1575e1af4a95f12f70b4ee6a6adce8160953d93ea17dc2611b90883ccc3ad3b8",
+      "sha256": "cc52f678848b814373757b460383bf61960e4943c203735adde0a350b3e50989",
       "size": 6
     },
     "autopost.py": {
@@ -210,8 +207,8 @@
       "size": 9335
     },
     "autopost/updater.py": {
-      "sha256": "c8c555c3ed0d879786956b0c4a8cc8913ace6df285b1960a58d08a244d835cef",
-      "size": 15407
+      "sha256": "ed641a4ad786d073e7c33b488700762c74900044af38ff341812a9c61646eb02",
+      "size": 16753
     },
     "autopost/validate.py": {
       "sha256": "cd348890c48732beda1f91437d5e4cd1a02ff43f8de207fd7ec3b1fe68880243",
@@ -510,8 +507,8 @@
       "size": 7393
     },
     "tools/selftest.py": {
-      "sha256": "1ef07023c58a781d545e8d566f63c48b68b5c9cd89186bdc9a67dc7095a934a4",
-      "size": 4144
+      "sha256": "11280452e1103a3e1af113592b80182f49df57ed30624f9b29571949ad1632cc",
+      "size": 4977
     },
     "tools/setup_all.py": {
       "sha256": "3ae62954f4d1cf845e51af0b575ad2fc5a9f8f203b1effe07a10eeb28db8996c",

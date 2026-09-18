@@ -70,6 +70,26 @@ def main() -> int:
                                                 ".env": {"sha256": "y"}})
     check("manifestに.envが混ざっても除外する", set(manifest.updatable()) == {"autopost/cli.py"})
 
+    from autopost.updater import UpdateError, _preflight
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        (root / "ok.py").write_text("x", encoding="utf-8")
+        try:
+            _preflight(root, {"ok.py": {}, "new.py": {}}, log=lambda m: None)
+            check("置き換え可能なら通る", True)
+        except UpdateError as exc:
+            check("置き換え可能なら通る", False, str(exc))
+
+        (root / "conflict.py").mkdir()
+        try:
+            _preflight(root, {"conflict.py": {}}, log=lambda m: None)
+            check("同名フォルダがあれば中止する", False, "中止しなかった")
+        except UpdateError:
+            check("同名フォルダがあれば中止する", True)
+
+    check("v付きでも比較できる", parse("v2.0.1") == (2, 0, 1))
+
     section("CLI")
     for args in (["version"], ["doctor", "--offline", "--out", tempfile.mkstemp(suffix=".txt")[1]],
                  ["update", "--help"]):

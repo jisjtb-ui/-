@@ -325,6 +325,7 @@ python generate.py --validate
 ├─ 6_SNSセットアップ.bat   ← Threads / Instagram はこれ1つで完了
 ├─ 7_SNS予約を実行.bat
 ├─ 8_SNS状況を確認.bat
+- `0_更新を確認.bat` … ソフトを最新版にする
 - `9_不具合を調べる.bat` … 診断レポートを出す（秘密情報を含まない）
 ├─ tools/                  ボタンから呼ばれるPythonスクリプト
 ├─ scripts/                ボタンの中身
@@ -517,3 +518,29 @@ python autopost.py experiment collect --due    # 取得時期が来たものだ�
 
 同じ `experiment_id` で複数チャネルへ配信するため、
 **同じコンテンツがSNSごとにどう反応されたか**を並べて比較できます。
+
+## 開発者向け：リリース手順
+
+Claude Code がコードを変更した後、次の1コマンドでリリースまで進む。
+
+```
+python tools/release.py --minor --notes "Instagram Reelに対応" --notes "Analytics修正"
+```
+
+順に、自己テスト → バージョン更新（`VERSION` が唯一の出所）→ `CHANGELOG.md` 追記
+→ `update_manifest.json` 生成 → コミット、を行う。
+
+`--push` を付けたときだけ push する。付けない限り外部へは出ない。
+`--dry-run` で書き換えずに内容だけ確認できる。
+
+配布は「公開GitHubリポジトリの `main` ブランチ」。ビルド成果物もEXEも無く、
+Pythonのソースがそのまま動くため、ファイルの置き換えだけで更新できる。
+アプリ側は `update_manifest.json` を見てバージョンを比べ、ZIPを取得して
+SHA256を照合し、起動テストを通してから置き換える。
+
+```
+python tools/selftest.py                 # テストだけ流す
+python autopost.py update                # 確認だけ
+python autopost.py update --apply        # 更新する
+python autopost.py update --rollback list
+```

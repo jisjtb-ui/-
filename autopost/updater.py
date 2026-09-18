@@ -310,6 +310,25 @@ def _smoke_test(root: Path, log: LogFn) -> None:
     log("起動テストOK")
 
 
+def _preflight(root: Path, targets: dict[str, dict], log: LogFn) -> None:
+    """置き換えを始める前に、置き換えられない場所が無いか確かめる。
+
+    置き換え先が「ディレクトリ」だと shutil.copy2 はその中へコピーしてしまい、
+    失敗もせずに更新漏れが起きる。始める前に見つけて中止する。
+    """
+    conflicts = [
+        relative for relative in targets
+        if (root / relative).exists() and not (root / relative).is_file()
+    ]
+    if conflicts:
+        raise UpdateError(
+            "置き換えられない場所があります（同名のフォルダが存在します）: "
+            + ", ".join(conflicts[:5])
+            + "。手動で削除してから、もう一度お試しください"
+        )
+    log("置き換え先を確認しました")
+
+
 def _removed_files(old: Manifest | None, new: Manifest) -> list[str]:
     """上流から削除されたファイル（アプリのコードに限る）。"""
     if old is None:
@@ -361,6 +380,7 @@ def apply_update(
         backup.mkdir(parents=True, exist_ok=True)
 
         targets = manifest.updatable()
+        _preflight(root, targets, log)
         removed = _removed_files(local_manifest(), manifest)
         copied: list[str] = []
         log(f"置き換えます（{len(targets)}ファイル）…")
@@ -375,7 +395,11 @@ def apply_update(
             for relative in targets:
                 destination = root / relative
                 destination.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(extracted / relative, destination)
+                # 直接上書きせず、隣に書いてから差し替える。
+                # 途中で電源が切れても中途半端なファイルが残らない。
+                staged = destination.with_name(destination.name + ".new")
+                shutil.copy2(extracted / relative, staged)
+                os.replace(staged, destination)
                 copied.append(relative)
 
             for relative in removed:
@@ -419,9 +443,13 @@ def rollback(backup: Path, log: LogFn = print, app_root: Path | None = None) -> 
 
 
 def backups() -> list[Path]:
+    """アプリ本体のバックアップ（新しい順）。DBのバックアップは含めない。"""
     if not BACKUP_DIR.is_dir():
         return []
-    return sorted((p for p in BACKUP_DIR.iterdir() if p.is_dir()), reverse=True)
+    return sorted(
+        (p for p in BACKUP_DIR.iterdir() if p.is_dir() and p.name.startswith("v")),
+        reverse=True,
+    )
 
 
 def restart_command() -> list[str]:
