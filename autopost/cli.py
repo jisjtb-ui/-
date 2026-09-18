@@ -200,6 +200,24 @@ def build_parser() -> argparse.ArgumentParser:
     logs = sub.add_parser("logs", help="最近のログ")
     logs.add_argument("--limit", type=int, default=50)
 
+    sub.add_parser("version", help="バージョンを表示")
+
+    update_parser = sub.add_parser("update", help="ソフト本体の更新")
+    update_parser.add_argument(
+        "--apply", action="store_true", help="確認だけでなく実際に更新する",
+    )
+    update_parser.add_argument(
+        "--yes", action="store_true", help="確認を求めずに更新する",
+    )
+    update_parser.add_argument("--branch", default="", help="更新元のブランチ")
+    update_parser.add_argument("--repo", default="", help="更新元のリポジトリ")
+    update_parser.add_argument(
+        "--rollback", metavar="バックアップ名",
+        help="1つ前へ戻す（backups/ の名前。list で一覧）",
+    )
+
+    sub.add_parser("migrate", help="DBのスキーマ更新（バックアップしてから実行）")
+
     doctor_parser = sub.add_parser(
         "doctor", help="不具合の切り分け（秘密情報を含まない診断レポートを出す）"
     )
@@ -235,8 +253,109 @@ def main(argv: list[str] | None = None) -> int:
         "sns": cmd_sns,
         "experiment": cmd_experiment,
         "doctor": cmd_doctor,
+        "version": cmd_version,
+        "update": cmd_update,
+        "migrate": cmd_migrate,
     }
     return handlers[args.command](args, settings, queue)
+
+
+# ----------------------------------------------------------------------
+def cmd_version(args, settings: Settings, queue: Queue) -> int:
+    from .version import changelog_for, current_version
+
+    version = current_version()
+    print(f"本音心理テスト 自動投稿  v{version}")
+    notes = changelog_for(version)
+    if notes:
+        print("\nこのバージョンの変更内容:")
+        for note in notes:
+            print(f"  ・{note}")
+    return 0
+
+
+# ----------------------------------------------------------------------
+def cmd_update(args, settings: Settings, queue: Queue) -> int:
+    from . import migrations, updater
+
+    if args.rollback:
+        if args.rollback == "list":
+            found = updater.backups()
+            if not found:
+                print("バックアップはありません")
+                return 0
+            print("戻せるバックアップ:")
+            for path in found:
+                print(f"  {path.name}")
+            return 0
+        target = updater.BACKUP_DIR / args.rollback
+        try:
+            updater.rollback(target)
+        except updater.UpdateError as exc:
+            print(f"[エラー] {exc}")
+            return 1
+        print("戻しました。アプリを起動し直してください。")
+        return 0
+
+    source = updater.UpdateSource(repo=args.repo, branch=args.branch)
+    print(f"更新元: {source.describe()}")
+    try:
+        info = updater.check(source)
+    except updater.UpdateError as exc:
+        print(f"[エラー] {exc}")
+        return 1
+
+    print(f"現在のバージョン: v{info.current}")
+    print(f"配布元の最新版  : v{info.latest}")
+    print(info.message)
+
+    if not info.available:
+        return 0
+    if info.notes:
+        print("\n新しいバージョンの変更内容:")
+        for note in info.notes:
+            print(f"  ・{note}")
+
+    if not args.apply:
+        print("\n更新するには --apply を付けてください。")
+        return 0
+
+    if not args.yes:
+        answer = input("\n更新しますか？ [y/N] ").strip().lower()
+        if answer not in ("y", "yes"):
+            print("中止しました。何も変更していません。")
+            return 0
+
+    print("")
+    try:
+        backup = updater.apply_update(info, source)
+    except updater.UpdateError as exc:
+        print(f"\n[エラー] {exc}")
+        print("現在のバージョンはそのまま使えます。")
+        return 1
+
+    try:
+        migrations.migrate(settings)
+    except migrations.MigrationError as exc:
+        print(f"\n[エラー] DBの更新に失敗しました: {exc}")
+        print(f"アプリを戻すには: python autopost.py update --rollback {backup.name}")
+        return 1
+
+    print(f"\nv{info.latest} へ更新しました。")
+    print("アプリを起動し直してください（開いている画面は古いままです）。")
+    return 0
+
+
+# ----------------------------------------------------------------------
+def cmd_migrate(args, settings: Settings, queue: Queue) -> int:
+    from . import migrations
+
+    try:
+        migrations.migrate(settings)
+    except migrations.MigrationError as exc:
+        print(f"[エラー] {exc}")
+        return 1
+    return 0
 
 
 # ----------------------------------------------------------------------

@@ -20,6 +20,7 @@ from .loader import LoaderError, load_posts
 from .models import PLATFORMS
 from .oauth.store import TokenStore
 from .scheduler import LOCK_NAME, Runner, SingleInstance, bulk_schedule
+from .version import current_version
 from .validate import ERROR, summarize, validate_post
 
 POLL_MS = 200
@@ -36,7 +37,7 @@ class AutoPostApp:
         self.messages: queue_module.Queue[tuple[str, object]] = queue_module.Queue()
         self.watching = False
 
-        root.title("本音心理テスト 自動投稿")
+        root.title(f"本音心理テスト 自動投稿  v{current_version()}")
         root.geometry("980x720")
 
         self.folder_var = StringVar(value=str(Path("output").resolve()))
@@ -47,6 +48,8 @@ class AutoPostApp:
         self.platform_vars = {p: BooleanVar(value=True) for p in PLATFORMS}
         self.status_vars = {p: StringVar(value="確認中") for p in PLATFORMS}
         self.host_var = StringVar(value="")
+        self.update_var = StringVar(value=f"v{current_version()}")
+        self.pending_update = None
 
         self._build()
         self.refresh_status()
@@ -58,6 +61,14 @@ class AutoPostApp:
     # ------------------------------------------------------------------
     def _build(self) -> None:
         pad = {"padx": 8, "pady": 4}
+
+        version_frame = ttk.LabelFrame(self.root, text="ソフトのバージョン")
+        version_frame.pack(fill=X, **pad)
+        ttk.Label(version_frame, textvariable=self.update_var).pack(
+            side=LEFT, padx=8, pady=8)
+        self.update_button = ttk.Button(
+            version_frame, text="更新を確認", command=self.check_update)
+        self.update_button.pack(side=RIGHT, padx=8, pady=8)
 
         top = ttk.LabelFrame(self.root, text="投稿フォルダ")
         top.pack(fill=X, **pad)
@@ -133,6 +144,99 @@ class AutoPostApp:
     # ------------------------------------------------------------------
     # 操作
     # ------------------------------------------------------------------
+    def check_update(self) -> None:
+        """「更新を確認」。通信するのでワーカースレッドで行う。"""
+        from . import updater
+
+        self.update_button.configure(state="disabled")
+        self.update_var.set("確認しています…")
+
+        def work() -> None:
+            try:
+                info = updater.check()
+            except updater.UpdateError as exc:
+                self.messages.put(("update_error", str(exc)))
+                return
+            self.messages.put(("update_checked", info))
+
+        threading.Thread(target=work, daemon=True).start()
+
+    def _offer_update(self, info) -> None:
+        """確認結果をダイアログで見せ、了承されたら更新する。"""
+        version = current_version()
+        if not info.available:
+            self.update_var.set(f"v{version}（最新バージョンです）")
+            self.log(f"最新バージョンです（v{version}）")
+            messagebox.showinfo("更新の確認", "最新バージョンです")
+            return
+
+        self.update_var.set(f"v{version} → v{info.latest} が利用できます")
+        self.log(info.message)
+
+        lines = [f"新しいバージョンがあります", "", f"  現在: v{info.current}",
+                 f"  最新: v{info.latest}", ""]
+        if info.notes:
+            lines.append("変更内容:")
+            lines += [f"  ・{note}" for note in info.notes]
+            lines.append("")
+        lines.append("更新しますか？")
+        lines.append("（.env・データベース・実験データは変更されません）")
+
+        if not messagebox.askyesno("更新の確認", "\n".join(lines)):
+            self.log("更新を中止しました")
+            return
+
+        self.pending_update = info
+        self.update_button.configure(state="disabled")
+        self.update_var.set("更新しています…")
+
+        def work() -> None:
+            from . import migrations, updater
+
+            try:
+                backup = updater.apply_update(
+                    info, log=lambda m: self.messages.put(("log", m)))
+            except updater.UpdateError as exc:
+                self.messages.put(("update_error", str(exc)))
+                return
+            try:
+                migrations.migrate(
+                    self.settings, log=lambda m: self.messages.put(("log", m)))
+            except migrations.MigrationError as exc:
+                self.messages.put((
+                    "update_error",
+                    f"DBの更新に失敗しました: {exc}\n"
+                    f"戻すには: python autopost.py update --rollback {backup.name}",
+                ))
+                return
+            self.messages.put(("update_done", info.latest))
+
+        threading.Thread(target=work, daemon=True).start()
+
+    def _finish_update(self, version: str) -> None:
+        self.update_button.configure(state="normal")
+        self.update_var.set(f"v{version} へ更新しました（再起動が必要）")
+        self.log(f"v{version} へ更新しました")
+        restart = messagebox.askyesno(
+            "更新完了",
+            f"v{version} へ更新しました。\n\n"
+            "今すぐ再起動しますか？\n"
+            "（開いているこの画面は古いコードのままです）",
+        )
+        if not restart:
+            return
+        from . import updater
+        import subprocess
+
+        try:
+            subprocess.Popen(updater.restart_command(), cwd=str(updater.APP_ROOT))
+        except OSError as exc:
+            messagebox.showerror(
+                "再起動できません",
+                f"手動で起動し直してください。\n{exc}")
+            return
+        self.root.destroy()
+
     def choose_folder(self) -> None:
         selected = filedialog.askdirectory(initialdir=self.folder_var.get() or ".")
         if selected:
@@ -329,6 +433,15 @@ class AutoPostApp:
                 self.refresh_status()
             elif kind == "queue":
                 self.refresh_queue()
+            elif kind == "update_checked":
+                self._offer_update(payload)
+            elif kind == "update_done":
+                self._finish_update(str(payload))
+            elif kind == "update_error":
+                self.update_button.configure(state="normal")
+                self.update_var.set(f"v{current_version()}")
+                self.log(f"更新エラー: {payload}")
+                messagebox.showerror("更新エラー", str(payload))
         self.root.after(POLL_MS, self._drain)
 
     def _selected_platforms(self) -> tuple[str, ...]:

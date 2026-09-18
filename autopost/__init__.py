@@ -4,4 +4,7 @@
 機械的に読み取り、公式APIへ投稿するだけの決定論的な処理で完結する。
 """
 
-__version__ = "1.0.0"
+# バージョンは VERSION ファイルが唯一の出所（version.py 参照）
+from .version import current_version
+
+__version__ = current_version()
