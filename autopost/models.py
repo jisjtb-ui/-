@@ -13,7 +13,9 @@ from pathlib import Path
 
 PLATFORMS = ("tiktok", "instagram")
 # 実験エンジンで配信できるチャネル（Publisher Adapter を追加すればここに増える）
-ALL_PLATFORMS = ("threads", "instagram", "tiktok", "pinterest")
+ALL_PLATFORMS = ("threads", "instagram", "instagram_reel", "tiktok", "pinterest")
+# 自動投稿しないチャネル（予約時刻に書き出して手渡す）
+MANUAL_PLATFORMS = ("instagram_reel",)
 
 # Threads の上限（Meta公式 Threads API）
 THREADS_TEXT_LIMIT = 500

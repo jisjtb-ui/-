@@ -5,6 +5,9 @@ Pillow>=10.0.0
 requests>=2.31.0
 python-dotenv>=1.0.0
 
+# Instagram Reel（縦動画）の書き出し。ffmpeg本体を同梱するので別途インストール不要
+imageio-ffmpeg>=0.4.9
+
 # 画像ホスティングに Cloudflare R2 等のS3互換ストレージを使う場合のみ必要
 # pip install boto3
 # boto3>=1.34.0

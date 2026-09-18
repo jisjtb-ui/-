@@ -91,9 +91,34 @@ def main() -> int:
 
     check("v付きでも比較できる", parse("v2.0.1") == (2, 0, 1))
 
+    section("Instagram Reel")
+    from autopost.config import Settings as _S
+    from autopost.models import ALL_PLATFORMS, MANUAL_PLATFORMS
+    from autopost.publishers import get_publisher
+    from autopost.oauth.store import TokenStore
+
+    settings0 = _S.load()
+    check("チャネルに登録されている", "instagram_reel" in ALL_PLATFORMS)
+    check("手動チャネルとして扱われる", "instagram_reel" in MANUAL_PLATFORMS)
+    check("認証情報は不要", settings0.missing("instagram_reel") == [])
+
+    reel_pub = get_publisher("instagram_reel", settings0, TokenStore(settings0.token_dir))
+    check("公開URLを必要としない", reel_pub.requires_image_url is False)
+    try:
+        reel_pub.preflight()
+        check("ffmpegが使える", True)
+    except Exception as exc:
+        check("ffmpegが使える", False, str(exc))
+
+    from night_test.video import ReelSpec
+
+    spec = ReelSpec()
+    check("問題は答えより長く表示する", spec.seconds_for("01_question.png") > spec.seconds_for("02_answer.png"))
+    check("9:16で書き出す", spec.width / spec.height == 1080 / 1920)
+
     section("CLI")
     for args in (["version"], ["doctor", "--offline", "--out", tempfile.mkstemp(suffix=".txt")[1]],
-                 ["update", "--help"]):
+                 ["update", "--help"], ["reel", "list"]):
         result = subprocess.run([sys.executable, "autopost.py", *args],
                                 cwd=ROOT, capture_output=True, text=True, timeout=180)
         check(f"autopost.py {args[0]}", result.returncode == 0,

@@ -23,7 +23,10 @@ from .engine import ExperimentEngine, create_experiment
 from .experiments import ExperimentStore, PUBLISHED
 from .hosting import get_host
 from .loader import LoaderError, load_post, load_posts
-from .models import ALL_PLATFORMS, PLATFORMS
+from .models import ALL_PLATFORMS, MANUAL_PLATFORMS, PLATFORMS
+
+# OAuthの対象になるチャネル（手動投稿のReelは認証が要らない）
+AUTH_PLATFORMS = tuple(p for p in ALL_PLATFORMS if p not in MANUAL_PLATFORMS)
 from .oauth.store import TokenStore
 from .scheduler import LOCK_NAME, Runner, SingleInstance, bulk_schedule
 from .validate import ERROR, summarize, validate_post
@@ -42,7 +45,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("status", help="接続状況・設定・キューの概況を表示")
 
     connect = sub.add_parser("connect", help="OAuth認証（ブラウザが開きます）")
-    connect.add_argument("platform", choices=ALL_PLATFORMS)
+    connect.add_argument("platform", choices=AUTH_PLATFORMS)
     connect.add_argument(
         "--manual",
         action="store_true",
@@ -50,7 +53,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     disconnect = sub.add_parser("disconnect", help="保存済みトークンを削除")
-    disconnect.add_argument("platform", choices=ALL_PLATFORMS)
+    disconnect.add_argument("platform", choices=AUTH_PLATFORMS)
 
     pinterest = sub.add_parser("pinterest", help="Pinterestの補助コマンド")
     pin_sub = pinterest.add_subparsers(dest="pinterest_command", required=True)
@@ -200,6 +203,21 @@ def build_parser() -> argparse.ArgumentParser:
     logs = sub.add_parser("logs", help="最近のログ")
     logs.add_argument("--limit", type=int, default=50)
 
+    reel = sub.add_parser("reel", help="Instagram Reel（手動投稿）の書き出し")
+    reel_sub = reel.add_subparsers(dest="reel_command", required=True)
+
+    reel_build = reel_sub.add_parser("build", help="Reel動画を先に作っておく")
+    reel_build.add_argument("--experiment", help="実験ID（省略時は予約済みのReel全部）")
+    reel_build.add_argument("--limit", type=int, default=10)
+
+    reel_sub.add_parser("list", help="手渡し待ちのReelを見る")
+
+    reel_posted = reel_sub.add_parser("posted", help="手動で投稿し終えたことを記録する")
+    reel_posted.add_argument("experiment", help="実験ID")
+    reel_posted.add_argument("--url", default="", help="投稿のURL")
+    reel_posted.add_argument("--media-id", default="", help="InstagramのメディアID")
+    reel_posted.add_argument("--keep", action="store_true", help="書き出したファイルを消さない")
+
     sub.add_parser("version", help="バージョンを表示")
 
     update_parser = sub.add_parser("update", help="ソフト本体の更新")
@@ -253,11 +271,100 @@ def main(argv: list[str] | None = None) -> int:
         "sns": cmd_sns,
         "experiment": cmd_experiment,
         "doctor": cmd_doctor,
+        "reel": cmd_reel,
         "version": cmd_version,
         "update": cmd_update,
         "migrate": cmd_migrate,
     }
     return handlers[args.command](args, settings, queue)
+
+
+# ----------------------------------------------------------------------
+def cmd_reel(args, settings: Settings, queue: Queue) -> int:
+    """Reelは自動投稿しない。書き出して手渡し、投稿後に紐付ける。"""
+    from .experiments import ExperimentStore, MANUAL_REQUIRED, PUBLISHED
+    from .publishers.reel import PLATFORM, ReelPublisher, cleanup
+
+    store = ExperimentStore(settings.experiments_db_path)
+    publisher = ReelPublisher(settings, TokenStore(settings.token_dir))
+
+    if args.reel_command == "list":
+        waiting = [p for p in store.publications(platform=PLATFORM)
+                   if p.status == MANUAL_REQUIRED]
+        if not waiting:
+            print("手渡し待ちのReelはありません")
+            return 0
+        print(f"手渡し待ち {len(waiting)}件\n")
+        for publication in waiting:
+            experiment = store.get(publication.experiment_id)
+            post_id = experiment.source_post_id if experiment else ""
+            folder = publisher.output_dir(post_id)
+            ready = "書き出し済み" if (folder / "reel.mp4").is_file() else "未書き出し"
+            print(f"  {publication.experiment_id}  {post_id}  {ready}")
+            print(f"    {folder}")
+        print("\n投稿したら: python autopost.py reel posted <実験ID> --url <投稿URL>")
+        return 0
+
+    if args.reel_command == "build":
+        if args.experiment:
+            targets = [store.get(args.experiment)]
+            if targets[0] is None:
+                print(f"[エラー] 実験が見つかりません: {args.experiment}")
+                return 1
+        else:
+            pending = [p for p in store.publications(platform=PLATFORM)
+                       if p.status != PUBLISHED][: args.limit]
+            targets = [store.get(p.experiment_id) for p in pending]
+        targets = [t for t in targets if t is not None]
+        if not targets:
+            print("作る対象がありません。先に sns enqueue で予約してください")
+            return 0
+
+        try:
+            publisher.preflight()
+        except Exception as exc:
+            print(f"[エラー] {exc}")
+            return 1
+
+        made = 0
+        for experiment in targets:
+            print(f"\n{experiment.experiment_id} / {experiment.source_post_id}")
+            try:
+                destination = publisher.build(experiment, log=lambda m: print(f"  {m}"))
+            except Exception as exc:
+                print(f"  [失敗] {exc}")
+                continue
+            print(f"  置き場所: {destination}")
+            made += 1
+        print(f"\n{made}件を書き出しました")
+        return 0
+
+    # posted
+    publication = store.publication(args.experiment, PLATFORM)
+    if publication is None:
+        print(f"[エラー] Reelの予約が見つかりません: {args.experiment}")
+        return 1
+    media_id = args.media_id or args.url
+    if not media_id:
+        print("[エラー] --url か --media-id のどちらかを指定してください")
+        return 1
+
+    store.mark_published(publication.id, args.media_id, args.url, {"manual": True}, PUBLISHED)
+    store.log(args.experiment, f"手動で投稿しました {args.url}".strip(), PLATFORM)
+    print(f"{args.experiment} を投稿済みとして記録しました")
+
+    if args.media_id:
+        print("メディアIDを登録したので、反応データも集められます:")
+        print("  python autopost.py experiment collect --due")
+    else:
+        print("※ 反応データを集めるにはメディアIDが必要です（--media-id）")
+
+    if not args.keep:
+        experiment = store.get(args.experiment)
+        if experiment:
+            cleanup(experiment.source_post_id, settings)
+            print("書き出したファイルを片付けました")
+    return 0
 
 
 # ----------------------------------------------------------------------

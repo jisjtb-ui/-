@@ -85,15 +85,17 @@ class ExperimentEngine:
             self.log(f"  {label}: {message}")
 
         # 実行権を取る前に前提条件を確認する（失敗で claim を消費しないため）
-        if not experiment.image_url:
-            self.store.mark_failed(publication.id, "画像の公開URLがありません")
-            event("画像の公開URLがないため配信できません", "error")
-            return False
         try:
             publisher = self.publisher(publication.platform)
         except Exception as exc:
             self.store.mark_failed(publication.id, f"配信先を初期化できません: {exc}")
             event(f"配信先を初期化できません: {exc}", "error")
+            return False
+
+        # 公開URLが要るチャネルだけ確認する（Reelはローカル素材から作る）
+        if getattr(publisher, "requires_image_url", True) and not experiment.image_url:
+            self.store.mark_failed(publication.id, "画像の公開URLがありません")
+            event("画像の公開URLがないため配信できません", "error")
             return False
 
         if not self.store.claim(publication):

@@ -64,6 +64,14 @@ def _get_bool(key: str, default: bool) -> bool:
     return raw.lower() in ("1", "true", "yes", "on")
 
 
+def _get_float(key: str, default: float) -> float:
+    raw = _get(key)
+    try:
+        return float(raw) if raw else default
+    except ValueError:
+        return default
+
+
 def _get_int(key: str, default: int) -> int:
     raw = _get(key)
     try:
@@ -104,6 +112,12 @@ class Settings:
 
     # 1日に配信する件数の上限（API上限より十分低い安全側の既定値）
     #   Threads: API上限250投稿 / Instagram: API上限100投稿
+    # Reel（手動投稿）
+    reel_output_dir: str = "reels_ready"
+    reel_seconds_question: float = 3.0
+    reel_seconds_answer: float = 2.5
+    instagram_reel_daily_limit: int = 3
+
     threads_daily_limit: int = 10
     instagram_daily_limit: int = 5
 
@@ -171,6 +185,10 @@ class Settings:
             auto_topup_min=_get_int("AUTO_TOPUP_MIN", 10),
             auto_topup_count=_get_int("AUTO_TOPUP_COUNT", 30),
             pages_deploy_command=_get("PAGES_DEPLOY_COMMAND"),
+            reel_output_dir=_get("REEL_OUTPUT_DIR", "reels_ready"),
+            reel_seconds_question=_get_float("REEL_SECONDS_QUESTION", 3.0),
+            reel_seconds_answer=_get_float("REEL_SECONDS_ANSWER", 2.5),
+            instagram_reel_daily_limit=_get_int("INSTAGRAM_REEL_DAILY_LIMIT", 3),
             threads_daily_limit=_get_int("THREADS_DAILY_LIMIT", 10),
             instagram_daily_limit=_get_int("INSTAGRAM_DAILY_LIMIT", 5),
             threads_app_id=_get("THREADS_APP_ID"),
@@ -225,6 +243,7 @@ class Settings:
             "threads": self.threads_daily_limit,
             "instagram": self.instagram_daily_limit,
             "tiktok": self.tiktok_daily_draft_limit,
+            "instagram_reel": self.instagram_reel_daily_limit,
         }.get(platform, 0)
 
     def has_pinterest_credentials(self) -> bool:
@@ -248,6 +267,9 @@ class Settings:
                 "META_APP_SECRET": self.meta_app_secret,
                 "META_REDIRECT_URI": self.meta_redirect_uri,
             }
+        elif platform == "instagram_reel":
+            # 手動投稿なのでAPIの認証情報は要らない
+            keys = {}
         elif platform == "threads":
             keys = {
                 "THREADS_APP_ID": self.threads_app_id,

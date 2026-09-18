@@ -1,27 +1,31 @@
 {
-  "version": "1.1.2",
-  "released_at": "2026-09-18T02:08:29+00:00",
+  "version": "1.2.0",
+  "released_at": "2026-09-18T02:38:59+00:00",
   "channel": "main",
   "notes": [
-    ".env.example が更新で配布されない問題を修正",
-    "配布漏れをリリース時に検査するようにした"
+    "Instagram Reel（縦動画）の書き出しに対応。予約時刻に動画を作り、音源を付けて手動で投稿する流れにした",
+    "Reelを投稿済みとして記録すると、反応データも集まるようにした"
   ],
   "files": {
     ".env.example": {
-      "sha256": "bbd86a6a35bfce73220237d9b6c51bb1864623b10f5d6f9cddda07101a09da27",
-      "size": 6562
+      "sha256": "9543d6d21a5b25b736b283e0cd732def72da1e2e460bf56845176096e1cab3c9",
+      "size": 6829
     },
     ".gitattributes": {
       "sha256": "3fa230e012e5907422ba6c650fd2a1798f7cb7b07a2912285e64790e2ff97fc6",
       "size": 170
     },
     ".gitignore": {
-      "sha256": "f246a76be61ad2e29452f411c7eaf57fd8dc41596b43fd66bb9aa85513510c89",
-      "size": 591
+      "sha256": "d850d7b9ed989c813d4021e5a1caffafd821808824e09e1c73c0e3170526998b",
+      "size": 666
     },
     "0_更新を確認.bat": {
       "sha256": "bfd9a0e4bdfca0434466df016146fc76b35c9300abefd17583695bddbaf24564",
       "size": 75
+    },
+    "10_Reelを書き出す.bat": {
+      "sha256": "33dec663b2870700b744dcd0ecbdec902c524f9e4a006a2f5a9d6fd37edc04f1",
+      "size": 70
     },
     "1_セットアップ.bat": {
       "sha256": "db6af82e21d4c03bc308b13e5deb8f69a9957f2940d8467f918eba9160058e0b",
@@ -60,19 +64,19 @@
       "size": 70
     },
     "CHANGELOG.md": {
-      "sha256": "a9a0fb0149a25e574ccd80ec43fbd36e787cebce80ad3b5bcefc648f9e0a7fdc",
-      "size": 1039
+      "sha256": "06ab97dd78752e2f078f5892604bb90aed7193de838d9a8d20a454ef2df2eaf0",
+      "size": 1288
     },
     "README.md": {
-      "sha256": "2051998273e14e15f6aa1eb00bb8c5c2026d79e0ba8fb34b5103edfb5575cf84",
-      "size": 26768
+      "sha256": "184f7a7522557c69c89cab9c2fd2416c2cc038d9c327c7b82ea9ce44ba17ecbf",
+      "size": 26848
     },
     "SETUP_AUTOPOST.md": {
-      "sha256": "982ababd92912091f4a2fb9ad2eeaa843203954c65c9e91bcd75ca765b1623f8",
-      "size": 28093
+      "sha256": "09378ceae65ae5c99ffb2f43f6625e67a50a89ff470f9794cd1f4a84b9a4158a",
+      "size": 30154
     },
     "VERSION": {
-      "sha256": "77123b8e4bdbd54505bf6e8021527ac60281602a06fe307564532c4dba39dbca",
+      "sha256": "1e5b51cde515396a9fa762909cf8ca6584ccc564b325d2eebeea76175fe95c4d",
       "size": 6
     },
     "autopost.py": {
@@ -84,28 +88,28 @@
       "size": 412
     },
     "autopost/cli.py": {
-      "sha256": "e66f4f64a51c2ab9a38c47695a27db19efb0cf138ab301abb6149e84a3913c18",
-      "size": 40245
+      "sha256": "883a38998d414a80233000110a2e61c94ea4ecb2afbd094520468d8e8f58636a",
+      "size": 45225
     },
     "autopost/collector.py": {
       "sha256": "6ecdb17571daa83dbd312e3e9c50146280929571b7ea8eb135434e90329f5492",
       "size": 7243
     },
     "autopost/config.py": {
-      "sha256": "78ada8b345dc453fc62c07568c6dad5e5463261cd49e1a193a18fba868519c87",
-      "size": 11471
+      "sha256": "677b0be4f849f61cee97f6088e6e9ed5c16119887e6c2b9782b657d107e6835d",
+      "size": 12327
     },
     "autopost/db.py": {
       "sha256": "8028294bf1aa283e90e24a0c3f32f43ce7d81cd3c98de3814740f3d1df527d17",
       "size": 13055
     },
     "autopost/doctor.py": {
-      "sha256": "39f4553ec1c2c79a02a8c2f9ade0ff506f0d9623928347c882586cf46312cf5a",
-      "size": 11579
+      "sha256": "8f6c3fc7619b1aa650f0d0f19bb90e20083b8cf1220a389d8b69cac244ced492",
+      "size": 12261
     },
     "autopost/engine.py": {
-      "sha256": "9a3f70bce9d596d2563c32e165b44a123062e35a37ea83ba7bcda390fa8afe9c",
-      "size": 9844
+      "sha256": "a3f7baf519f14dcbabf98e1033bdf732b6d83e91a9dac7d5801d9df2db169143",
+      "size": 9998
     },
     "autopost/experiments.py": {
       "sha256": "6c71f342b9c74607d1b475e725af4c71de2759e13e905d599c770c1f23049954",
@@ -140,8 +144,8 @@
       "size": 3191
     },
     "autopost/models.py": {
-      "sha256": "9ce1b0ec7ade7ec37bc92fab41e55d9a3dcf023550cec514b12b6ce2b59e2796",
-      "size": 4094
+      "sha256": "4f2ed6eac6627f24f94f558693c2e7235a9b5b15b85ce51c8744d6cbdf97c4b3",
+      "size": 4232
     },
     "autopost/oauth/__init__.py": {
       "sha256": "5d215ec2a2dca5e91ee0d90460142ba4d0729c8f86bc4dae362d235038de9359",
@@ -176,12 +180,12 @@
       "size": 6915
     },
     "autopost/publishers/__init__.py": {
-      "sha256": "948bfc51ddda1f0c0e9cc1eaac2060f94258c42374af56d051f37b62d8e22cd2",
-      "size": 1145
+      "sha256": "0a32982ac28f3466f9cb45a8ab79059feb88980cbdb158bf9dcf6f258ff41e8d",
+      "size": 1269
     },
     "autopost/publishers/base.py": {
-      "sha256": "cb55f671b954d0968d19908623b7522d33457961ab8a0b28cfc48f185b6d4aeb",
-      "size": 5755
+      "sha256": "82c3d32ec89253067221f7693463a32688fa184b27c2eb6552c98743c9ed681d",
+      "size": 5896
     },
     "autopost/publishers/instagram.py": {
       "sha256": "52fbdb9afa0059f402b89c635bed2b2756ec9c2bfa4b0255dfdc8df4f7fdd4be",
@@ -190,6 +194,10 @@
     "autopost/publishers/pinterest.py": {
       "sha256": "d60ebaad983670db94250cd74964bad3a34062502e84ad2c9260f1abd3695867",
       "size": 10276
+    },
+    "autopost/publishers/reel.py": {
+      "sha256": "038ecaaff8f9d7fcd4fad72153aaacf9f185f9411373696343282fee1b102cee",
+      "size": 5874
     },
     "autopost/publishers/threads.py": {
       "sha256": "f4d56621b800093e1c9c286389705e32c93c119a965649be377d33c373f458d4",
@@ -375,9 +383,13 @@
       "sha256": "66ca63638b383c2fffba1f222cd06f51069a72fcb048e89a97ad446d737571f4",
       "size": 5248
     },
+    "night_test/video.py": {
+      "sha256": "679601ba97e3626cfb447dfd875b1a2de308b638f666985d04805f12893c39ef",
+      "size": 6145
+    },
     "requirements.txt": {
-      "sha256": "967dff90a9da72cf415928f717696e5e77760275801d3b75bc872ea9e3084bc5",
-      "size": 264
+      "sha256": "d5e1c7f4886bd523aa362ee1daa59c56c2f62081f16bd6eabc65c8d4d155c8bc",
+      "size": 400
     },
     "sample_output/post_001/01_question.png": {
       "sha256": "0789074e200f7af0f4a3692b34991e238e7337da04e671ddf1676b99aa5c3cfc",
@@ -503,6 +515,10 @@
       "sha256": "70afd4dd50200fe78a2e88e2672af45ee611bd92f7bf2e1df3137f4822bd5f9a",
       "size": 82
     },
+    "tools/reel_handoff.py": {
+      "sha256": "f2711721e55a00dac9429840215c3f0cdce00c20ffdd4cf6afbca0053c7560da",
+      "size": 3790
+    },
     "tools/register_task.py": {
       "sha256": "7156960f12320ef9fc6fa1197c53cd9f972aa9f9c6abc9bb69a876dc212d3dbf",
       "size": 2911
@@ -512,8 +528,8 @@
       "size": 8025
     },
     "tools/selftest.py": {
-      "sha256": "5e9486ec07b838d4bc8c48162ed018bb8ee6fd2f9cd2489dc8813be3ba5052a3",
-      "size": 5010
+      "sha256": "2fc9a164a59eb76ee07d289fad7ab4940b794b0cd4ee284023baf357dfd12ed4",
+      "size": 6151
     },
     "tools/setup_all.py": {
       "sha256": "3ae62954f4d1cf845e51af0b575ad2fc5a9f8f203b1effe07a10eeb28db8996c",

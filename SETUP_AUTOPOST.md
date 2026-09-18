@@ -566,6 +566,57 @@ python autopost.py run
 
 ---
 
+## Instagram Reel（縦動画）
+
+同じ心理テストを、カルーセルとは別に**縦動画のReel**としても出せます。
+既存の10枚をそのまま9:16でつなぎ、約27秒の動画にします。デザインは変わりません。
+
+### なぜ自動投稿しないのか
+
+APIから投稿したReelには、**Instagramの音楽ライブラリを使えません**。
+動画ファイルに入っている音しか鳴らないため、自動投稿すると必ず無音になります。
+Reelは音が効果を大きく左右するので、次の形にしています。
+
+```
+予約時刻になる → 動画を書き出す → 手渡し待ちになる
+  ↓
+自分でスマホから、音源を付けて投稿する
+  ↓
+「投稿した」と記録する → 以降は反応データを自動で集める
+```
+
+### 使い方
+
+```
+7_SNS予約を実行.bat      … 予約時刻が来ると自動で書き出される
+10_Reelを書き出す.bat    … 書き出しと、投稿済みの記録
+```
+
+`10_Reelを書き出す.bat` を押すと、まだ作っていない分を作り、置き場所を教えます。
+投稿し終えたら、同じボタンから実験IDを入力して記録してください。
+**メディアIDも入れると、そのReelの反応データも自動で集まります。**
+
+手で操作する場合:
+
+```
+python autopost.py sns enqueue --folder output --platforms instagram_reel
+python autopost.py sns schedule --platforms instagram_reel --times 21:00
+python autopost.py reel list
+python autopost.py reel posted EXP-20260918-0002 --url <URL> --media-id <ID>
+```
+
+### 設定（.env）
+
+```
+REEL_SECONDS_QUESTION=3.0      # 問題を映す秒数
+REEL_SECONDS_ANSWER=2.5        # 答えを映す秒数
+INSTAGRAM_REEL_DAILY_LIMIT=3   # 1日に書き出す上限
+REEL_OUTPUT_DIR=reels_ready    # 置き場所
+```
+
+ffmpeg は `imageio-ffmpeg` に同梱されているものを使うため、**別途インストールは不要**です。
+`1_セットアップ.bat` か `pip install -r requirements.txt` で入ります。
+
 ## ソフトを最新版にする
 
 `0_更新を確認.bat` をダブルクリック、または画面右上の **「更新を確認」** を押します。

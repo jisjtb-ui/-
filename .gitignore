@@ -31,3 +31,6 @@ diagnose*.txt
 
 # 更新のバックアップ（アプリ本体とユーザーデータの退避先）
 backups/
+
+# Reelの書き出し（手渡し用の一時ファイル）
+reels_ready/

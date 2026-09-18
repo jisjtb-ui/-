@@ -82,6 +82,9 @@ class AnalyticsResult:
 
 
 class Publisher(ABC):
+    # 公開HTTPS URLの画像が必要か。ローカル素材から作るチャネルは False にする。
+    requires_image_url = True
+
     """1プラットフォーム分の投稿処理。"""
 
     name = "base"

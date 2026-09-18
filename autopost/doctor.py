@@ -23,7 +23,7 @@ import requests
 
 from .config import Settings
 from .experiments import DELIVERED, ExperimentStore
-from .models import ALL_PLATFORMS
+from .models import ALL_PLATFORMS, MANUAL_PLATFORMS
 from .hosting import get_host
 from .oauth.store import TokenStore
 
@@ -133,6 +133,10 @@ def _probe(settings: Settings, plat: str, access_token: str) -> str:
     return f"HTTP {response.status_code}{suffix} / {detail[:200]}"
 
 
+def experiments_for_doctor(settings) -> ExperimentStore:
+    return ExperimentStore(settings.experiments_db_path)
+
+
 def _git_revision() -> str:
     try:
         out = subprocess.run(
@@ -205,6 +209,15 @@ def build_report(settings: Settings, live: bool = True) -> str:
             empty = [name for name, value in keys.items() if not value]
             add(f"  .env 設定済み : {', '.join(filled) if filled else 'なし'}")
             add(f"  .env 未設定   : {', '.join(empty) if empty else 'なし'}")
+
+        if plat in MANUAL_PLATFORMS:
+            add("  認証          : 不要（予約時刻に書き出して手動で投稿する）")
+            waiting = [
+                pub for pub in experiments_for_doctor(settings).publications(platform=plat)
+                if pub.status == "manual_required"
+            ]
+            add(f"  手渡し待ち    : {len(waiting)}件")
+            continue
 
         token = store.load(plat)
         if token is None or not token.access_token:
@@ -285,6 +298,8 @@ def build_report(settings: Settings, live: bool = True) -> str:
         publication
         for publication in experiments.publications()
         if publication.status in ("failed", "manual_required")
+        # Reelの手渡し待ちは異常ではないので失敗として並べない
+        and publication.platform not in MANUAL_PLATFORMS
     ]
     if not failures:
         add("  なし")

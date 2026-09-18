@@ -327,6 +327,7 @@ python generate.py --validate
 ├─ 8_SNS状況を確認.bat
 - `0_更新を確認.bat` … ソフトを最新版にする
 - `9_不具合を調べる.bat` … 診断レポートを出す（秘密情報を含まない）
+- `10_Reelを書き出す.bat` … Instagram Reel（縦動画）を書き出す
 ├─ tools/                  ボタンから呼ばれるPythonスクリプト
 ├─ scripts/                ボタンの中身
 ├─ autopost.py             自動投稿CLI

@@ -42,4 +42,8 @@ def get_publisher(platform: str, settings, store):
         from .instagram import InstagramPublisher
 
         return InstagramPublisher(settings, store)
+    if platform == "instagram_reel":
+        from .reel import ReelPublisher
+
+        return ReelPublisher(settings, store)
     raise ValueError(f"未対応のプラットフォームです: {platform}")
