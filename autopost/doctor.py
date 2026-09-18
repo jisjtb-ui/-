@@ -26,6 +26,7 @@ from .experiments import DELIVERED, ExperimentStore
 from .models import ALL_PLATFORMS, MANUAL_PLATFORMS
 from .hosting import get_host
 from .oauth.store import TokenStore
+from .version import current_version
 
 LINE = "-" * 60
 
@@ -184,6 +185,7 @@ def build_report(settings: Settings, live: bool = True) -> str:
     add("===== 自動投稿システム 診断レポート =====")
     add("※ このレポートには秘密情報（キー・トークン）は含まれません")
     add("")
+    add(f"バージョン : v{current_version()}")
     add(f"日時       : {now.strftime('%Y-%m-%d %H:%M:%S %z')}")
     add(f"Python     : {sys.version.split()[0]}")
     add(f"OS         : {platform_mod.system()} {platform_mod.release()}")
@@ -202,6 +204,19 @@ def build_report(settings: Settings, live: bool = True) -> str:
     for plat in ALL_PLATFORMS:
         add("")
         add(f"[{plat}]")
+
+        # リダイレクトURIは秘密ではない。ここが1文字でも違うと認証が通らないため、
+        # そのまま表示して照合できるようにする（エラー1349168の原因の大半）。
+        redirect = {
+            "threads": settings.threads_redirect_uri,
+            "instagram": settings.meta_redirect_uri,
+            "tiktok": settings.tiktok_redirect_uri,
+            "pinterest": settings.pinterest_redirect_uri,
+        }.get(plat)
+        if redirect is not None:
+            add(f"  リダイレクトURI: {redirect or '未設定'}")
+            if redirect and plat in ("threads", "instagram") and redirect.startswith("http://"):
+                add("    ※ Metaは http:// を受け付けないことがあります。https:// を登録してください")
 
         keys = _env_keys(settings, plat)
         if keys:

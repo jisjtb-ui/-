@@ -1,16 +1,16 @@
 {
-  "version": "1.5.0",
-  "released_at": "2026-09-18T08:14:10+00:00",
+  "version": "1.5.1",
+  "released_at": "2026-09-18T17:14:47+00:00",
   "channel": "main",
   "notes": [
-    "スマホから Threads と Instagram へワンタップ投稿できるようにした（Cloudflare Worker経由）",
-    "トークンはCloudflareのSecretに置き、スマホからは合言葉だけを送る",
-    "スマホから投稿した分をPCが取り込み、予約投稿との二重投稿を防ぐ"
+    "Instagram の認証で HTTPS のリダイレクトURIを使えるようにした（手動モードを追加）",
+    "診断レポートにバージョンとリダイレクトURIを表示し、エラー1349168の原因を特定しやすくした",
+    ".env.example の Instagram のリダイレクトURI例を HTTPS に修正"
   ],
   "files": {
     ".env.example": {
-      "sha256": "25e74f8d6ffd770779db59a260773d78155d8d4d0ccf57104f299af93be83f8b",
-      "size": 7189
+      "sha256": "629edfadf56ad468e6c6ddce141629a268f0a51df9881a3254bf6aeb7991f5de",
+      "size": 7467
     },
     ".gitattributes": {
       "sha256": "3fa230e012e5907422ba6c650fd2a1798f7cb7b07a2912285e64790e2ff97fc6",
@@ -69,8 +69,8 @@
       "size": 70
     },
     "CHANGELOG.md": {
-      "sha256": "e2be403e0cfc3e601258da55a78f9a78b313a379dbf24bbf2667be9a79ba727c",
-      "size": 2569
+      "sha256": "b7949597e7dd02d23f9949f19d16e59b2fc10f371aec1cd42b22c87134924ea8",
+      "size": 2900
     },
     "README.md": {
       "sha256": "86dd9728ef7c6bd544cd7c9f0c1d5d6e688a1989d6e152a4f1b2c8400759bba4",
@@ -81,7 +81,7 @@
       "size": 34836
     },
     "VERSION": {
-      "sha256": "acb57a7135b2d7d6e665f67f056e21353023b93835f54def1ae523bf76f1bfb3",
+      "sha256": "dfe7d71b3f428eb73ed853f8fded65e2986896e21d69f45ebf06bb623b450e14",
       "size": 6
     },
     "autopost.py": {
@@ -93,8 +93,8 @@
       "size": 412
     },
     "autopost/cli.py": {
-      "sha256": "7fcda32ddf2276b3b5fbabb184a448ddcf01a70c344165e3ea8a01be0dce6cf4",
-      "size": 47419
+      "sha256": "ad61e39ca9f726166d1fc6a2d2ae86a8a9570698a8b85bbd43309425b878641d",
+      "size": 47439
     },
     "autopost/collector.py": {
       "sha256": "6ecdb17571daa83dbd312e3e9c50146280929571b7ea8eb135434e90329f5492",
@@ -109,8 +109,8 @@
       "size": 13055
     },
     "autopost/doctor.py": {
-      "sha256": "8f6c3fc7619b1aa650f0d0f19bb90e20083b8cf1220a389d8b69cac244ced492",
-      "size": 12261
+      "sha256": "3f64828ec73965e28e3e15f913b0c994b4c8d81ed08403d41b9a4534d6a7742f",
+      "size": 13163
     },
     "autopost/engine.py": {
       "sha256": "a3f7baf519f14dcbabf98e1033bdf732b6d83e91a9dac7d5801d9df2db169143",
@@ -165,8 +165,8 @@
       "size": 5557
     },
     "autopost/oauth/meta_oauth.py": {
-      "sha256": "5c8bb633cd4f499a8a2464573e0af5123360e4a6a0e5dc893f9961ded456d52b",
-      "size": 8787
+      "sha256": "4d77e6c2764466dd8569e5c207a43a09dcb34bd732cc00bca01eefe4dda39fb7",
+      "size": 10381
     },
     "autopost/oauth/pinterest_oauth.py": {
       "sha256": "757b44300abd6d019df2540bed14031f529feda88005490da40d5f79f4b3e0ea",

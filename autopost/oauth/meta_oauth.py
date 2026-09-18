@@ -78,14 +78,47 @@ def authorize_url(settings: Settings, state: str) -> str:
     return url + "?" + urllib.parse.urlencode(params)
 
 
-def connect(settings: Settings, store: TokenStore) -> Token:
+def _is_loopback(redirect_uri: str) -> bool:
+    host = urllib.parse.urlparse(redirect_uri).hostname or ""
+    return host in ("127.0.0.1", "localhost")
+
+
+def _manual_prompt(url: str) -> dict:
+    """HTTPSのリダイレクトURIしか登録できない場合の手動モード。
+
+    Meta は http:// のリダイレクトURIを受け付けないことがある。その場合
+    ループバックで待ち受けられないので、リダイレクト先のURLを貼ってもらう。
+    """
+    print("\n--- Instagram 認証（手動モード） ---")
+    print("1. 次のURLをブラウザで開いて許可してください:\n")
+    print(url)
+    print("\n2. 許可後にリダイレクトされたURL全体をコピーして貼り付けてください。")
+    print("   ページが表示されなくても、アドレス欄のURLをそのままコピーすれば大丈夫です。")
+    print("   （例: https://example.com/?code=AQB... ）\n")
+    raw = input("リダイレクト先URL: ").strip()
+    if not raw:
+        raise MetaAuthError("URLが入力されませんでした")
+    parsed = urllib.parse.urlparse(raw)
+    params = {k: v[0] for k, v in urllib.parse.parse_qs(parsed.query).items()}
+    if not params:
+        raise MetaAuthError("URLから code を読み取れませんでした")
+    return params
+
+
+def connect(settings: Settings, store: TokenStore, manual: bool = False) -> Token:
     """ブラウザで認可し、長期トークンを保存する。"""
     if not (settings.meta_app_id and settings.meta_app_secret and settings.meta_redirect_uri):
         raise MetaAuthError(
             ".env の META_APP_ID / META_APP_SECRET / META_REDIRECT_URI を設定してください"
         )
     state = new_state()
-    params = wait_for_code(settings.meta_redirect_uri, authorize_url(settings, state))
+    url = authorize_url(settings, state)
+
+    # HTTPSのリダイレクトURIではループバックで待ち受けられないため手動にする
+    if manual or not _is_loopback(settings.meta_redirect_uri):
+        params = _manual_prompt(url)
+    else:
+        params = wait_for_code(settings.meta_redirect_uri, url)
     if params.get("error"):
         raise MetaAuthError(
             params.get("error_description") or f"認可されませんでした（{params['error']}）"

@@ -587,7 +587,7 @@ def cmd_connect(args, settings: Settings, queue: Queue) -> int:
         else:
             from .oauth import meta_oauth
 
-            token = meta_oauth.connect(settings, store)
+            token = meta_oauth.connect(settings, store, manual=args.manual)
     except Exception as exc:
         print(f"[エラー] 認証に失敗しました: {exc}", file=sys.stderr)
         return 1
