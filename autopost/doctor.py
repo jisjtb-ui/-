@@ -236,7 +236,14 @@ def build_report(settings: Settings, live: bool = True) -> str:
 
         token = store.load(plat)
         if token is None or not token.access_token:
-            add("  トークン      : 未接続")
+            # 「なぜ未接続なのか」を切り分けられるよう、実際のファイルの有無を出す
+            path = store.path_for(plat)
+            if path.is_file():
+                add("  トークン      : 未接続（ファイルはあるが中身が不正）")
+            else:
+                add("  トークン      : 未接続（認証がまだ完了していません）")
+                add(f"    保存先      : {path}（ファイルなし）")
+            add(f"    接続コマンド : python autopost.py connect {plat}")
             continue
 
         expiry = token.expires_at[:16].replace("T", " ") if token.expires_at else "期限なし"

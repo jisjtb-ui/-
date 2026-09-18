@@ -1,11 +1,9 @@
 {
-  "version": "1.5.1",
-  "released_at": "2026-09-18T17:14:47+00:00",
+  "version": "1.5.2",
+  "released_at": "2026-09-18T17:50:44+00:00",
   "channel": "main",
   "notes": [
-    "Instagram の認証で HTTPS のリダイレクトURIを使えるようにした（手動モードを追加）",
-    "診断レポートにバージョンとリダイレクトURIを表示し、エラー1349168の原因を特定しやすくした",
-    ".env.example の Instagram のリダイレクトURI例を HTTPS に修正"
+    "未接続の理由（トークンファイルが無い／中身が不正）を診断レポートに表示するようにした"
   ],
   "files": {
     ".env.example": {
@@ -69,8 +67,8 @@
       "size": 70
     },
     "CHANGELOG.md": {
-      "sha256": "b7949597e7dd02d23f9949f19d16e59b2fc10f371aec1cd42b22c87134924ea8",
-      "size": 2900
+      "sha256": "c41139812932fb148005c0d761daf848af88f965b2da1fe7986db7bf1723b0ed",
+      "size": 3041
     },
     "README.md": {
       "sha256": "86dd9728ef7c6bd544cd7c9f0c1d5d6e688a1989d6e152a4f1b2c8400759bba4",
@@ -81,7 +79,7 @@
       "size": 34836
     },
     "VERSION": {
-      "sha256": "dfe7d71b3f428eb73ed853f8fded65e2986896e21d69f45ebf06bb623b450e14",
+      "sha256": "ded1b601e81d31ca1f65c4f3ccf2ebd7992b6390e37bc2a86f3837282f1e00cf",
       "size": 6
     },
     "autopost.py": {
@@ -109,8 +107,8 @@
       "size": 13055
     },
     "autopost/doctor.py": {
-      "sha256": "3f64828ec73965e28e3e15f913b0c994b4c8d81ed08403d41b9a4534d6a7742f",
-      "size": 13163
+      "sha256": "15f55a050592501cfa056897ad3f3f3884e9f256054fb44fc0604500180c0804",
+      "size": 13673
     },
     "autopost/engine.py": {
       "sha256": "a3f7baf519f14dcbabf98e1033bdf732b6d83e91a9dac7d5801d9df2db169143",
