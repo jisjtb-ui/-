@@ -163,6 +163,20 @@ def main() -> int:
     total = sum(meta["size"] for meta in manifest.files.values())
     print(f"  {MANIFEST_NAME} … {len(manifest.files)}ファイル / {total / 1024 / 1024:.1f} MB")
 
+    # 配布漏れの検査。目録に載っていないファイルは相手のPCへ届かない。
+    dropped = sorted(set(tracked_files()) - set(manifest.files))
+    if dropped:
+        raise SystemExit(
+            "[中止] 次のファイルが配布物から漏れています: " + ", ".join(dropped[:10])
+        )
+    stale = [
+        path for path, meta in manifest.files.items()
+        if sha256_of(ROOT / path) != meta["sha256"]
+    ]
+    if stale:
+        raise SystemExit("[中止] 目録のハッシュが合っていません: " + ", ".join(stale[:5]))
+    print("  配布漏れ・ハッシュ不一致なし")
+
     # 5. コミット
     print("\n[5/5] コミット")
     run(["git", "add", "-A"], check=True)

@@ -1,11 +1,16 @@
 {
-  "version": "1.1.1",
-  "released_at": "2026-09-18T02:07:42+00:00",
+  "version": "1.1.2",
+  "released_at": "2026-09-18T02:08:29+00:00",
   "channel": "main",
   "notes": [
-    "更新中に同名フォルダがあると更新漏れが起きる問題を修正"
+    ".env.example が更新で配布されない問題を修正",
+    "配布漏れをリリース時に検査するようにした"
   ],
   "files": {
+    ".env.example": {
+      "sha256": "bbd86a6a35bfce73220237d9b6c51bb1864623b10f5d6f9cddda07101a09da27",
+      "size": 6562
+    },
     ".gitattributes": {
       "sha256": "3fa230e012e5907422ba6c650fd2a1798f7cb7b07a2912285e64790e2ff97fc6",
       "size": 170
@@ -55,8 +60,8 @@
       "size": 70
     },
     "CHANGELOG.md": {
-      "sha256": "da47252c2986096985b56380fc42360dea4faaf521fa18cda39730f95ff8e72a",
-      "size": 903
+      "sha256": "a9a0fb0149a25e574ccd80ec43fbd36e787cebce80ad3b5bcefc648f9e0a7fdc",
+      "size": 1039
     },
     "README.md": {
       "sha256": "2051998273e14e15f6aa1eb00bb8c5c2026d79e0ba8fb34b5103edfb5575cf84",
@@ -67,7 +72,7 @@
       "size": 28093
     },
     "VERSION": {
-      "sha256": "cc52f678848b814373757b460383bf61960e4943c203735adde0a350b3e50989",
+      "sha256": "77123b8e4bdbd54505bf6e8021527ac60281602a06fe307564532c4dba39dbca",
       "size": 6
     },
     "autopost.py": {
@@ -207,8 +212,8 @@
       "size": 9335
     },
     "autopost/updater.py": {
-      "sha256": "ed641a4ad786d073e7c33b488700762c74900044af38ff341812a9c61646eb02",
-      "size": 16753
+      "sha256": "1238895be752656704088beec3fc08f8d5e65ce408342b044bfc3458b77578fc",
+      "size": 17038
     },
     "autopost/validate.py": {
       "sha256": "cd348890c48732beda1f91437d5e4cd1a02ff43f8de207fd7ec3b1fe68880243",
@@ -503,12 +508,12 @@
       "size": 2911
     },
     "tools/release.py": {
-      "sha256": "e1ee7a5f042d3eff45c1af5c5e6f70a18c27f29c9224a9092477a61dbf6929e6",
-      "size": 7393
+      "sha256": "53e9a2f14dd986074fb70198c5544ff92a304db0bf700c298f708f0e21b6f379",
+      "size": 8025
     },
     "tools/selftest.py": {
-      "sha256": "11280452e1103a3e1af113592b80182f49df57ed30624f9b29571949ad1632cc",
-      "size": 4977
+      "sha256": "5e9486ec07b838d4bc8c48162ed018bb8ee6fd2f9cd2489dc8813be3ba5052a3",
+      "size": 5010
     },
     "tools/setup_all.py": {
       "sha256": "3ae62954f4d1cf845e51af0b575ad2fc5a9f8f203b1effe07a10eeb28db8996c",

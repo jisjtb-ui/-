@@ -63,7 +63,8 @@ def main() -> int:
     for path in (".env", "autopost.db", ".tokens/threads.json", "history.json",
                  "output/post_001/01_question.png", "autopost.log"):
         check(f"守られる: {path}", is_protected(path))
-    for path in ("autopost/cli.py", "data/cta.json", "VERSION", "README.md"):
+    for path in ("autopost/cli.py", "data/cta.json", "VERSION", "README.md",
+                 ".env.example"):
         check(f"更新対象: {path}", not is_protected(path))
 
     manifest = Manifest(version="9.9.9", files={"autopost/cli.py": {"sha256": "x"},

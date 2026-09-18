@@ -45,6 +45,10 @@ DEFAULT_REPO = "jisjtb-ui/-"
 DEFAULT_BRANCH = "main"
 MANIFEST_NAME = "update_manifest.json"
 
+# 見本なので配布する（PROTECTED より優先する）。
+# .env.example は新しい設定項目を伝える手段なので、更新から外してはいけない。
+SHIPPABLE = (".env.example", ".env.sample", ".env.template")
+
 # 更新で絶対に触らないもの（manifest に混ざっていても無視する）
 PROTECTED = (
     ".env",
@@ -80,6 +84,8 @@ class UpdateError(RuntimeError):
 def is_protected(relative: str) -> bool:
     path = relative.replace("\\", "/")
     name = path.rsplit("/", 1)[-1]
+    if name in SHIPPABLE:
+        return False
     return any(fnmatch(path, pattern) or fnmatch(name, pattern) for pattern in PROTECTED)
 
 
