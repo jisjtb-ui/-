@@ -74,6 +74,8 @@ class ReelPublisher(Publisher):
         spec = ReelSpec(
             seconds_question=self.settings.reel_seconds_question,
             seconds_answer=self.settings.reel_seconds_answer,
+            lead_in=self.settings.reel_lead_in_seconds,
+            tail=self.settings.reel_tail_seconds,
         )
         video = build_reel(source, destination / "reel.mp4", spec, log)
 
@@ -89,7 +91,8 @@ class ReelPublisher(Publisher):
                     "platform": PLATFORM,
                     "video": video.name,
                     "seconds": round(
-                        spec.seconds_question * 5 + spec.seconds_answer * 5, 1
+                        spec.total_seconds([p.name for p in sorted(source.iterdir())
+                                            if p.suffix.lower() in (".png", ".jpg")]), 1
                     ),
                     "audio": "なし（Instagramアプリで付けてください）",
                 },

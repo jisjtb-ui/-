@@ -32,6 +32,12 @@ BACKGROUND = (255, 255, 255)
 SECONDS_QUESTION = 3.0
 SECONDS_ANSWER = 2.5
 
+# 見る人が「認知する」「操作する」ための余白
+#   冒頭 : 何の動画かを把握する時間（スクロール直後は内容を読んでいない）
+#   末尾 : 最終ページのCTAを読み、実際に押すまでの時間
+LEAD_IN_SECONDS = 1.2
+TAIL_SECONDS = 6.0
+
 
 class VideoError(RuntimeError):
     """動画を作れなかった。"""
@@ -44,9 +50,27 @@ class ReelSpec:
     fps: int = FPS
     seconds_question: float = SECONDS_QUESTION
     seconds_answer: float = SECONDS_ANSWER
+    lead_in: float = LEAD_IN_SECONDS
+    tail: float = TAIL_SECONDS
 
-    def seconds_for(self, name: str) -> float:
-        return self.seconds_answer if "answer" in name else self.seconds_question
+    def seconds_for(self, name: str, index: int = 1, total: int = 0) -> float:
+        """その1枚を映す秒数。
+
+        最初の1枚は認知の余白を足して長く、最後の1枚（CTAのページ）は
+        読んで押すまでの時間として、はっきり長く止める。
+        """
+        if total and index == total:
+            return self.tail
+        base = self.seconds_answer if "answer" in name else self.seconds_question
+        if index == 1:
+            return base + self.lead_in
+        return base
+
+    def total_seconds(self, names: list[str]) -> float:
+        return sum(
+            self.seconds_for(name, index, len(names))
+            for index, name in enumerate(names, start=1)
+        )
 
 
 def ffmpeg_path() -> str:
@@ -108,11 +132,12 @@ def build_reel(
         workspace = Path(tmp)
         listing: list[str] = []
         last_frame = ""
-        for index, image in enumerate(images):
-            frame = workspace / f"{index:03d}.jpg"
+        for position, image in enumerate(images, start=1):
+            frame = workspace / f"{position:03d}.jpg"
             _fit_to_frame(image, frame, spec)
+            seconds = spec.seconds_for(image.name, position, len(images))
             listing.append(f"file '{frame.name}'")
-            listing.append(f"duration {spec.seconds_for(image.name):.3f}")
+            listing.append(f"duration {seconds:.3f}")
             last_frame = frame.name
         # concat demuxer は最後の1枚の表示時間を反映させるため、もう一度書く必要がある
         listing.append(f"file '{last_frame}'")
@@ -120,8 +145,9 @@ def build_reel(
         script = workspace / "frames.txt"
         script.write_text("\n".join(listing) + "\n", encoding="utf-8")
 
-        total = sum(spec.seconds_for(p.name) for p in images)
-        log(f"{len(images)}枚 / {total:.1f}秒 の動画を作ります")
+        total = spec.total_seconds([p.name for p in images])
+        log(f"{len(images)}枚 / {total:.1f}秒 の動画を作ります"
+            f"（冒頭+{spec.lead_in:.1f}秒・末尾{spec.tail:.1f}秒の余白つき）")
 
         command = [
             exe, "-y", "-loglevel", "error",

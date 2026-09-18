@@ -19,6 +19,7 @@ from pathlib import Path
 
 from night_test.builder import build_post, post_folder_name
 from night_test.captions import load_caption_data, load_header_data, pick_header
+from night_test.actions import ActionConfig, ActionCtaError, empty as empty_actions
 from night_test.cta import CtaConfig, CtaError, empty as empty_cta
 from night_test.config import DEFAULT_SIZE, PRESET_SIZES, TESTS_PER_POST, Layout
 from night_test.content import (
@@ -39,6 +40,7 @@ TESTS_DIR = DATA_DIR / "tests"
 CAPTIONS_PATH = DATA_DIR / "captions.json"
 HEADERS_PATH = DATA_DIR / "headers.json"
 CTA_PATH = DATA_DIR / "cta.json"
+ACTION_CTA_PATH = DATA_DIR / "cta_actions.json"
 DEFAULT_OUTPUT = ROOT / "output"
 DEFAULT_HISTORY = ROOT / "history.json"
 
@@ -78,6 +80,18 @@ def build_parser() -> argparse.ArgumentParser:
         help="使用するCTAセット（data/cta.json で管理。未指定なら active のセット）",
     )
     parser.add_argument("--no-cta", action="store_true", help="CTAを表示しない")
+    parser.add_argument(
+        "--action-set",
+        help="アクション別CTAのセット（data/cta_actions.json で管理）",
+    )
+    parser.add_argument(
+        "--no-action-cta",
+        action="store_true",
+        help="アクション別CTAを使わず、従来の保存→共有→コメントにする",
+    )
+    parser.add_argument(
+        "--list-action-cta", action="store_true", help="アクション別CTAの重みを表示して終了"
+    )
     parser.add_argument("--list-cta", action="store_true", help="CTAセット一覧を表示して終了")
     parser.add_argument(
         "--tests-per-post", type=int, default=TESTS_PER_POST, help="1投稿の問題数（既定: 5）"
@@ -153,7 +167,13 @@ def main(argv: list[str] | None = None) -> int:
     try:
         cta_config = CtaConfig.load(CTA_PATH)
         cta = empty_cta() if args.no_cta else cta_config.select(args.cta_set)
-    except CtaError as exc:
+        action_config = ActionConfig.load(ACTION_CTA_PATH)
+        actions = (
+            empty_actions()
+            if (args.no_action_cta or args.no_cta)
+            else action_config.get(args.action_set)
+        )
+    except (CtaError, ActionCtaError) as exc:
         print(f"[エラー] {exc}", file=sys.stderr)
         return 1
 
@@ -168,6 +188,25 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     categories = available_categories(items)
+    if args.list_action_cta:
+        print(f"アクション別CTA（既定: {action_config.active}）\n")
+        for name, action_set in action_config.sets.items():
+            mark = "*" if name == action_config.active else " "
+            print(f"{mark} {name} … {action_set.label}")
+            print(f"    見出し: {action_set.headline}")
+            header = "".join(f"{t:>8}" for t in action_config.tiers)
+            print(f"    {'':12}{header}   ← 結果の強さ（%）")
+            for action in action_set.actions:
+                weights = action_set.weights.get(action, {})
+                total = sum(float(v) for v in weights.values()) or 1.0
+                row = "".join(f"{float(weights.get(t, 0)) / total * 100:7.0f}%"
+                              for t in action_config.tiers)
+                label = action_set.action_labels.get(action, action)
+                print(f"    {label:12}{row}")
+            counts = {t: len(action_set.results.get(t, [])) for t in action_config.tiers}
+            print(f"    文言の数: {counts}\n")
+        return 0
+
     if args.list_categories:
         print("利用できるカテゴリ:")
         for name in categories + [RANDOM_CATEGORY]:
@@ -256,6 +295,7 @@ def main(argv: list[str] | None = None) -> int:
                 make_preview=args.preview,
                 overwrite=args.overwrite,
                 cta=cta,
+                actions=actions,
             )
         except FileExistsError as exc:
             print(f"[スキップ] {exc}（上書きするなら --overwrite）", file=sys.stderr)

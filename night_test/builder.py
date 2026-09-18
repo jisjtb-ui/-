@@ -11,6 +11,7 @@ from pathlib import Path
 
 from .captions import build_caption
 from .config import Layout
+from .actions import ActionSet, empty as empty_actions
 from .cta import CtaTexts, empty as empty_cta
 from .renderer import Renderer, build_contact_sheet
 
@@ -41,6 +42,7 @@ def build_post(
     make_preview: bool = True,
     overwrite: bool = False,
     cta: CtaTexts | None = None,
+    actions: ActionSet | None = None,
 ) -> PostResult:
     """画像10枚と caption.txt / meta.json を1フォルダに書き出す。
 
@@ -51,6 +53,13 @@ def build_post(
     （保存→共有→コメント）にだけ入れる。02〜09はテスト体験に集中させる。
     """
     cta = cta or empty_cta()
+    actions = actions or empty_actions()
+
+    # アクション別CTAを使うときは、最終ページを「保存→共有→コメント」から
+    # 「プロフィール／いいね／フォロー／共有 → それぞれの結果」に置き換える。
+    assigned = [] if actions.is_empty() else actions.assign(rng)
+    final_lines = actions.lines(assigned) if assigned else cta.final_lines
+
     folder = output_dir / post_folder_name(post_id)
     if folder.exists():
         if not overwrite:
@@ -69,7 +78,7 @@ def build_post(
             test, number, cta.first_page if is_first else ""
         ).save(q_path, "PNG", optimize=True)
         renderer.render_answer(
-            test, number, cta.final_lines if is_last else ()
+            test, number, final_lines if is_last else ()
         ).save(a_path, "PNG", optimize=True)
         images.extend([q_path, a_path])
 
@@ -89,9 +98,12 @@ def build_post(
         | {
             "placement": {
                 "first_page": "01_question.png" if cta.first_page else None,
-                "final": f"{len(tests) * 2:02d}_answer.png" if cta.final_lines else None,
-            }
+                "final": f"{len(tests) * 2:02d}_answer.png" if final_lines else None,
+            },
+            "final_lines": list(final_lines),
         },
+        # アクション別CTAの割り当て（後からアクション別の効果を集計するため）
+        "cta_actions": actions.to_meta(assigned) if assigned else None,
         "tests": [
             {
                 "number": t["number"],

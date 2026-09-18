@@ -116,6 +116,58 @@ def main() -> int:
     check("問題は答えより長く表示する", spec.seconds_for("01_question.png") > spec.seconds_for("02_answer.png"))
     check("9:16で書き出す", spec.width / spec.height == 1080 / 1920)
 
+    section("アクション別CTAの重み")
+    import random
+    from collections import Counter
+    from night_test.actions import ActionConfig
+
+    action_cfg = ActionConfig.load(ROOT / "data" / "cta_actions.json")
+    action_set = action_cfg.get()
+    rng = random.Random(12345)
+    tier_rank = {t: i for i, t in enumerate(action_set.tiers)}
+    counts = {a: Counter() for a in action_set.actions}
+    duplicates = 0
+    trials = 3000
+    for _ in range(trials):
+        assigned = action_set.assign(rng)
+        if len({x.text for x in assigned}) != len(assigned):
+            duplicates += 1
+        for item in assigned:
+            counts[item.action][item.tier] += 1
+
+    check("1投稿に同じ文言を2回出さない", duplicates == 0, f"{duplicates}件")
+
+    weakest = action_set.tiers[0]
+    profile_weak = counts["profile"][weakest] / trials
+    check("プロフィールは70〜80%で最も弱い結果",
+          0.70 <= profile_weak <= 0.80, f"{profile_weak:.1%}")
+
+    def mean_rank(action: str) -> float:
+        total = sum(counts[action].values())
+        return sum(tier_rank[t] * n for t, n in counts[action].items()) / total
+
+    ranks = {a: mean_rank(a) for a in action_set.actions}
+    check("強さの順が プロフィール < いいね < フォロー < 共有",
+          ranks["profile"] < ranks["like"] < ranks["follow"] < ranks["share"],
+          str({k: round(v, 2) for k, v in ranks.items()}))
+    check("プロフィールが常に最弱ではない（パターンを読まれない）",
+          counts["profile"][weakest] < trials, f"{profile_weak:.1%}")
+    check("共有は最上位だけではない",
+          counts["share"][action_set.tiers[-1]] < trials * 0.9)
+
+    section("Reelの余白")
+    from night_test.video import ReelSpec
+
+    rspec = ReelSpec()
+    names = [f"{i:02d}_{'question' if i % 2 else 'answer'}.png" for i in range(1, 11)]
+    check("冒頭は認知の余白で長い",
+          rspec.seconds_for(names[0], 1, 10) > rspec.seconds_for(names[2], 3, 10))
+    check("末尾は操作の余白で最も長い",
+          rspec.seconds_for(names[9], 10, 10) == max(
+              rspec.seconds_for(n, i, 10) for i, n in enumerate(names, 1)))
+    check("全体が90秒以内", rspec.total_seconds(names) <= 90,
+          f"{rspec.total_seconds(names):.1f}秒")
+
     section("CLI")
     for args in (["version"], ["doctor", "--offline", "--out", tempfile.mkstemp(suffix=".txt")[1]],
                  ["update", "--help"], ["reel", "list"]):

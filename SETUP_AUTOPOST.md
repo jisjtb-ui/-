@@ -569,7 +569,11 @@ python autopost.py run
 ## Instagram Reel（縦動画）
 
 同じ心理テストを、カルーセルとは別に**縦動画のReel**としても出せます。
-既存の10枚をそのまま9:16でつなぎ、約27秒の動画にします。デザインは変わりません。
+既存の10枚をそのまま9:16でつなぎ、約32秒の動画にします。デザインは変わりません。
+
+見る人の**認知と操作に余白**を取っています。スクロール直後は内容を読んでいないため
+冒頭を長めにし、最終ページは4つのアクションを読んで実際に押すまで止まるよう、
+はっきり長く表示します。
 
 ### なぜ自動投稿しないのか
 
@@ -610,6 +614,8 @@ python autopost.py reel posted EXP-20260918-0002 --url <URL> --media-id <ID>
 ```
 REEL_SECONDS_QUESTION=3.0      # 問題を映す秒数
 REEL_SECONDS_ANSWER=2.5        # 答えを映す秒数
+REEL_LEAD_IN_SECONDS=1.2       # 冒頭：何の動画か認知するための余白
+REEL_TAIL_SECONDS=6.0          # 末尾：CTAを読んで押すための余白
 INSTAGRAM_REEL_DAILY_LIMIT=3   # 1日に書き出す上限
 REEL_OUTPUT_DIR=reels_ready    # 置き場所
 ```

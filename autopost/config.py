@@ -116,6 +116,8 @@ class Settings:
     reel_output_dir: str = "reels_ready"
     reel_seconds_question: float = 3.0
     reel_seconds_answer: float = 2.5
+    reel_lead_in_seconds: float = 1.2      # 冒頭：何の動画か認知する余白
+    reel_tail_seconds: float = 6.0         # 末尾：CTAを読んで押す余白
     instagram_reel_daily_limit: int = 3
 
     threads_daily_limit: int = 10
@@ -188,6 +190,8 @@ class Settings:
             reel_output_dir=_get("REEL_OUTPUT_DIR", "reels_ready"),
             reel_seconds_question=_get_float("REEL_SECONDS_QUESTION", 3.0),
             reel_seconds_answer=_get_float("REEL_SECONDS_ANSWER", 2.5),
+            reel_lead_in_seconds=_get_float("REEL_LEAD_IN_SECONDS", 1.2),
+            reel_tail_seconds=_get_float("REEL_TAIL_SECONDS", 6.0),
             instagram_reel_daily_limit=_get_int("INSTAGRAM_REEL_DAILY_LIMIT", 3),
             threads_daily_limit=_get_int("THREADS_DAILY_LIMIT", 10),
             instagram_daily_limit=_get_int("INSTAGRAM_DAILY_LIMIT", 5),
