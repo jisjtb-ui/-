@@ -34,3 +34,6 @@ backups/
 
 # Reelの書き出し（手渡し用の一時ファイル）
 reels_ready/
+
+# スマホ用ページの推測されにくいフォルダ名
+.mobile_slug

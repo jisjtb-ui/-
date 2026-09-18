@@ -203,6 +203,10 @@ def build_parser() -> argparse.ArgumentParser:
     logs = sub.add_parser("logs", help="最近のログ")
     logs.add_argument("--limit", type=int, default=50)
 
+    mobile = sub.add_parser("mobile", help="スマホから投稿するための一覧ページを作る")
+    mobile.add_argument("--dest", default="pages_media", help="書き出し先")
+    mobile.add_argument("--deploy", action="store_true", help="作成後にPagesへデプロイする")
+
     reel = sub.add_parser("reel", help="Instagram Reel（手動投稿）の書き出し")
     reel_sub = reel.add_subparsers(dest="reel_command", required=True)
 
@@ -271,12 +275,47 @@ def main(argv: list[str] | None = None) -> int:
         "sns": cmd_sns,
         "experiment": cmd_experiment,
         "doctor": cmd_doctor,
+        "mobile": cmd_mobile,
         "reel": cmd_reel,
         "version": cmd_version,
         "update": cmd_update,
         "migrate": cmd_migrate,
     }
     return handlers[args.command](args, settings, queue)
+
+
+# ----------------------------------------------------------------------
+def cmd_mobile(args, settings: Settings, queue: Queue) -> int:
+    """スマホのブラウザで開く一覧ページを書き出す。"""
+    import subprocess
+
+    from . import mobile
+
+    result = mobile.build(settings, Path(args.dest))
+    print(f"\n置き場所: {result['folder']}")
+
+    if args.deploy:
+        command = settings.pages_deploy_command
+        if not command:
+            print("\n[注意] .env の PAGES_DEPLOY_COMMAND が空のため、公開は手動です")
+            command = ""
+        if command:
+            print(f"\nデプロイ: {command}")
+            if subprocess.run(command, shell=True, cwd=str(mobile.APP_ROOT)).returncode != 0:
+                print("[エラー] デプロイに失敗しました")
+                return 1
+
+    if result["url"].startswith("http"):
+        print(f"\nスマホでこのURLを開いてください:\n  {result['url']}")
+        if not args.deploy:
+            print("\n※ 先に画像を公開する必要があります:")
+            print(f"  {settings.pages_deploy_command or 'npx wrangler pages deploy pages_media --project-name <プロジェクト名>'}")
+    else:
+        print("\n.env の LOCAL_HOST_BASE_URL が未設定のため、URLを組み立てられません")
+
+    print("\nこのURLは推測されにくい名前ですが、知られると誰でも見られます。")
+    print("人に教えないでください（.mobile_slug に保存しています）。")
+    return 0
 
 
 # ----------------------------------------------------------------------
