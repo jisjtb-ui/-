@@ -57,8 +57,8 @@ def _env_keys(settings: Settings, platform: str) -> dict[str, str]:
             "THREADS_REDIRECT_URI": settings.threads_redirect_uri,
         },
         "instagram": {
-            "META_APP_ID": settings.meta_app_id,
-            "META_APP_SECRET": settings.meta_app_secret,
+            "INSTAGRAM_APP_ID": settings.instagram_client_id,
+            "INSTAGRAM_APP_SECRET": settings.instagram_client_secret,
             "META_REDIRECT_URI": settings.meta_redirect_uri,
             "INSTAGRAM_ACCOUNT_ID": settings.instagram_account_id,
         },
@@ -213,6 +213,20 @@ def build_report(settings: Settings, live: bool = True) -> str:
             "tiktok": settings.tiktok_redirect_uri,
             "pinterest": settings.pinterest_redirect_uri,
         }.get(plat)
+        client_id = {
+            "threads": settings.threads_app_id,
+            "instagram": settings.instagram_client_id,
+            "tiktok": settings.tiktok_client_key,
+        }.get(plat)
+        if client_id is not None:
+            note = ""
+            if plat == "instagram":
+                note = ("（Instagram App ID）" if settings.instagram_app_id
+                        else "（META_APP_IDで代用中。Instagram App IDの指定を推奨）")
+            elif plat == "threads":
+                note = "（Threads App ID）"
+            add(f"  client_id     : {client_id or '未設定'}{note}")
+
         if redirect is not None:
             add(f"  リダイレクトURI: {redirect or '未設定'}")
             if redirect and plat in ("threads", "instagram") and redirect.startswith("http://"):

@@ -136,6 +136,11 @@ class Settings:
     threads_api_version: str = THREADS_API_VERSION_DEFAULT
 
     # Meta / Instagram
+    # Instagram の認可は「Instagram App ID / Secret」を使う。Meta App ID とは別物。
+    #   App Dashboard > Instagram > API setup with Instagram login
+    #     > 3. Set up Instagram business login > Business login settings
+    instagram_app_id: str = ""
+    instagram_app_secret: str = ""
     meta_app_id: str = ""
     meta_app_secret: str = ""
     meta_redirect_uri: str = ""
@@ -213,6 +218,8 @@ class Settings:
             pinterest_board_id=_get("PINTEREST_BOARD_ID"),
             pinterest_sandbox=_get_bool("PINTEREST_SANDBOX", False),
             pinterest_default_link=_get("PINTEREST_DEFAULT_LINK"),
+            instagram_app_id=_get("INSTAGRAM_APP_ID"),
+            instagram_app_secret=_get("INSTAGRAM_APP_SECRET"),
             meta_app_id=_get("META_APP_ID"),
             meta_app_secret=_get("META_APP_SECRET"),
             meta_redirect_uri=_get("META_REDIRECT_URI"),
@@ -247,6 +254,15 @@ class Settings:
     def has_tiktok_credentials(self) -> bool:
         return bool(self.tiktok_client_key and self.tiktok_client_secret and self.tiktok_redirect_uri)
 
+    @property
+    def instagram_client_id(self) -> str:
+        """Instagram の認可に使うID。未設定なら META_APP_ID で代用する。"""
+        return self.instagram_app_id or self.meta_app_id
+
+    @property
+    def instagram_client_secret(self) -> str:
+        return self.instagram_app_secret or self.meta_app_secret
+
     def daily_limit(self, platform: str) -> int:
         """そのプラットフォームで1日に配信する上限。"""
         return {
@@ -271,12 +287,20 @@ class Settings:
                 "TIKTOK_REDIRECT_URI": self.tiktok_redirect_uri,
             }
         elif platform == "instagram":
-            # INSTAGRAM_ACCOUNT_ID は接続時に自動取得できるため必須にしない
-            keys = {
-                "META_APP_ID": self.meta_app_id,
-                "META_APP_SECRET": self.meta_app_secret,
-                "META_REDIRECT_URI": self.meta_redirect_uri,
-            }
+            # INSTAGRAM_ACCOUNT_ID は接続時に自動取得できるため必須にしない。
+            # Facebookログイン方式のときだけ META_* が要る。
+            if self.meta_login_mode == "facebook":
+                keys = {
+                    "META_APP_ID": self.meta_app_id,
+                    "META_APP_SECRET": self.meta_app_secret,
+                    "META_REDIRECT_URI": self.meta_redirect_uri,
+                }
+            else:
+                keys = {
+                    "INSTAGRAM_APP_ID": self.instagram_client_id,
+                    "INSTAGRAM_APP_SECRET": self.instagram_client_secret,
+                    "META_REDIRECT_URI": self.meta_redirect_uri,
+                }
         elif platform == "instagram_reel":
             # 手動投稿なのでAPIの認証情報は要らない
             keys = {}

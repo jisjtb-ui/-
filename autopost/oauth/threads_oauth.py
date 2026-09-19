@@ -1,7 +1,7 @@
 """Threads OAuth（Meta公式 Threads API）。
 
 公式仕様（2026年9月時点で確認）:
-  認可        https://threads.net/oauth/authorize
+  認可        https://threads.com/oauth/authorize
               params: client_id, redirect_uri, scope, response_type=code, state
   短期トークン POST https://graph.threads.net/oauth/access_token
               form: client_id, client_secret, code, grant_type=authorization_code, redirect_uri
@@ -32,7 +32,7 @@ from ..config import Settings
 from .flow import CallbackError, new_state, validate_redirect_uri, wait_for_code
 from .store import Token, TokenStore
 
-AUTHORIZE_URL = "https://threads.net/oauth/authorize"
+AUTHORIZE_URL = "https://threads.com/oauth/authorize"
 SCOPES = ("threads_basic", "threads_content_publish", "threads_manage_insights")
 TIMEOUT = 30
 LONG_LIVED_DAYS = 60

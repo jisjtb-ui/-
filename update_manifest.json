@@ -1,15 +1,17 @@
 {
-  "version": "1.5.4",
-  "released_at": "2026-09-19T04:24:26+00:00",
+  "version": "1.6.0",
+  "released_at": "2026-09-19T04:30:23+00:00",
   "channel": "main",
   "notes": [
-    "スマホ用ページが公開されているかを確認し、未デプロイならデプロイ手順を出すようにした",
-    "Cloudflare Pages が存在しないパスにもHTMLを200で返すため、中身まで見て判定する"
+    "Instagram の認可で、存在しないスコープを要求していたのを修正（認可画面がエラーになる原因）",
+    "Instagram の client_id / secret を Instagram App ID / Secret に修正（Meta App ID とは別物）",
+    "Threads の認可URLを公式表記（threads.com）に更新",
+    "診断レポートに client_id を表示し、IDの取り違えが分かるようにした"
   ],
   "files": {
     ".env.example": {
-      "sha256": "629edfadf56ad468e6c6ddce141629a268f0a51df9881a3254bf6aeb7991f5de",
-      "size": 7467
+      "sha256": "ccf822cf4ee02a177c57d485f6b245950f34db40b643811dfe575f3b3ad5ec34",
+      "size": 8048
     },
     ".gitattributes": {
       "sha256": "3fa230e012e5907422ba6c650fd2a1798f7cb7b07a2912285e64790e2ff97fc6",
@@ -68,8 +70,8 @@
       "size": 70
     },
     "CHANGELOG.md": {
-      "sha256": "e086bd2b5921d5569dca422c4c9fb3239a1e8e885d028ba891c724148d8a9de9",
-      "size": 3390
+      "sha256": "b17b4d17ecc48e0b139e663d74d2868185c1e2c4ae6f8f8a98473ed8d400ec46",
+      "size": 3798
     },
     "CLAUDE.md": {
       "sha256": "217cf8a09cfba1a23e9d45c0781912fa3a5a52af5ac48e9a0c50db2fb8bd09a1",
@@ -80,11 +82,11 @@
       "size": 29459
     },
     "SETUP_AUTOPOST.md": {
-      "sha256": "07bb0fe787f62bdb80bf0c3d1b2868a284ff9a28db7e55e99f8d7119f56c1c4d",
-      "size": 34836
+      "sha256": "7f2cca1a715200857ac2c976077efa1520d16c385a4442bc754029c6dd9f9bbb",
+      "size": 36264
     },
     "VERSION": {
-      "sha256": "879a67a197446479e783c8e22a58681fed324f09eac1ce808f6a5a4c5e1894ad",
+      "sha256": "cb1d9a30bc4ab8a397f39b7d786bb82aca0b816077eefc35d7c822017d75f6a5",
       "size": 6
     },
     "autopost.py": {
@@ -104,16 +106,16 @@
       "size": 7243
     },
     "autopost/config.py": {
-      "sha256": "8fc4da59b063e92cdc7994a6ed596d22b5f5f609ca4c70293c5a5e3f69e83a0e",
-      "size": 12912
+      "sha256": "d58f5c606e485b49647e7a57f5bf2241c604f1fdefae1dd8a8a3392c6178b67d",
+      "size": 14085
     },
     "autopost/db.py": {
       "sha256": "8028294bf1aa283e90e24a0c3f32f43ce7d81cd3c98de3814740f3d1df527d17",
       "size": 13055
     },
     "autopost/doctor.py": {
-      "sha256": "15f55a050592501cfa056897ad3f3f3884e9f256054fb44fc0604500180c0804",
-      "size": 13673
+      "sha256": "4a9c25abb9bf65be8ea1fcc3111b36602ca40c3730951cff63c5ef240f88ad3c",
+      "size": 14317
     },
     "autopost/engine.py": {
       "sha256": "a3f7baf519f14dcbabf98e1033bdf732b6d83e91a9dac7d5801d9df2db169143",
@@ -168,8 +170,8 @@
       "size": 5557
     },
     "autopost/oauth/meta_oauth.py": {
-      "sha256": "4d77e6c2764466dd8569e5c207a43a09dcb34bd732cc00bca01eefe4dda39fb7",
-      "size": 10381
+      "sha256": "c79effb7298460a891421e0824dbec684c78983ae3e7db06de3b2d953d796dbe",
+      "size": 10766
     },
     "autopost/oauth/pinterest_oauth.py": {
       "sha256": "757b44300abd6d019df2540bed14031f529feda88005490da40d5f79f4b3e0ea",
@@ -184,7 +186,7 @@
       "size": 3867
     },
     "autopost/oauth/threads_oauth.py": {
-      "sha256": "1b5a4e34059260a3c423ae30cb7cbf846f53d815bbf4ef06c25a59a1f2877197",
+      "sha256": "9027a6e117a59f8f91a10ca3582ba9f3c3603d78d2a90d687fa29a966e5dd496",
       "size": 9743
     },
     "autopost/oauth/tiktok_oauth.py": {

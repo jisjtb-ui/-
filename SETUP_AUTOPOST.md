@@ -793,6 +793,41 @@ python autopost.py update --rollback v1.1.0_20260918_020420
 > そのアプリの管理画面で必ず再発行してください。詳しくは末尾の
 > 「秘密情報を漏らしてしまったら」を参照してください。
 
+## 認証がどうしても通らないとき
+
+Threads と Instagram は、**Meta App ID とは別のIDを使います**。ここを取り違えると、
+認可画面が「不明なエラー（error_code=1）」などで止まります。
+
+| | .env に入れる値 | 取得場所 |
+| --- | --- | --- |
+| Threads | `THREADS_APP_ID` = **Threads App ID** | App Dashboard → App settings → Basic → Threads App ID |
+| Instagram | `INSTAGRAM_APP_ID` = **Instagram App ID** | App Dashboard → Instagram → API setup with Instagram login → 3. Set up Instagram business login → Business login settings |
+
+シークレットも同じ画面にあるものを使ってください（Meta App Secret ではありません）。
+
+`9_不具合を調べる.bat` に、実際に使っている値が出ます。
+
+```
+[instagram]
+  client_id     : 1234567890（Instagram App ID）
+  リダイレクトURI: https://.../
+```
+
+ここがMetaの管理画面の値と一致していない限り、何度試しても通りません。
+
+### スコープについて
+
+Instagram で使えるスコープは次の4つだけです。存在しない値を混ぜると認可画面がエラーになります。
+
+```
+instagram_business_basic
+instagram_business_content_publish
+instagram_business_manage_messages
+instagram_business_manage_comments
+```
+
+反応データ専用のスコープはありません（basic の範囲で取得します）。
+
 ## よくあるエラー
 
 | エラー | 原因と対処 |

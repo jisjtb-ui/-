@@ -29,11 +29,13 @@ TIMEOUT = 30
 IG_AUTHORIZE_URL = "https://www.instagram.com/oauth/authorize"
 IG_TOKEN_URL = "https://api.instagram.com/oauth/access_token"
 IG_GRAPH = "https://graph.instagram.com"
-# instagram_business_manage_insights が無いと反応データを取得できない
+# 公式が定めるスコープは4つだけ。存在しない値を混ぜると認可画面がエラーになる。
+#   instagram_business_basic / instagram_business_content_publish
+#   instagram_business_manage_messages / instagram_business_manage_comments
+# 反応データ（insights）専用のスコープは無く、basic の範囲で取得する。
 IG_SCOPES = (
     "instagram_business_basic",
     "instagram_business_content_publish",
-    "instagram_business_manage_insights",
 )
 
 FB_AUTHORIZE_URL = "https://www.facebook.com/{version}/dialog/oauth"
@@ -60,7 +62,7 @@ def graph_base(settings: Settings) -> str:
 def authorize_url(settings: Settings, state: str) -> str:
     if settings.meta_login_mode == "instagram":
         params = {
-            "client_id": settings.meta_app_id,
+            "client_id": settings.instagram_client_id,
             "redirect_uri": settings.meta_redirect_uri,
             "response_type": "code",
             "scope": ",".join(IG_SCOPES),
@@ -107,9 +109,11 @@ def _manual_prompt(url: str) -> dict:
 
 def connect(settings: Settings, store: TokenStore, manual: bool = False) -> Token:
     """ブラウザで認可し、長期トークンを保存する。"""
-    if not (settings.meta_app_id and settings.meta_app_secret and settings.meta_redirect_uri):
+    if not (settings.instagram_client_id and settings.instagram_client_secret
+            and settings.meta_redirect_uri):
         raise MetaAuthError(
-            ".env の META_APP_ID / META_APP_SECRET / META_REDIRECT_URI を設定してください"
+            ".env の INSTAGRAM_APP_ID / INSTAGRAM_APP_SECRET / META_REDIRECT_URI を"
+            "設定してください（Meta App ID ではなく Instagram App ID です）"
         )
     state = new_state()
     url = authorize_url(settings, state)
@@ -189,8 +193,8 @@ def _ig_exchange_code(settings: Settings, code: str) -> dict:
     response = requests.post(
         IG_TOKEN_URL,
         data={
-            "client_id": settings.meta_app_id,
-            "client_secret": settings.meta_app_secret,
+            "client_id": settings.instagram_client_id,
+            "client_secret": settings.instagram_client_secret,
             "grant_type": "authorization_code",
             "redirect_uri": settings.meta_redirect_uri,
             "code": code,
@@ -205,7 +209,7 @@ def _ig_long_lived(settings: Settings, short_token: str) -> dict:
         f"{IG_GRAPH}/access_token",
         params={
             "grant_type": "ig_exchange_token",
-            "client_secret": settings.meta_app_secret,
+            "client_secret": settings.instagram_client_secret,
             "access_token": short_token,
         },
         timeout=TIMEOUT,
@@ -217,7 +221,7 @@ def _fb_exchange_code(settings: Settings, code: str) -> dict:
     response = requests.get(
         f"{FB_GRAPH}/{settings.meta_graph_version}/oauth/access_token",
         params={
-            "client_id": settings.meta_app_id,
+            "client_id": settings.instagram_client_id,
             "client_secret": settings.meta_app_secret,
             "redirect_uri": settings.meta_redirect_uri,
             "code": code,
@@ -232,7 +236,7 @@ def _fb_long_lived(settings: Settings, short_token: str) -> dict:
         f"{FB_GRAPH}/{settings.meta_graph_version}/oauth/access_token",
         params={
             "grant_type": "fb_exchange_token",
-            "client_id": settings.meta_app_id,
+            "client_id": settings.instagram_client_id,
             "client_secret": settings.meta_app_secret,
             "fb_exchange_token": short_token,
         },
