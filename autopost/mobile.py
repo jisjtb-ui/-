@@ -31,6 +31,9 @@ from .version import APP_ROOT, current_version
 
 LogFn = Callable[[str], None]
 
+# このページかどうかを見分ける印（Pagesの404代替ページと区別するため）
+PAGE_MARKER = "data-honeshinri-mobile"
+
 SLUG_FILE = APP_ROOT / ".mobile_slug"
 ROBOTS = "User-agent: *\nDisallow: /\n"
 
@@ -140,6 +143,32 @@ def build(settings: Settings, destination: Path | None = None,
     waiting = sum(1 for c in cards if not c.done)
     log(f"{len(cards)}件を書き出しました（未投稿 {waiting}件）")
     return {"url": url, "slug": slug, "count": len(cards), "folder": str(folder)}
+
+
+def verify_published(url: str, log: LogFn = print) -> bool:
+    """作ったページが本当に公開されているかを確かめる。
+
+    Cloudflare Pages は存在しないパスにも置いてあるHTMLを 200 で返すため、
+    「開ける」ことは何の保証にもならない。中身が自分のページかまで見る。
+    """
+    import requests
+
+    if not url.startswith("http"):
+        return False
+    try:
+        response = requests.get(url, timeout=20)
+    except requests.RequestException as exc:
+        log(f"  確認できませんでした（{type(exc).__name__}）")
+        return False
+
+    if response.status_code != 200:
+        log(f"  まだ公開されていません（HTTP {response.status_code}）")
+        return False
+    if PAGE_MARKER not in response.text:
+        log("  このURLには別のページが表示されています（未デプロイ）")
+        return False
+    log("  公開されています")
+    return True
 
 
 # ----------------------------------------------------------------------
@@ -303,7 +332,7 @@ TEMPLATE = """<!DOCTYPE html>
   .toast.show { opacity: 1; }
 </style>
 </head>
-<body>
+<body data-honeshinri-mobile="1">
 <header>
   <h1>投稿する</h1>
   <div class="meta">作成 __BUILT__ ・ v__VERSION__</div>

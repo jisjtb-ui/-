@@ -1,9 +1,10 @@
 {
-  "version": "1.5.3",
-  "released_at": "2026-09-19T04:20:57+00:00",
+  "version": "1.5.4",
+  "released_at": "2026-09-19T04:24:26+00:00",
   "channel": "main",
   "notes": [
-    "リリースすると配布元（main）まで自動で反映されるようにした"
+    "スマホ用ページが公開されているかを確認し、未デプロイならデプロイ手順を出すようにした",
+    "Cloudflare Pages が存在しないパスにもHTMLを200で返すため、中身まで見て判定する"
   ],
   "files": {
     ".env.example": {
@@ -67,8 +68,8 @@
       "size": 70
     },
     "CHANGELOG.md": {
-      "sha256": "605bb741a2b7914fea2b43f00ebc40c3afce5eceb235c6fdcbf5c56fb1292408",
-      "size": 3141
+      "sha256": "e086bd2b5921d5569dca422c4c9fb3239a1e8e885d028ba891c724148d8a9de9",
+      "size": 3390
     },
     "CLAUDE.md": {
       "sha256": "217cf8a09cfba1a23e9d45c0781912fa3a5a52af5ac48e9a0c50db2fb8bd09a1",
@@ -83,7 +84,7 @@
       "size": 34836
     },
     "VERSION": {
-      "sha256": "c03e3824001f39b9518249b8d6522422fc4de7227e12a568c0164662b03b7758",
+      "sha256": "879a67a197446479e783c8e22a58681fed324f09eac1ce808f6a5a4c5e1894ad",
       "size": 6
     },
     "autopost.py": {
@@ -95,8 +96,8 @@
       "size": 412
     },
     "autopost/cli.py": {
-      "sha256": "ad61e39ca9f726166d1fc6a2d2ae86a8a9570698a8b85bbd43309425b878641d",
-      "size": 47439
+      "sha256": "b874ee1eaf3f61739067a9d0fa6cd8494574fb8180597ae9859a4a19cb877723",
+      "size": 47962
     },
     "autopost/collector.py": {
       "sha256": "6ecdb17571daa83dbd312e3e9c50146280929571b7ea8eb135434e90329f5492",
@@ -151,8 +152,8 @@
       "size": 3191
     },
     "autopost/mobile.py": {
-      "sha256": "4194b44876cced5d6d7fc21e91790b1e6053beee05ee197f771539f74dcdf01e",
-      "size": 19806
+      "sha256": "6e7fd62e5dc0f8c93c59fd8cd7a5e9be1b9f3cfc89ee04f1edb6d82af8681d21",
+      "size": 20960
     },
     "autopost/models.py": {
       "sha256": "4f2ed6eac6627f24f94f558693c2e7235a9b5b15b85ce51c8744d6cbdf97c4b3",

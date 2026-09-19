@@ -316,10 +316,18 @@ def cmd_mobile(args, settings: Settings, queue: Queue) -> int:
                 return 1
 
     if result["url"].startswith("http"):
-        print(f"\nスマホでこのURLを開いてください:\n  {result['url']}")
-        if not args.deploy:
-            print("\n※ 先に画像を公開する必要があります:")
-            print(f"  {settings.pages_deploy_command or 'npx wrangler pages deploy pages_media --project-name <プロジェクト名>'}")
+        print(f"\nURL: {result['url']}")
+        print("公開されているか確認しています…")
+        if mobile.verify_published(result["url"]):
+            print(f"\nスマホでこのURLを開いてください:\n  {result['url']}")
+        else:
+            command = (settings.pages_deploy_command
+                       or "npx wrangler pages deploy pages_media --project-name <プロジェクト名>")
+            print("\n--- まだスマホから開けません ---")
+            print("作ったページはPCの中にあるだけで、まだ公開されていません。")
+            print("次を実行してから、もう一度このボタンを押してください:")
+            print(f"\n  {command}\n")
+            print("※ .env の PAGES_DEPLOY_COMMAND を設定すると、次回から自動で公開されます")
     else:
         print("\n.env の LOCAL_HOST_BASE_URL が未設定のため、URLを組み立てられません")
 
