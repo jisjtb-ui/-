@@ -168,6 +168,14 @@ def main() -> int:
     check("答えページに4つの結果が出る", len(reveal) == 5)
     check("差し込み位置が設定で変えられる", isinstance(action_set.insert_after, int))
 
+    section("投稿に含める画像")
+    from autopost.loader import IMAGE_RE
+
+    for name in ("01_choose.png", "02_reveal.png", "03_question.png", "10_answer.png"):
+        check(f"投稿に含める: {name}", bool(IMAGE_RE.match(name)))
+    for name in ("preview.jpg", "meta.json", "caption.txt"):
+        check(f"含めない: {name}", not IMAGE_RE.match(name))
+
     section("Reelの余白")
     from night_test.video import ReelSpec
 

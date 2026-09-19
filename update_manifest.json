@@ -1,10 +1,9 @@
 {
-  "version": "1.10.1",
-  "released_at": "2026-09-19T15:09:50+00:00",
+  "version": "1.10.2",
+  "released_at": "2026-09-19T15:11:53+00:00",
   "channel": "main",
   "notes": [
-    "作り直したときに、使われなくなった古い画像を消すようにした（公開先に残り続けていた）",
-    "セットアップの最後にスマホ用ページを作り直すようにした（古い一覧のままだった）"
+    "占いの2枚が投稿に含まれていなかったのを修正。画像の絞り込みが question/answer だけを見ていた"
   ],
   "files": {
     ".env.example": {
@@ -72,8 +71,8 @@
       "size": 70
     },
     "CHANGELOG.md": {
-      "sha256": "a1a2e2947895286d2d8f18347ebb5096c03d6bce2f09b5f51dad6ca760d2bad3",
-      "size": 6592
+      "sha256": "c0a1dc0b7e17ec378cf982ab78084a19705775f5835b4de9096dc1783697bdd7",
+      "size": 6737
     },
     "CLAUDE.md": {
       "sha256": "217cf8a09cfba1a23e9d45c0781912fa3a5a52af5ac48e9a0c50db2fb8bd09a1",
@@ -88,7 +87,7 @@
       "size": 37272
     },
     "VERSION": {
-      "sha256": "118705d21506adb8d7c06a51156bb59497679f644fb4ae3d14bbbfc366643124",
+      "sha256": "50020f5178d4e42fca05b2455fbe25f0a8a19b7537bab9fa87429ec5ebe20de1",
       "size": 7
     },
     "autopost.py": {
@@ -148,8 +147,8 @@
       "size": 5212
     },
     "autopost/loader.py": {
-      "sha256": "fdbd0cabc345116b1f85b711a4dd2768ff262d5fad88fe10d83067c2a32812d3",
-      "size": 4935
+      "sha256": "32ecaaa50d76de71c5f4fa8d3ce2a7dbd8947577637fd0f9027bf3ea5f336537",
+      "size": 5022
     },
     "autopost/migrations.py": {
       "sha256": "af94e08ee405bb0b14b6f7b723432d60acac24897e33d021d312618c6a3f0af2",
@@ -560,8 +559,8 @@
       "size": 10971
     },
     "tools/selftest.py": {
-      "sha256": "a09e366566d8a4a33f5045f65154ef3d557dc9cfb0106e9e25b86f156c2ea3a1",
-      "size": 9828
+      "sha256": "3ac6544729049a68a71b974f17de4ce38251408cf27ed6d014f153b7759b3e54",
+      "size": 10198
     },
     "tools/setup_all.py": {
       "sha256": "d6263fb81a999642bff2c39378fabaa9ab3ba9d2d82121f5945efe2e156e31a0",

@@ -20,11 +20,12 @@ from .models import (
 )
 
 POST_DIR_RE = re.compile(r"^post_\d+$")
-IMAGE_RE = re.compile(r"^(\d{2})_(question|answer)\.png$", re.IGNORECASE)
+# 01_choose / 02_reveal（占い）も投稿に含める。種類を限定すると取りこぼす。
+IMAGE_RE = re.compile(r"^(\d{2})_[a-z]+\.png$", re.IGNORECASE)
 OVERRIDE_FILE = "publish.json"
 
 # 文言がどこにも無かった場合の最終フォールバック（固定文・LLM不使用）
-FALLBACK_CAPTION = "本音が出る心理テスト5問\n\n何問当たった？"
+FALLBACK_CAPTION = "本音が出る心理テスト\n\n何問当たった？"
 FALLBACK_HASHTAGS = ["#心理テスト", "#恋愛心理", "#性格診断"]
 
 
