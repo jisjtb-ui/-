@@ -1,15 +1,15 @@
 {
-  "version": "1.7.2",
-  "released_at": "2026-09-19T05:25:55+00:00",
+  "version": "1.7.3",
+  "released_at": "2026-09-19T05:33:18+00:00",
   "channel": "main",
   "notes": [
-    "公開の確認に失敗しても、URLを必ず表示するようにした（確認失敗と公開失敗は別）",
-    "確認は3回まで再試行する"
+    ".env.example のダミーURL（example.com）を空欄にした。そのまま使われて接続エラーになるため",
+    "診断レポートで、公開URLがダミーや余計なパス付きのときに警告するようにした"
   ],
   "files": {
     ".env.example": {
-      "sha256": "ccf822cf4ee02a177c57d485f6b245950f34db40b643811dfe575f3b3ad5ec34",
-      "size": 8048
+      "sha256": "02f2d5eb6335e0c3841f185cd6f43bd880b2656a6d8a8d9119903c3e4020ae61",
+      "size": 8205
     },
     ".gitattributes": {
       "sha256": "3fa230e012e5907422ba6c650fd2a1798f7cb7b07a2912285e64790e2ff97fc6",
@@ -72,8 +72,8 @@
       "size": 70
     },
     "CHANGELOG.md": {
-      "sha256": "e844d6146573f0721c67776e53e3018e2f986ac27a7513a01c50aa3a157f6d6b",
-      "size": 4728
+      "sha256": "fb2f8626c8d00c428e283c15ee69721edd64fd4d038151c358922aaa1b470be2",
+      "size": 4974
     },
     "CLAUDE.md": {
       "sha256": "217cf8a09cfba1a23e9d45c0781912fa3a5a52af5ac48e9a0c50db2fb8bd09a1",
@@ -88,7 +88,7 @@
       "size": 37272
     },
     "VERSION": {
-      "sha256": "e6b7255e251fae180891178dc54e93117e0e522c67cd10145600f71c36216ee9",
+      "sha256": "b60eb1aee608b0e18ce0ee958536003246bf2618862ab401797f7e001a1b5604",
       "size": 6
     },
     "autopost.py": {
@@ -116,8 +116,8 @@
       "size": 13055
     },
     "autopost/doctor.py": {
-      "sha256": "4a9c25abb9bf65be8ea1fcc3111b36602ca40c3730951cff63c5ef240f88ad3c",
-      "size": 14317
+      "sha256": "e71364bb7ac3ae8441981836ce31c0767eb787ee90042f4a957f76dd111601a3",
+      "size": 14828
     },
     "autopost/engine.py": {
       "sha256": "a3f7baf519f14dcbabf98e1033bdf732b6d83e91a9dac7d5801d9df2db169143",

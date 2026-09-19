@@ -284,6 +284,15 @@ def build_report(settings: Settings, live: bool = True) -> str:
     host = get_host(settings)
     add(f"  設定          : {host.describe()}")
 
+    base = (settings.local_host_base_url or settings.r2_public_base_url or "").strip()
+    if base:
+        add(f"  公開URLの基点  : {base}")
+        if "example.com" in base:
+            add("    ※ example.com は説明用のダミーです。実在しません。")
+            add("       Cloudflare Pages のURLに置き換えてください")
+        elif base.rstrip("/").count("/") > 2:
+            add("    ※ 末尾にパスが付いています。画像URLがずれる原因になります")
+
     experiments = ExperimentStore(settings.experiments_db_path)
     sample = ""
     for experiment in experiments.list_experiments(limit=40):
