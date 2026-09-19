@@ -48,6 +48,10 @@ class ActionSet:
     headline: str = ""
     footer: str = ""
     separator: str = "…"
+    prompt_footer: str = ""
+    reveal_headline: str = ""
+    # 占いを何問目の後に差し込むか。0 = 先頭（1・2枚目）
+    insert_after: int = 0
     actions: tuple[str, ...] = ()
     action_labels: dict[str, str] = field(default_factory=dict)
     weights: dict[str, dict[str, float]] = field(default_factory=dict)
@@ -101,8 +105,18 @@ class ActionSet:
         return assigned
 
     # ------------------------------------------------------------------
+    def prompt_lines(self) -> list[str]:
+        """選ぶページ。**結果は見せない。** 見せると押す理由が消える。"""
+        labels = [self.action_labels.get(a, a) for a in self.actions]
+        return [line for line in ([self.headline] + labels + [self.prompt_footer]) if line]
+
+    def reveal_lines(self, assigned: list[Assigned]) -> list[str]:
+        """答え合わせのページ。選んだあとにめくって見る。"""
+        body = [f"{item.label} {self.separator} {item.text}" for item in assigned]
+        return [line for line in ([self.reveal_headline] + body) if line]
+
     def lines(self, assigned: list[Assigned]) -> list[str]:
-        """画像に載せる行。見出し → 各アクション → 締め。"""
+        """1枚に収める旧形式（結果が見えてしまうため既定では使わない）。"""
         body = [f"{item.label} {self.separator} {item.text}" for item in assigned]
         return [line for line in ([self.headline] + body + [self.footer]) if line]
 
@@ -148,6 +162,9 @@ class ActionConfig:
                 headline=raw.get("headline", ""),
                 footer=raw.get("footer", ""),
                 separator=raw.get("separator", "…"),
+                prompt_footer=raw.get("prompt_footer", ""),
+                reveal_headline=raw.get("reveal_headline", ""),
+                insert_after=int(raw.get("insert_after", 0) or 0),
                 actions=tuple(raw.get("actions") or ()),
                 action_labels=dict(raw.get("action_labels") or {}),
                 weights={k: dict(v) for k, v in (raw.get("weights") or {}).items()},

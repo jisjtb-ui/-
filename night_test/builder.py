@@ -58,7 +58,9 @@ def build_post(
     # アクション別CTAを使うときは、最終ページを「保存→共有→コメント」から
     # 「プロフィール／いいね／フォロー／共有 → それぞれの結果」に置き換える。
     assigned = [] if actions.is_empty() else actions.assign(rng)
-    final_lines = actions.lines(assigned) if assigned else cta.final_lines
+    # 占いを使うときは、結果を最終ページに載せない。
+    # 「選ぶ → めくる → 答え」の2枚組にして、押す理由とめくる理由を作る。
+    final_lines = [] if assigned else cta.final_lines
 
     folder = output_dir / post_folder_name(post_id)
     if folder.exists():
@@ -67,20 +69,49 @@ def build_post(
         shutil.rmtree(folder)
     folder.mkdir(parents=True)
 
-    images: list[Path] = []
+    # ページの並びを先に決める。占いは2枚1組で、指定した問題の後ろに入る。
+    pages: list[tuple] = []
+    insert_at = max(0, min(actions.insert_after, len(tests))) if assigned else -1
+    if insert_at == 0:
+        pages += [("choose", None), ("reveal", None)]
     for index, test in enumerate(tests):
-        number = index + 1
-        is_first = index == 0
-        is_last = index == len(tests) - 1
-        q_path = folder / f"{number * 2 - 1:02d}_question.png"
-        a_path = folder / f"{number * 2:02d}_answer.png"
-        renderer.render_question(
-            test, number, cta.first_page if is_first else ""
-        ).save(q_path, "PNG", optimize=True)
-        renderer.render_answer(
-            test, number, final_lines if is_last else ()
-        ).save(a_path, "PNG", optimize=True)
-        images.extend([q_path, a_path])
+        pages.append(("question", (index, test)))
+        pages.append(("answer", (index, test)))
+        if assigned and index + 1 == insert_at:
+            pages += [("choose", None), ("reveal", None)]
+
+    images: list[Path] = []
+    slot = 0
+    for kind, payload in pages:
+        slot += 1
+        if kind == "choose":
+            path = folder / f"{slot:02d}_choose.png"
+            renderer.render_message(
+                actions.headline,
+                [actions.action_labels.get(a, a) for a in actions.actions],
+                actions.prompt_footer,
+            ).save(path, "PNG", optimize=True)
+        elif kind == "reveal":
+            path = folder / f"{slot:02d}_reveal.png"
+            lines = actions.reveal_lines(assigned)
+            renderer.render_message(
+                lines[0] if lines else "", lines[1:], "", emphasis=False
+            ).save(path, "PNG", optimize=True)
+        else:
+            index, test = payload
+            number = index + 1
+            if kind == "question":
+                path = folder / f"{slot:02d}_question.png"
+                renderer.render_question(
+                    test, number, cta.first_page if slot == 1 else ""
+                ).save(path, "PNG", optimize=True)
+            else:
+                path = folder / f"{slot:02d}_answer.png"
+                is_last_test = index == len(tests) - 1
+                renderer.render_answer(
+                    test, number, final_lines if is_last_test else ()
+                ).save(path, "PNG", optimize=True)
+        images.append(path)
 
     caption = build_caption(caption_data, rng, category, tests)
     (folder / "caption.txt").write_text(caption, encoding="utf-8")

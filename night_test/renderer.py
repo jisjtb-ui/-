@@ -64,6 +64,14 @@ class Renderer:
         """
         return self._render(lambda s: self._build_answer(test, number, s, list(cta_lines)))
 
+    def render_message(
+        self, headline: str, items: list[str], footer: str = "", emphasis: bool = True
+    ) -> Image.Image:
+        """占いの「選ぶ」「答え」ページ。見出し＋並び＋締めの3段だけ。"""
+        return self._render(
+            lambda s: self._build_message(headline, items, footer, emphasis, s)
+        )
+
     # ------------------------------------------------------------------
     # 自動フィット
     # ------------------------------------------------------------------
@@ -416,6 +424,56 @@ class Renderer:
                     line_height=self._lh(f_cta, lay.line_heights.cta),
                     tracking=lay.px((2 if primary else 1) * scale),
                     space_after=space_after if index < len(cta_lines) - 1 else 0,
+                )
+            )
+        return stack
+
+
+    def _build_message(
+        self, headline: str, items: list[str], footer: str, emphasis: bool, scale: float
+    ) -> Stack:
+        """テストのページより余白を多くとり、行動に集中させる。"""
+        lay = self.layout
+        sp = lay.spacing
+        stack = Stack()
+
+        f_head = self._font(lay.sizes.title * 0.72, scale)
+        f_item = self._font(lay.sizes.question * (1.0 if emphasis else 0.86), scale)
+        f_foot = self._font(lay.sizes.cta_secondary, scale)
+
+        if headline:
+            stack.add(
+                Block(
+                    lines=wrap_balanced(headline, f_head, self._wrap_width(f_head)),
+                    font=f_head,
+                    line_height=self._lh(f_head, lay.line_heights.title),
+                    tracking=lay.px(2 * scale),
+                    space_after=lay.px(sp.after_title * scale),
+                )
+            )
+            stack.add(self._divider(lay.px(sp.after_divider * 1.2 * scale)))
+
+        for index, item in enumerate(items):
+            stack.add(
+                Block(
+                    lines=wrap_balanced(item, f_item, self._wrap_width(f_item)),
+                    font=f_item,
+                    line_height=self._lh(f_item, lay.line_heights.question),
+                    tracking=lay.px(1 * scale),
+                    space_after=lay.px(
+                        (sp.between_choices * (1.5 if emphasis else 1.1)) * scale
+                    ) if index < len(items) - 1 else lay.px(sp.before_cta * scale),
+                )
+            )
+
+        for line in [l for l in footer.split("\n") if l.strip()]:
+            stack.add(
+                Block(
+                    lines=wrap_balanced(line, f_foot, self._wrap_width(f_foot)),
+                    font=f_foot,
+                    line_height=self._lh(f_foot, lay.line_heights.cta),
+                    tracking=lay.px(1 * scale),
+                    space_after=lay.px(sp.between_cta * scale),
                 )
             )
         return stack

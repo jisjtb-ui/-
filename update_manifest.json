@@ -1,10 +1,11 @@
 {
-  "version": "1.7.3",
-  "released_at": "2026-09-19T05:33:18+00:00",
+  "version": "1.8.0",
+  "released_at": "2026-09-19T05:44:59+00:00",
   "channel": "main",
   "notes": [
-    ".env.example のダミーURL（example.com）を空欄にした。そのまま使われて接続エラーになるため",
-    "診断レポートで、公開URLがダミーや余計なパス付きのときに警告するようにした"
+    "占いCTAを「選ぶ」「答え」の2枚組に変更。結果を先に見せないことで、押す理由とめくる理由を作った",
+    "差し込み位置を設定で変えられるようにした（既定は1・2枚目）",
+    "占いで2枚使うため、1投稿は4問になった（カルーセル上限10枚）"
   ],
   "files": {
     ".env.example": {
@@ -72,8 +73,8 @@
       "size": 70
     },
     "CHANGELOG.md": {
-      "sha256": "fb2f8626c8d00c428e283c15ee69721edd64fd4d038151c358922aaa1b470be2",
-      "size": 4974
+      "sha256": "241270d7b9acb4903c2192e3d99e92968c558116234c873f41c096ee940f0cfe",
+      "size": 5306
     },
     "CLAUDE.md": {
       "sha256": "217cf8a09cfba1a23e9d45c0781912fa3a5a52af5ac48e9a0c50db2fb8bd09a1",
@@ -88,7 +89,7 @@
       "size": 37272
     },
     "VERSION": {
-      "sha256": "b60eb1aee608b0e18ce0ee958536003246bf2618862ab401797f7e001a1b5604",
+      "sha256": "3eb1ef94b5890ca727158b106142685c8733b0ace5bcb4cf3f0ac14f9f0643f4",
       "size": 6
     },
     "autopost.py": {
@@ -260,8 +261,8 @@
       "size": 1517
     },
     "data/cta_actions.json": {
-      "sha256": "23dab37541b4154686c53c56a01e0a57796540d0312a65118bc5e3453e3563b5",
-      "size": 4071
+      "sha256": "036f758bec138b92076241b3c32eaccd4010dbb0269777134b0d338f0f5100cb",
+      "size": 5126
     },
     "data/headers.json": {
       "sha256": "e39516ca180eff6a42b87bbb075cf2b41232d6877eebda7ce54a4ab4f1c11609",
@@ -352,8 +353,8 @@
       "size": 11101
     },
     "generate.py": {
-      "sha256": "018e35e7fa7d354d8b1964e9fd230bde435720941dc1fe44f6ec8115c8e4eadf",
-      "size": 13645
+      "sha256": "f0384db6b7ab963137795b5530ab4d51a23b4f9ef2cb2366d00a1eb2214df6c0",
+      "size": 13652
     },
     "manage.py": {
       "sha256": "6b2a0095633cc9a6200221c2c7c73cc338810d558808cdcded1f5478e854546e",
@@ -364,20 +365,20 @@
       "size": 85
     },
     "night_test/actions.py": {
-      "sha256": "2ed31de7aee6dd391435891d420e43d848f453ee8fe57e917865efcc9bc3012b",
-      "size": 6670
+      "sha256": "c04f79d099ff27e761fae0e699d58689bc6be2c782ea0b97aec35bfd167c0570",
+      "size": 7659
     },
     "night_test/builder.py": {
-      "sha256": "c8a55ed06b753538d0a06e8ba97702c81150ecea297fc35374d5a83a1e2e92cd",
-      "size": 4973
+      "sha256": "8b12f5dac8fd70588e47166dfd562add78a38f2f804d2cfdebf775b3ccd5232d",
+      "size": 6428
     },
     "night_test/captions.py": {
       "sha256": "d03a2060c8a1199a4f8c7a9dcd36ca4bab7297b871c745917762790c959a8916",
       "size": 2262
     },
     "night_test/config.py": {
-      "sha256": "f58625d2afa8fa99561a5b2aaea5672b58c43ddeb6c32d838459793712ba4064",
-      "size": 5086
+      "sha256": "88e9c43ff9e7e4b051b5c97aa99ced9d08c71e8369b33490941721855162f0a3",
+      "size": 5183
     },
     "night_test/content.py": {
       "sha256": "253117bee3d5d092bc6d00ae5a42868bff19b406dc7839396cb28c5cb024ea3e",
@@ -400,8 +401,8 @@
       "size": 7706
     },
     "night_test/renderer.py": {
-      "sha256": "d7b6f9e356fc32fde361f64cf4b47476c63c59d0399f9003301207008e2e1e2d",
-      "size": 17966
+      "sha256": "0d23963d19645c2889f7eb94b017176801fd3c9bb493185bf69d8fe9418ab948",
+      "size": 20340
     },
     "night_test/textlayout.py": {
       "sha256": "66ca63638b383c2fffba1f222cd06f51069a72fcb048e89a97ad446d737571f4",
@@ -560,8 +561,8 @@
       "size": 10971
     },
     "tools/selftest.py": {
-      "sha256": "96182068a7ab9c6dfc1a75da34211d388498ebc594120a75dfea1e2ca7a31cfd",
-      "size": 9120
+      "sha256": "8433838f8688b75ee6c175f1b54f8de36e044aa863bdc90f5e47cdb95af7b8c3",
+      "size": 9812
     },
     "tools/setup_all.py": {
       "sha256": "3ae62954f4d1cf845e51af0b575ad2fc5a9f8f203b1effe07a10eeb28db8996c",

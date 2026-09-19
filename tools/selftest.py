@@ -156,6 +156,18 @@ def main() -> int:
     check("共有は最上位だけではない",
           counts["share"][action_set.tiers[-1]] < trials * 0.9)
 
+    section("占いの2枚組")
+    prompt = action_set.prompt_lines()
+    reveal = action_set.reveal_lines(action_set.assign(random.Random(1)))
+    joined = " ".join(prompt)
+    results = [t for tier in action_set.tiers for t in action_set.results.get(tier, [])]
+    check("選ぶページに結果を出さない",
+          not any(r in joined for r in results), joined[:80])
+    check("選ぶページに4つの選択肢がある",
+          all(action_set.action_labels[a] in joined for a in action_set.actions))
+    check("答えページに4つの結果が出る", len(reveal) == 5)
+    check("差し込み位置が設定で変えられる", isinstance(action_set.insert_after, int))
+
     section("Reelの余白")
     from night_test.video import ReelSpec
 

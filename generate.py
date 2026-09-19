@@ -94,7 +94,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--list-cta", action="store_true", help="CTAセット一覧を表示して終了")
     parser.add_argument(
-        "--tests-per-post", type=int, default=TESTS_PER_POST, help="1投稿の問題数（既定: 5）"
+        "--tests-per-post", type=int, default=TESTS_PER_POST, help="1投稿の問題数（既定: 4／占いで2枚使うため）"
     )
     parser.add_argument("--start-index", type=int, help="投稿番号の開始値（既定: 履歴の続きから）")
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT, help="出力先（既定: output/）")
@@ -316,7 +316,7 @@ def main(argv: list[str] | None = None) -> int:
 
     history.save()
     print("-" * 56)
-    print(f"完了: {created} 投稿 / 画像 {created * args.tests_per_post * 2} 枚")
+    print(f"完了: {created} 投稿 / 画像 {created * 10} 枚")
     if created:
         print(f"確認: {output_dir / post_folder_name(start_id)} を開いて preview.jpg を見てください")
         print("投稿後: python manage.py posted post_001 のように移動できます")
