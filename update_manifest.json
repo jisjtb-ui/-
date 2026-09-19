@@ -1,10 +1,10 @@
 {
-  "version": "1.10.0",
-  "released_at": "2026-09-19T11:38:10+00:00",
+  "version": "1.10.1",
+  "released_at": "2026-09-19T15:09:50+00:00",
   "channel": "main",
   "notes": [
-    "セットアップで「作り直す / 足す」を選べるようにした。仕様が変わった後の古い投稿を残さないため",
-    "experiment discard を追加。配信済みの記録は消さない（二重投稿の判断に必要なため）"
+    "作り直したときに、使われなくなった古い画像を消すようにした（公開先に残り続けていた）",
+    "セットアップの最後にスマホ用ページを作り直すようにした（古い一覧のままだった）"
   ],
   "files": {
     ".env.example": {
@@ -72,8 +72,8 @@
       "size": 70
     },
     "CHANGELOG.md": {
-      "sha256": "d8bd549ef7f8406f098b69dab32ab27794c8cff5019b2d972117311973bffd09",
-      "size": 6330
+      "sha256": "a1a2e2947895286d2d8f18347ebb5096c03d6bce2f09b5f51dad6ca760d2bad3",
+      "size": 6592
     },
     "CLAUDE.md": {
       "sha256": "217cf8a09cfba1a23e9d45c0781912fa3a5a52af5ac48e9a0c50db2fb8bd09a1",
@@ -88,7 +88,7 @@
       "size": 37272
     },
     "VERSION": {
-      "sha256": "4f5ba6a3e380bf810cc968b58d30a8d7163eafe9e2fb1ad19bdc6d9d64a1e549",
+      "sha256": "118705d21506adb8d7c06a51156bb59497679f644fb4ae3d14bbbfc366643124",
       "size": 7
     },
     "autopost.py": {
@@ -100,8 +100,8 @@
       "size": 412
     },
     "autopost/cli.py": {
-      "sha256": "76f4ddf4440e605ed8eedfeaec0ff276fbc88667f6de6eef42c6e35f408d969f",
-      "size": 49360
+      "sha256": "851c0525def1f34bc3f024d0ebcc3cba16139215a7dc94a7b7e8b907d1bfd9da",
+      "size": 49644
     },
     "autopost/collector.py": {
       "sha256": "6ecdb17571daa83dbd312e3e9c50146280929571b7ea8eb135434e90329f5492",
@@ -232,8 +232,8 @@
       "size": 13148
     },
     "autopost/tiktok_drafts.py": {
-      "sha256": "25527534bc4437ba3ed60e6cc43011da75b8ad8dc608c7a43b3f64318697a893",
-      "size": 9931
+      "sha256": "3f6e47121dac7572e99262eb6e5211f28376cdc2c463d9bc6ae37f7ea7339d60",
+      "size": 11431
     },
     "autopost/updater.py": {
       "sha256": "1238895be752656704088beec3fc08f8d5e65ce408342b044bfc3458b77578fc",
@@ -564,8 +564,8 @@
       "size": 9828
     },
     "tools/setup_all.py": {
-      "sha256": "3ef8c6daf4aac0d9cefe87927ba33bf22e3dec7d67d85071828a7472b664c2ac",
-      "size": 3942
+      "sha256": "d6263fb81a999642bff2c39378fabaa9ab3ba9d2d82121f5945efe2e156e31a0",
+      "size": 4002
     },
     "tools/sns_setup.py": {
       "sha256": "26d11b36c2e50eca64a349f8fbf651b5fef19b86c8c4540eb8e1bd62dd65370f",

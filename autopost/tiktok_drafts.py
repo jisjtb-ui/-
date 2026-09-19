@@ -200,6 +200,46 @@ def queue_overview(store: ExperimentStore, settings: Settings) -> dict:
     }
 
 
+def prune_media(settings: Settings, store: ExperimentStore, destination: Path,
+                log=print) -> dict:
+    """どの実験からも参照されていない画像フォルダを消す。
+
+    作り直したあと古い画像が残り続けると、公開のたびに増え続け、
+    捨てたはずの内容がURLを知っていれば見られる状態のままになる。
+    """
+    import shutil
+
+    destination = Path(destination)
+    if not destination.is_dir():
+        return {"removed": 0, "kept": 0}
+
+    keep: set[tuple[str, str]] = set()
+    for experiment in store.list_experiments(limit=100000):
+        extra = experiment.extra or {}
+        digest = extra.get("content_hash", "")
+        if experiment.source_post_id and digest:
+            keep.add((experiment.source_post_id, digest))
+
+    removed = kept = 0
+    for post_dir in sorted(destination.glob("post_*")):
+        if not post_dir.is_dir():
+            continue
+        for hash_dir in sorted(post_dir.iterdir()):
+            if not hash_dir.is_dir():
+                continue
+            if (post_dir.name, hash_dir.name) in keep:
+                kept += 1
+                continue
+            shutil.rmtree(hash_dir, ignore_errors=True)
+            removed += 1
+        if not any(post_dir.iterdir()):
+            post_dir.rmdir()
+
+    if removed:
+        log(f"使われていない画像フォルダを {removed}件 消しました（残り {kept}件）")
+    return {"removed": removed, "kept": kept}
+
+
 def export_media(
     settings: Settings,
     store: ExperimentStore,

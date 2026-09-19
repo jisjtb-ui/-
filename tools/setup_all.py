@@ -83,11 +83,13 @@ def main() -> int:
         pass
 
     steps = (
-        (f"[1/3] {posts}投稿ぶんの画像を作っています", ["generate.py", "--posts", str(posts)]),
-        ("[2/3] 実験として登録し、公開URLを紐付けています",
+        (f"[1/4] {posts}投稿ぶんの画像を作っています", ["generate.py", "--posts", str(posts)]),
+        ("[2/4] 実験として登録し、公開URLを紐付けています",
          ["autopost.py", "sns", "enqueue", "--folder", "output", "--base-url", base_url]),
-        ("[3/3] 配信用に書き出しています",
-         ["autopost.py", "tiktok", "export-media", "--dest", "pages_media"]),
+        ("[3/4] 配信用に書き出しています",
+         ["autopost.py", "tiktok", "export-media", "--dest", "pages_media", "--prune"]),
+        ("[4/4] スマホ用ページを作り直しています",
+         ["autopost.py", "mobile", "--dest", "pages_media"]),
     )
     for label, args in steps:
         if not run(label, args):
@@ -95,9 +97,8 @@ def main() -> int:
             return 1
 
     print(f"\n{LINE}\n 次にやること\n{LINE}")
-    print("  1. 12_画像を公開する.bat   … 画像とスマホ用ページを公開")
-    print("  2. 11_スマホ用ページを作る.bat … URLを確認してスマホで開く")
-    print("  3. 6_SNSセットアップ.bat   … 自動投稿を使う場合")
+    print("  1. 12_画像を公開する.bat … これを押すまで、スマホからは古いままです")
+    print("  2. 6_SNSセットアップ.bat … 自動投稿を使う場合")
     return 0
 
 

@@ -90,6 +90,10 @@ def build_parser() -> argparse.ArgumentParser:
         "export-media", help="Cloudflare Pages へ配信する形で画像を書き出す"
     )
     tk_export.add_argument("--dest", default="pages_media", help="書き出し先フォルダ")
+    tk_export.add_argument(
+        "--prune", action="store_true",
+        help="どの実験からも使われていない古い画像を消す",
+    )
 
     sns = sub.add_parser("sns", help="Threads / Instagram の予約投稿")
     sns_sub = sns.add_subparsers(dest="sns_command", required=True)
@@ -1009,9 +1013,11 @@ def cmd_tiktok(args, settings: Settings, queue: Queue) -> int:
         return 0
 
     if args.tiktok_command == "export-media":
-        from .tiktok_drafts import export_media
+        from .tiktok_drafts import export_media, prune_media
 
         result = export_media(settings, experiments, Path(args.dest), log=print)
+        if getattr(args, "prune", False):
+            prune_media(settings, experiments, Path(args.dest), log=print)
         print(f"\nこのフォルダをそのまま Cloudflare Pages へデプロイしてください:")
         print(f"  {result['destination']}")
         print("  例: npx wrangler pages deploy "
