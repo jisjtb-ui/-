@@ -65,11 +65,12 @@ class Renderer:
         return self._render(lambda s: self._build_answer(test, number, s, list(cta_lines)))
 
     def render_message(
-        self, headline: str, items: list[str], footer: str = "", emphasis: bool = True
+        self, headline: str, items: list[str], footer: str = "",
+        emphasis: bool = True, cta_top: str = "",
     ) -> Image.Image:
         """占いの「選ぶ」「答え」ページ。見出し＋並び＋締めの3段だけ。"""
         return self._render(
-            lambda s: self._build_message(headline, items, footer, emphasis, s)
+            lambda s: self._build_message(headline, items, footer, emphasis, s, cta_top)
         )
 
     # ------------------------------------------------------------------
@@ -430,12 +431,25 @@ class Renderer:
 
 
     def _build_message(
-        self, headline: str, items: list[str], footer: str, emphasis: bool, scale: float
+        self, headline: str, items: list[str], footer: str, emphasis: bool,
+        scale: float, cta_top: str = "",
     ) -> Stack:
         """テストのページより余白を多くとり、行動に集中させる。"""
         lay = self.layout
         sp = lay.spacing
         stack = Stack()
+
+        if cta_top:
+            f_top = self._font(lay.sizes.cta_secondary, scale)
+            stack.add(
+                Block(
+                    lines=wrap_balanced(cta_top, f_top, self._wrap_width(f_top)),
+                    font=f_top,
+                    line_height=self._lh(f_top, lay.line_heights.cta),
+                    tracking=lay.px(1 * scale),
+                    space_after=lay.px(sp.after_eyebrow * CTA_GAP_RATIO_QUESTION * scale),
+                )
+            )
 
         f_head = self._font(lay.sizes.title * 0.72, scale)
         f_item = self._font(lay.sizes.question * (1.0 if emphasis else 0.86), scale)

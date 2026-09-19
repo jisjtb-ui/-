@@ -90,6 +90,7 @@ def build_post(
                 actions.headline,
                 [actions.action_labels.get(a, a) for a in actions.actions],
                 actions.prompt_footer,
+                cta_top=cta.first_page if slot == 1 else "",
             ).save(path, "PNG", optimize=True)
         elif kind == "reveal":
             path = folder / f"{slot:02d}_reveal.png"

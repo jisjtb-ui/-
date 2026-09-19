@@ -1,6 +1,6 @@
 {
   "active": "default",
-  "note": "アクション別CTA。結果は「選ぶページ」では見せず、次の1枚で明かす（先に見せると押す理由が消える）。insert_after = 占いを何問目の後に入れるか。0なら先頭（1・2枚目）、1なら1問目の後（3・4枚目）。カルーセルは10枚が上限なので、占いを入れると問題は4問になる。",
+  "note": "アクション別CTA。4つとも価値のある行動にしている（プロフィールは効果が薄いため外した）。結果は「選ぶページ」では見せず、次の1枚で明かす（先に見せると押す理由が消える）。insert_after = 占いを何問目の後に入れるか。0なら先頭（1・2枚目）、1なら1問目の後（3・4枚目）。カルーセルは10枚が上限なので、占いを入れると問題は4問になる。",
   "tiers": [
     "weak",
     "mid",
@@ -19,29 +19,29 @@
       "headline": "今のあなたの恋愛運は？",
       "separator": "…",
       "actions": [
-        "profile",
         "like",
+        "save",
         "follow",
         "share"
       ],
       "action_labels": {
-        "profile": "プロフィール",
         "like": "いいね",
+        "save": "保存",
         "follow": "フォロー",
         "share": "共有"
       },
       "weights": {
-        "profile": {
-          "weak": 75,
-          "mid": 18,
-          "good": 6,
-          "best": 1
-        },
         "like": {
           "weak": 12,
           "mid": 55,
           "good": 28,
           "best": 5
+        },
+        "save": {
+          "weak": 10,
+          "mid": 45,
+          "good": 35,
+          "best": 10
         },
         "follow": {
           "weak": 5,
@@ -109,29 +109,29 @@
       "headline": "今のあなたの恋愛運は？",
       "separator": "…",
       "actions": [
-        "profile",
         "like",
+        "save",
         "follow",
         "share"
       ],
       "action_labels": {
-        "profile": "プロフィール",
         "like": "いいね",
+        "save": "保存",
         "follow": "フォロー",
         "share": "共有"
       },
       "weights": {
-        "profile": {
-          "weak": 25,
-          "mid": 25,
-          "good": 25,
-          "best": 25
-        },
         "like": {
           "weak": 25,
           "mid": 25,
           "good": 25,
           "best": 25
+        },
+        "save": {
+          "weak": 10,
+          "mid": 45,
+          "good": 35,
+          "best": 10
         },
         "follow": {
           "weak": 25,

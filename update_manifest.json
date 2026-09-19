@@ -1,11 +1,11 @@
 {
-  "version": "1.8.0",
-  "released_at": "2026-09-19T05:44:59+00:00",
+  "version": "1.9.0",
+  "released_at": "2026-09-19T05:54:17+00:00",
   "channel": "main",
   "notes": [
-    "占いCTAを「選ぶ」「答え」の2枚組に変更。結果を先に見せないことで、押す理由とめくる理由を作った",
-    "差し込み位置を設定で変えられるようにした（既定は1・2枚目）",
-    "占いで2枚使うため、1投稿は4問になった（カルーセル上限10枚）"
+    "占いの選択肢からプロフィールを外し、保存を入れた（4つとも価値のある行動にするため）",
+    "1枚目に「心理テストは恋人とやってみて🌸」を表示するようにした",
+    "答えが選択肢の言い換えにならないよう、独占欲カテゴリの40個を書き直した"
   ],
   "files": {
     ".env.example": {
@@ -73,8 +73,8 @@
       "size": 70
     },
     "CHANGELOG.md": {
-      "sha256": "241270d7b9acb4903c2192e3d99e92968c558116234c873f41c096ee940f0cfe",
-      "size": 5306
+      "sha256": "a9ca2b6bd73350007a46f1c404170b615f86c217695487273e79e56958e604a2",
+      "size": 5647
     },
     "CLAUDE.md": {
       "sha256": "217cf8a09cfba1a23e9d45c0781912fa3a5a52af5ac48e9a0c50db2fb8bd09a1",
@@ -89,7 +89,7 @@
       "size": 37272
     },
     "VERSION": {
-      "sha256": "3eb1ef94b5890ca727158b106142685c8733b0ace5bcb4cf3f0ac14f9f0643f4",
+      "sha256": "30f4611383aa30a15753789f40effde81332f2f8714e6d3b2940bf0fc4592377",
       "size": 6
     },
     "autopost.py": {
@@ -257,12 +257,12 @@
       "size": 3790
     },
     "data/cta.json": {
-      "sha256": "5bee48547186e384970b598c39f04fb079fd207a7bc42ddf7c18fa7bf04665d9",
-      "size": 1517
+      "sha256": "c950eb8e27401a33677dfd57ecdd8df6f255c8a94754d1423ebcd631b37d7f3b",
+      "size": 1535
     },
     "data/cta_actions.json": {
-      "sha256": "036f758bec138b92076241b3c32eaccd4010dbb0269777134b0d338f0f5100cb",
-      "size": 5126
+      "sha256": "c6b00346995ffcc14f5eef6af765ce2d60bd26fce1625b165a0f2e22bf3ddccc",
+      "size": 5192
     },
     "data/headers.json": {
       "sha256": "e39516ca180eff6a42b87bbb075cf2b41232d6877eebda7ce54a4ab4f1c11609",
@@ -341,8 +341,8 @@
       "size": 13301
     },
     "data/tests/possessive.json": {
-      "sha256": "7c1ba92c1930a52e49f92c6cedd9ff31a82cce0b73f4772693d8f686789d0308",
-      "size": 9922
+      "sha256": "a7260e622060effd9d9744ec683e3383f242dab81f66b0eb3b097e3835d09c1a",
+      "size": 12674
     },
     "data/tests/secret.json": {
       "sha256": "0dbcaa97d23a24e9498d1e2f07d141be5e88b09534c3e432a6915cd63c33f9c9",
@@ -369,8 +369,8 @@
       "size": 7659
     },
     "night_test/builder.py": {
-      "sha256": "8b12f5dac8fd70588e47166dfd562add78a38f2f804d2cfdebf775b3ccd5232d",
-      "size": 6428
+      "sha256": "242a1cf2e675d909e0188982724b1ee7fb22f07fe5dcfceaa762ecee989d6053",
+      "size": 6489
     },
     "night_test/captions.py": {
       "sha256": "d03a2060c8a1199a4f8c7a9dcd36ca4bab7297b871c745917762790c959a8916",
@@ -401,8 +401,8 @@
       "size": 7706
     },
     "night_test/renderer.py": {
-      "sha256": "0d23963d19645c2889f7eb94b017176801fd3c9bb493185bf69d8fe9418ab948",
-      "size": 20340
+      "sha256": "8af66e9dbb337f818df63d1d3a664f4fb21e053052d2a0bb9912ccb5c531f35d",
+      "size": 20891
     },
     "night_test/textlayout.py": {
       "sha256": "66ca63638b383c2fffba1f222cd06f51069a72fcb048e89a97ad446d737571f4",
@@ -561,8 +561,8 @@
       "size": 10971
     },
     "tools/selftest.py": {
-      "sha256": "8433838f8688b75ee6c175f1b54f8de36e044aa863bdc90f5e47cdb95af7b8c3",
-      "size": 9812
+      "sha256": "a09e366566d8a4a33f5045f65154ef3d557dc9cfb0106e9e25b86f156c2ea3a1",
+      "size": 9828
     },
     "tools/setup_all.py": {
       "sha256": "3ae62954f4d1cf845e51af0b575ad2fc5a9f8f203b1effe07a10eeb28db8996c",

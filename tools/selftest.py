@@ -139,22 +139,22 @@ def main() -> int:
     check("1投稿に同じ文言を2回出さない", duplicates == 0, f"{duplicates}件")
 
     weakest = action_set.tiers[0]
-    profile_weak = counts["profile"][weakest] / trials
-    check("プロフィールは70〜80%で最も弱い結果",
-          0.70 <= profile_weak <= 0.80, f"{profile_weak:.1%}")
 
     def mean_rank(action: str) -> float:
         total = sum(counts[action].values())
         return sum(tier_rank[t] * n for t, n in counts[action].items()) / total
 
     ranks = {a: mean_rank(a) for a in action_set.actions}
-    check("強さの順が プロフィール < いいね < フォロー < 共有",
-          ranks["profile"] < ranks["like"] < ranks["follow"] < ranks["share"],
+    check("4つとも価値のある行動になっている（プロフィールを含まない）",
+          "profile" not in action_set.actions, str(action_set.actions))
+    check("強さの順が いいね < 保存 < フォロー < 共有",
+          ranks["like"] < ranks["save"] < ranks["follow"] < ranks["share"],
           str({k: round(v, 2) for k, v in ranks.items()}))
-    check("プロフィールが常に最弱ではない（パターンを読まれない）",
-          counts["profile"][weakest] < trials, f"{profile_weak:.1%}")
-    check("共有は最上位だけではない",
-          counts["share"][action_set.tiers[-1]] < trials * 0.9)
+    for action in action_set.actions:
+        check(f"{action_set.action_labels[action]}の結果が固定されていない",
+              max(counts[action].values()) < trials * 0.9)
+    check("どのアクションにも弱い結果が出うる",
+          all(counts[a][weakest] > 0 for a in action_set.actions))
 
     section("占いの2枚組")
     prompt = action_set.prompt_lines()
