@@ -215,7 +215,8 @@ def export_media(
 
     destination = Path(destination)
     destination.mkdir(parents=True, exist_ok=True)
-    copied = skipped = 0
+    # 「0ファイル」が「すでに揃っている」のか「元が無い」のか分かるよう別々に数える
+    copied = skipped = existing = 0
 
     for experiment in store.list_experiments(limit=10000):
         urls = (experiment.extra or {}).get("image_urls") or []
@@ -233,10 +234,19 @@ def export_media(
                 skipped += 1
                 continue
             if target.is_file() and target.stat().st_size == source.stat().st_size:
+                existing += 1
                 continue
             shutil.copy2(source, target)
             copied += 1
 
-    log(f"{destination} へ {copied} ファイルを書き出しました"
-        + (f"（未変換のためスキップ: {skipped}）" if skipped else ""))
-    return {"copied": copied, "skipped": skipped, "destination": str(destination)}
+    log(f"{destination}: 新たに {copied}件 / すでにある {existing}件"
+        + (f" / 元の画像が見つからない {skipped}件" if skipped else ""))
+    if skipped and not (copied or existing):
+        log("  画像の元ファイルがありません。先に生成してください:")
+        log("    1_セットアップ.bat（または python generate.py --posts N）")
+    elif not (copied or existing or skipped):
+        log("  書き出す対象がありません（実験に画像URLが登録されていません）")
+    return {
+        "copied": copied, "existing": existing, "skipped": skipped,
+        "destination": str(destination),
+    }

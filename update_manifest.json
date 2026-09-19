@@ -1,10 +1,9 @@
 {
-  "version": "1.7.0",
-  "released_at": "2026-09-19T05:09:32+00:00",
+  "version": "1.7.1",
+  "released_at": "2026-09-19T05:16:25+00:00",
   "channel": "main",
   "notes": [
-    "「12_画像を公開する.bat」を追加。コマンドを打たずにCloudflare Pagesへ公開できる",
-    "Node.js が無い場合は入手先を案内し、プロジェクト名も初回だけ聞くようにした"
+    "画像の書き出しで「新たに/すでにある/元が無い」を分けて表示するようにした（0件の意味が分かるように）"
   ],
   "files": {
     ".env.example": {
@@ -72,8 +71,8 @@
       "size": 70
     },
     "CHANGELOG.md": {
-      "sha256": "07751eef079e64ea5b9dad83198b80dffa45566bf6e6532b21813ce0c05d037c",
-      "size": 4400
+      "sha256": "a18d096a0d8e654aa46ec8bf111dd360be55c8f5eccac5eb36f9920e54d02ae7",
+      "size": 4562
     },
     "CLAUDE.md": {
       "sha256": "217cf8a09cfba1a23e9d45c0781912fa3a5a52af5ac48e9a0c50db2fb8bd09a1",
@@ -88,7 +87,7 @@
       "size": 37272
     },
     "VERSION": {
-      "sha256": "bb7320d831e7a151aa901c35e7326c752fa2ef5024f30768c42319b8bed171ed",
+      "sha256": "249182a01164b81a5f7af87e5c5cdbd3344a80a7a66dfca624cecfb1501b2420",
       "size": 6
     },
     "autopost.py": {
@@ -232,8 +231,8 @@
       "size": 13148
     },
     "autopost/tiktok_drafts.py": {
-      "sha256": "c57e561f18e5e2e9508c5a5f3aa1b4195086fc768b1c626e48462db104d35c16",
-      "size": 9335
+      "sha256": "25527534bc4437ba3ed60e6cc43011da75b8ad8dc608c7a43b3f64318697a893",
+      "size": 9931
     },
     "autopost/updater.py": {
       "sha256": "1238895be752656704088beec3fc08f8d5e65ce408342b044bfc3458b77578fc",
