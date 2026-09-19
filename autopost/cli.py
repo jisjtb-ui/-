@@ -20,7 +20,7 @@ from pathlib import Path
 from .config import Settings
 from .db import Queue, STATUS_POSTED
 from .engine import ExperimentEngine, create_experiment
-from .experiments import ExperimentStore, PUBLISHED
+from .experiments import DELIVERED, ExperimentStore, PUBLISHED
 from .hosting import get_host
 from .loader import LoaderError, load_post, load_posts
 from .models import ALL_PLATFORMS, MANUAL_PLATFORMS, PLATFORMS
@@ -144,6 +144,11 @@ def build_parser() -> argparse.ArgumentParser:
     exp_new.add_argument("--from-post", default="", help="既存の投稿フォルダから文言を取り込む")
     exp_new.add_argument("--board-id", default="", help="Pinterestのボードを個別指定する")
     exp_new.add_argument("--platforms", default="pinterest", help="配信先（カンマ区切り）")
+
+    exp_discard = exp_sub.add_parser(
+        "discard", help="まだ配信していない実験を捨てる（作り直すとき）"
+    )
+    exp_discard.add_argument("--yes", action="store_true", help="確認を求めない")
 
     exp_list = exp_sub.add_parser("list", help="実験一覧")
     exp_list.add_argument("--limit", type=int, default=20)
@@ -814,6 +819,29 @@ def cmd_experiment(args, settings: Settings, queue: Queue) -> int:
 
     if command == "new":
         return _experiment_new(args, settings, experiments)
+
+    if command == "discard":
+        from . import migrations
+
+        counts = experiments.status_counts()
+        pending = sum(n for st, n in counts.items() if st not in DELIVERED)
+        kept = sum(n for st, n in counts.items() if st in DELIVERED)
+        if not pending:
+            print("捨てるものはありません")
+            return 0
+        print(f"まだ配信していない実験 {pending}件を捨てます")
+        if kept:
+            print(f"配信済みの {kept}件は残します"
+                  "（記録を消すと二重投稿の判断ができなくなるため）")
+        if not args.yes:
+            answer = input("\n本当に捨てますか？ [y/N] ").strip().lower()
+            if answer not in ("y", "yes"):
+                print("中止しました")
+                return 0
+        migrations.backup_databases(settings)
+        result = experiments.discard_pending()
+        print(f"{result['removed']}件を捨てました（残した実験 {result['kept']}件）")
+        return 0
 
     if command == "list":
         rows = experiments.list_experiments(args.limit)

@@ -1,9 +1,10 @@
 {
-  "version": "1.9.2",
-  "released_at": "2026-09-19T11:30:23+00:00",
+  "version": "1.10.0",
+  "released_at": "2026-09-19T11:38:10+00:00",
   "channel": "main",
   "notes": [
-    "公開後、.env の公開URLがダミーや実在しない値なら自動で直すようにした（スマホ用ページが開けない原因）"
+    "セットアップで「作り直す / 足す」を選べるようにした。仕様が変わった後の古い投稿を残さないため",
+    "experiment discard を追加。配信済みの記録は消さない（二重投稿の判断に必要なため）"
   ],
   "files": {
     ".env.example": {
@@ -71,8 +72,8 @@
       "size": 70
     },
     "CHANGELOG.md": {
-      "sha256": "ad01c61b2a181012da10fb9feaffee393a71f0e7e715c74ff545832a56594752",
-      "size": 6061
+      "sha256": "d8bd549ef7f8406f098b69dab32ab27794c8cff5019b2d972117311973bffd09",
+      "size": 6330
     },
     "CLAUDE.md": {
       "sha256": "217cf8a09cfba1a23e9d45c0781912fa3a5a52af5ac48e9a0c50db2fb8bd09a1",
@@ -87,8 +88,8 @@
       "size": 37272
     },
     "VERSION": {
-      "sha256": "bb59919018ee76482c23f1ce44219ce4c9c6393c65ef0ddae40d32d79d413bb5",
-      "size": 6
+      "sha256": "4f5ba6a3e380bf810cc968b58d30a8d7163eafe9e2fb1ad19bdc6d9d64a1e549",
+      "size": 7
     },
     "autopost.py": {
       "sha256": "d51325659707e56a23c92a8d9596b3d394d7b1eba9761b386c975680cb0277d6",
@@ -99,8 +100,8 @@
       "size": 412
     },
     "autopost/cli.py": {
-      "sha256": "d910e196ba734ad859400b017a7fb23b97f32349f6a557a9ce413a09b19e4edd",
-      "size": 48082
+      "sha256": "76f4ddf4440e605ed8eedfeaec0ff276fbc88667f6de6eef42c6e35f408d969f",
+      "size": 49360
     },
     "autopost/collector.py": {
       "sha256": "6ecdb17571daa83dbd312e3e9c50146280929571b7ea8eb135434e90329f5492",
@@ -123,8 +124,8 @@
       "size": 9998
     },
     "autopost/experiments.py": {
-      "sha256": "6c71f342b9c74607d1b475e725af4c71de2759e13e905d599c770c1f23049954",
-      "size": 23230
+      "sha256": "293dde8510dc5a263e361ae6b50b0a01f8885adb3dc9df45d82d806ff1eb9410",
+      "size": 24449
     },
     "autopost/gui.py": {
       "sha256": "56a17a7ffd4d6e54e739718833763d09d3a26b0615284e2501fe43567ac08d3b",
@@ -563,8 +564,8 @@
       "size": 9828
     },
     "tools/setup_all.py": {
-      "sha256": "3ae62954f4d1cf845e51af0b575ad2fc5a9f8f203b1effe07a10eeb28db8996c",
-      "size": 2070
+      "sha256": "3ef8c6daf4aac0d9cefe87927ba33bf22e3dec7d67d85071828a7472b664c2ac",
+      "size": 3942
     },
     "tools/sns_setup.py": {
       "sha256": "26d11b36c2e50eca64a349f8fbf651b5fef19b86c8c4540eb8e1bd62dd65370f",

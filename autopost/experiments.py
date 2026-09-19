@@ -436,6 +436,32 @@ class ExperimentStore:
                 (MANUAL_REQUIRED if manual else FAILED, message[:1000], _now(), publication_id),
             )
 
+    def discard_pending(self) -> dict:
+        """まだ配信していない実験を捨てる。作り直すとき用。
+
+        **配信済み・下書き転送済みのものには触らない。** 記録が消えると
+        二重投稿の判断ができなくなるため。
+        """
+        with self._connect() as conn:
+            delivered = ",".join("?" * len(DELIVERED))
+            keep = [
+                row["experiment_id"]
+                for row in conn.execute(
+                    f"SELECT DISTINCT experiment_id FROM experiment_publications"
+                    f" WHERE status IN ({delivered})", DELIVERED,
+                )
+            ]
+            placeholders = ",".join("?" * len(keep)) if keep else ""
+            where = f" WHERE experiment_id NOT IN ({placeholders})" if keep else ""
+
+            removed = conn.execute(
+                f"SELECT COUNT(*) AS n FROM experiments{where}", keep
+            ).fetchone()["n"]
+            for table in ("experiment_metrics", "experiment_events",
+                          "experiment_publications", "experiments"):
+                conn.execute(f"DELETE FROM {table}{where}", keep)
+        return {"removed": removed, "kept": len(keep)}
+
     def reset_failed(self, experiment_id: str | None = None, platform: str | None = None) -> int:
         sql = ("UPDATE experiment_publications SET status=?, error_message=NULL, updated_at=?"
                " WHERE status IN (?,?)")
