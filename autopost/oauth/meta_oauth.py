@@ -21,7 +21,7 @@ import urllib.parse
 import requests
 
 from ..config import Settings
-from .flow import new_state, wait_for_code
+from .flow import authorize_error, new_state, wait_for_code
 from .store import Token, TokenStore
 
 TIMEOUT = 30
@@ -123,10 +123,9 @@ def connect(settings: Settings, store: TokenStore, manual: bool = False) -> Toke
         params = _manual_prompt(url)
     else:
         params = wait_for_code(settings.meta_redirect_uri, url)
-    if params.get("error"):
-        raise MetaAuthError(
-            params.get("error_description") or f"認可されませんでした（{params['error']}）"
-        )
+    problem = authorize_error(params, settings.meta_redirect_uri)
+    if problem:
+        raise MetaAuthError(problem)
     if params.get("state") != state:
         raise MetaAuthError("stateが一致しません（認証をやり直してください）")
     code = params.get("code")

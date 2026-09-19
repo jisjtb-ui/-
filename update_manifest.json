@@ -1,12 +1,10 @@
 {
-  "version": "1.6.0",
-  "released_at": "2026-09-19T04:30:23+00:00",
+  "version": "1.6.1",
+  "released_at": "2026-09-19T04:35:57+00:00",
   "channel": "main",
   "notes": [
-    "Instagram の認可で、存在しないスコープを要求していたのを修正（認可画面がエラーになる原因）",
-    "Instagram の client_id / secret を Instagram App ID / Secret に修正（Meta App ID とは別物）",
-    "Threads の認可URLを公式表記（threads.com）に更新",
-    "診断レポートに client_id を表示し、IDの取り違えが分かるようにした"
+    "認可画面のエラーを読み取り、登録すべきリダイレクトURIをそのまま表示するようにした",
+    "1349168 / 1349245 / error_code=1 に、それぞれ対処手順を出す"
   ],
   "files": {
     ".env.example": {
@@ -70,8 +68,8 @@
       "size": 70
     },
     "CHANGELOG.md": {
-      "sha256": "b17b4d17ecc48e0b139e663d74d2868185c1e2c4ae6f8f8a98473ed8d400ec46",
-      "size": 3798
+      "sha256": "803b25f295d628d142f9386bae8722ab6252bc911df0a90ff3a42c52f9a868b7",
+      "size": 4008
     },
     "CLAUDE.md": {
       "sha256": "217cf8a09cfba1a23e9d45c0781912fa3a5a52af5ac48e9a0c50db2fb8bd09a1",
@@ -86,7 +84,7 @@
       "size": 36264
     },
     "VERSION": {
-      "sha256": "cb1d9a30bc4ab8a397f39b7d786bb82aca0b816077eefc35d7c822017d75f6a5",
+      "sha256": "6430a242e9486093ef6f71d9086d48f61ba102f0d2fb0f5b95334c6007a46db3",
       "size": 6
     },
     "autopost.py": {
@@ -166,12 +164,12 @@
       "size": 98
     },
     "autopost/oauth/flow.py": {
-      "sha256": "4e7cd1c6ee3ce457534922ebc9a793370570d474f14bdeffcfb8075faade07cd",
-      "size": 5557
+      "sha256": "592db75838102aab111d466f071ed2f1f0bd95ad9be5281abe7fa48a38c2eb2f",
+      "size": 7881
     },
     "autopost/oauth/meta_oauth.py": {
-      "sha256": "c79effb7298460a891421e0824dbec684c78983ae3e7db06de3b2d953d796dbe",
-      "size": 10766
+      "sha256": "e35d39d4b00ba52b36c549bc64a758f0290a827dbfdb8d2acd78325d279fa189",
+      "size": 10731
     },
     "autopost/oauth/pinterest_oauth.py": {
       "sha256": "757b44300abd6d019df2540bed14031f529feda88005490da40d5f79f4b3e0ea",
@@ -186,8 +184,8 @@
       "size": 3867
     },
     "autopost/oauth/threads_oauth.py": {
-      "sha256": "9027a6e117a59f8f91a10ca3582ba9f3c3603d78d2a90d687fa29a966e5dd496",
-      "size": 9743
+      "sha256": "1a09f2f22a8f5d32d65cd04bd08fb5f06fbcc79fda0c3a12d77ae5a38fa64b07",
+      "size": 9732
     },
     "autopost/oauth/tiktok_oauth.py": {
       "sha256": "8a8a4ddd15b7192d4e8b282bb74813166d1d0954901cf5892a0c32f5ec23fc62",

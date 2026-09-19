@@ -141,3 +141,55 @@ def wait_for_code(
             "ブラウザで認可を完了したか、リダイレクトURIの登録内容を確認してください"
         )
     return dict(capture.params)
+
+
+# ----------------------------------------------------------------------
+# 認可画面が返すエラーの読み取り
+# ----------------------------------------------------------------------
+AUTHORIZE_HINTS = {
+    "1349168": (
+        "リダイレクトURIがアプリに登録されていません。\n"
+        "  Metaの管理画面で、次の値を**そのまま**「リダイレクトコールバックURL」\n"
+        "  （有効なOAuthリダイレクトURI）に追加して保存してください:\n"
+        "\n"
+        "      {redirect_uri}\n"
+        "\n"
+        "  手で打ち直さず、コピーして貼ってください（末尾のスラッシュまで一致が必要）。\n"
+        "  保存できない場合は、削除／アンインストールのコールバックURL欄が\n"
+        "  原因のことがあります（空にするか、所有しているドメインを入れてください）。"
+    ),
+    "1349245": (
+        "テスターの招待を承認していません。\n"
+        "  Threadsアプリ → 設定 → アカウント → ウェブサイトの許可 → 招待 から承認してください。"
+    ),
+    "1": (
+        "アプリの設定が原因のことが多いエラーです。次を確認してください:\n"
+        "  ・client_id が Meta App ID ではなく、Threads App ID / Instagram App ID か\n"
+        "  ・要求しているスコープがそのAPIに存在するか\n"
+        "  ・自分がテスターとして承認済みか"
+    ),
+}
+
+
+def authorize_error(params: dict, redirect_uri: str = "") -> str | None:
+    """認可画面から返ってきたエラーを、対処できる文章にして返す。
+
+    Meta系は error / error_message / error_code と形が揺れるので全部見る。
+    """
+    message = (
+        params.get("error_message")
+        or params.get("error_description")
+        or params.get("error")
+        or ""
+    )
+    code = str(params.get("error_code") or "")
+    if not message and not code:
+        return None
+
+    text = f"認可されませんでした: {message}".strip()
+    if code:
+        text += f"（code {code}）"
+    hint = AUTHORIZE_HINTS.get(code)
+    if hint:
+        text += "\n\n" + hint.format(redirect_uri=redirect_uri or "（.env の設定値）")
+    return text

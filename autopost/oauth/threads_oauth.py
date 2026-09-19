@@ -29,7 +29,8 @@ import urllib.parse
 import requests
 
 from ..config import Settings
-from .flow import CallbackError, new_state, validate_redirect_uri, wait_for_code
+from .flow import (CallbackError, authorize_error, new_state,
+                   validate_redirect_uri, wait_for_code)
 from .store import Token, TokenStore
 
 AUTHORIZE_URL = "https://threads.com/oauth/authorize"
@@ -80,10 +81,9 @@ def connect(settings: Settings, store: TokenStore, manual: bool = False) -> Toke
         except CallbackError as exc:
             raise ThreadsAuthError(str(exc)) from exc
 
-    if params.get("error"):
-        raise ThreadsAuthError(
-            params.get("error_description") or f"認可されませんでした（{params['error']}）"
-        )
+    problem = authorize_error(params, settings.threads_redirect_uri)
+    if problem:
+        raise ThreadsAuthError(problem)
     if params.get("state") and params["state"] != state:
         raise ThreadsAuthError("stateが一致しません（認証をやり直してください）")
     code = params.get("code")
