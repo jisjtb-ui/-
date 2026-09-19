@@ -566,6 +566,29 @@ python autopost.py run
 
 ---
 
+## 画像を公開する（Cloudflare Pages）
+
+`12_画像を公開する.bat` をダブルクリックするだけです。コマンドを打つ必要はありません。
+
+```
+画像の書き出し → ページの作成 → Cloudflareへ公開 → 公開できたか確認
+```
+
+初回だけ Cloudflare のログイン画面がブラウザで開きます。
+プロジェクト名も初回だけ聞かれます（Cloudflareの画面 → Workers & Pages に出ている名前）。
+
+> **Node.js が必要です。** 入っていない場合はその旨を表示します。
+> https://nodejs.org/ から LTS版を入れて、PCを再起動してください。
+
+`.env` に次を入れておくと、次回から自動で公開されます。
+
+```
+PAGES_DEPLOY_COMMAND=npx wrangler pages deploy pages_media --project-name （プロジェクト名）
+```
+
+**画像が公開されていないと、Threads も Instagram も投稿できません。**
+APIが公開URLから画像を取りに行くためです。
+
 ## スマホから投稿する
 
 PCで作ったものを、ケーブルでつながずにスマホから投稿できます。

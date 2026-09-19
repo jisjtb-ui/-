@@ -1,9 +1,10 @@
 {
-  "version": "1.6.2",
-  "released_at": "2026-09-19T04:44:27+00:00",
+  "version": "1.7.0",
+  "released_at": "2026-09-19T05:09:32+00:00",
   "channel": "main",
   "notes": [
-    "Metaアプリの「データ削除」「アンインストール」コールバック欄に入れるページを自動生成するようにした"
+    "「12_画像を公開する.bat」を追加。コマンドを打たずにCloudflare Pagesへ公開できる",
+    "Node.js が無い場合は入手先を案内し、プロジェクト名も初回だけ聞くようにした"
   ],
   "files": {
     ".env.example": {
@@ -28,6 +29,10 @@
     },
     "11_スマホ用ページを作る.bat": {
       "sha256": "8e4e53280fa8f4cc28bab08207f2d323f88eed0bbc49866bfb49280d2cd08c01",
+      "size": 70
+    },
+    "12_画像を公開する.bat": {
+      "sha256": "efd039fd1e2a3292df0e1fe0c87c0f9726e7719a3ee3d88e1599eac2c438e160",
       "size": 70
     },
     "1_セットアップ.bat": {
@@ -67,23 +72,23 @@
       "size": 70
     },
     "CHANGELOG.md": {
-      "sha256": "8e1b3926eadcc151572ae8a410de5b48f272625b9a8f626cb77eec3769119020",
-      "size": 4168
+      "sha256": "07751eef079e64ea5b9dad83198b80dffa45566bf6e6532b21813ce0c05d037c",
+      "size": 4400
     },
     "CLAUDE.md": {
       "sha256": "217cf8a09cfba1a23e9d45c0781912fa3a5a52af5ac48e9a0c50db2fb8bd09a1",
       "size": 2598
     },
     "README.md": {
-      "sha256": "b3d83b221842d3a799701a6fdb4ecd7442ea900c4465210b8135524313163a39",
-      "size": 29459
+      "sha256": "c08f64c1df1d472aa6285aab8a4a820aa5f2e75e03b38f9750ea13d8affcc9a2",
+      "size": 29553
     },
     "SETUP_AUTOPOST.md": {
-      "sha256": "7f2cca1a715200857ac2c976077efa1520d16c385a4442bc754029c6dd9f9bbb",
-      "size": 36264
+      "sha256": "a403a68d5902daebc6ba9f59d79dc7bb1624177ad5fe5807bb161d3ab880ed84",
+      "size": 37272
     },
     "VERSION": {
-      "sha256": "a2d5e268fe70979caccd895156b3d33bd61a3cc7e660ab7a5b07066849b3e248",
+      "sha256": "bb7320d831e7a151aa901c35e7326c752fa2ef5024f30768c42319b8bed171ed",
       "size": 6
     },
     "autopost.py": {
@@ -537,6 +542,10 @@
     "tools/check_layout.py": {
       "sha256": "5e587b355ffab6e7f9dc18f453da118c3471f3dfd4105cb623c976135a4ff29a",
       "size": 2805
+    },
+    "tools/deploy_media.py": {
+      "sha256": "2869eddb605e28f1b6e4c3939c6908527236e42ea42e82da348dba70ee650811",
+      "size": 4545
     },
     "tools/reel_handoff.py": {
       "sha256": "f2711721e55a00dac9429840215c3f0cdce00c20ffdd4cf6afbca0053c7560da",

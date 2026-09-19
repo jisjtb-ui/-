@@ -329,6 +329,7 @@ python generate.py --validate
 - `9_不具合を調べる.bat` … 診断レポートを出す（秘密情報を含まない）
 - `10_Reelを書き出す.bat` … Instagram Reel（縦動画）を書き出す
 - `11_スマホ用ページを作る.bat` … スマホから投稿するための一覧ページ
+- `12_画像を公開する.bat` … Cloudflare Pages へ公開する（コマンド不要）
 ├─ tools/                  ボタンから呼ばれるPythonスクリプト
 ├─ scripts/                ボタンの中身
 ├─ autopost.py             自動投稿CLI
