@@ -1,11 +1,10 @@
 {
-  "version": "1.9.0",
-  "released_at": "2026-09-19T05:54:17+00:00",
+  "version": "1.9.1",
+  "released_at": "2026-09-19T05:58:59+00:00",
   "channel": "main",
   "notes": [
-    "占いの選択肢からプロフィールを外し、保存を入れた（4つとも価値のある行動にするため）",
-    "1枚目に「心理テストは恋人とやってみて🌸」を表示するようにした",
-    "答えが選択肢の言い換えにならないよう、独占欲カテゴリの40個を書き直した"
+    "答えの踏み込みを強くした。独占欲・一人の時間・秘密・本音の4カテゴリ144個を書き直し",
+    "選択肢の言い換えをやめ、隠している動機や後から効いてくることを指すようにした"
   ],
   "files": {
     ".env.example": {
@@ -73,8 +72,8 @@
       "size": 70
     },
     "CHANGELOG.md": {
-      "sha256": "a9ca2b6bd73350007a46f1c404170b615f86c217695487273e79e56958e604a2",
-      "size": 5647
+      "sha256": "0e42d4ac97c2f1598ccc3431934fb2d1db996f60c8f4617aa128e0002ea126f8",
+      "size": 5900
     },
     "CLAUDE.md": {
       "sha256": "217cf8a09cfba1a23e9d45c0781912fa3a5a52af5ac48e9a0c50db2fb8bd09a1",
@@ -89,7 +88,7 @@
       "size": 37272
     },
     "VERSION": {
-      "sha256": "30f4611383aa30a15753789f40effde81332f2f8714e6d3b2940bf0fc4592377",
+      "sha256": "0ab4fa190ca1b1d1f630ac87cf34672bfbaf1395d0148c7568d38e58335b8d68",
       "size": 6
     },
     "autopost.py": {
@@ -269,8 +268,8 @@
       "size": 3540
     },
     "data/tests/alone.json": {
-      "sha256": "4cbb70b1b548e61e207d52f1b26c7b57655cc55997489466617df2c1ca420d88",
-      "size": 7802
+      "sha256": "0963304b2d5eefb8e11f6d035ff3980ce50914ed4148d8a3a73a46e61c15e421",
+      "size": 9946
     },
     "data/tests/app.json": {
       "sha256": "db91f90e83d9f0f6356ee302ab3136cc6f19623eefd84405f2a659ce7604e81e",
@@ -309,8 +308,8 @@
       "size": 7674
     },
     "data/tests/honne.json": {
-      "sha256": "365f70138f4d38abd31b3f9f55fdea5357698a7fdc819764c7f202ae467cc6ae",
-      "size": 9999
+      "sha256": "5adf7a70e0cf7e90ab02c92e588f113c6d23aec27903f4768c7fb8b4b8fef1fb",
+      "size": 12121
     },
     "data/tests/hotel.json": {
       "sha256": "5bdef25fef4cf2410ac87710649737ef00bba7badbfc0593f09b28825becd598",
@@ -341,12 +340,12 @@
       "size": 13301
     },
     "data/tests/possessive.json": {
-      "sha256": "a7260e622060effd9d9744ec683e3383f242dab81f66b0eb3b097e3835d09c1a",
-      "size": 12674
+      "sha256": "b1e80582dfe617d54cf0fe3ac1a7d20d3047b1a18fc56a808b897a8b9e046f85",
+      "size": 12647
     },
     "data/tests/secret.json": {
-      "sha256": "0dbcaa97d23a24e9498d1e2f07d141be5e88b09534c3e432a6915cd63c33f9c9",
-      "size": 8590
+      "sha256": "27c90e899abc8c0768f77db2b00baf4d24044f60a2f52bb28fd7629cfbc92697",
+      "size": 9719
     },
     "data/tests/skinship.json": {
       "sha256": "592313b0ae80cb030a738c2f4e8d6457b40067b469e626704482ac3d3d708048",
