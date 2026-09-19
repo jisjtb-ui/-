@@ -115,6 +115,45 @@ def prepend_changelog(version: str, notes: list[str]) -> None:
     CHANGELOG_FILE.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
 
 
+def publish(branch_target: str) -> None:
+    """作業ブランチを push し、配布元（main）へ反映する。
+
+    ここまでやって初めて利用者の「更新を確認」に出る。
+    早送りできないときは中止する（履歴を書き換えない）。
+    """
+    current = run(["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                  capture_output=True, check=True).stdout.strip()
+
+    print(f"\n[6/6] 配布（{current} → {branch_target}）")
+    if run(["git", "push", "-u", "origin", current]).returncode != 0:
+        raise SystemExit("[エラー] 作業ブランチの push に失敗しました")
+
+    if current == branch_target:
+        print(f"  {branch_target} で作業しているため、反映は不要です")
+        return
+
+    if run(["git", "fetch", "origin", branch_target],
+           capture_output=True).returncode != 0:
+        raise SystemExit(f"[エラー] origin/{branch_target} を取得できませんでした")
+
+    ahead = run(["git", "merge-base", "--is-ancestor",
+                 f"origin/{branch_target}", "HEAD"], capture_output=True)
+    if ahead.returncode != 0:
+        raise SystemExit(
+            f"[中止] {branch_target} が進んでいるため早送りできません。\n"
+            f"  先に取り込んでください: git merge origin/{branch_target}"
+        )
+
+    for args in (["git", "checkout", branch_target],
+                 ["git", "merge", "--ff-only", current],
+                 ["git", "push", "origin", branch_target]):
+        if run(args, capture_output=True).returncode != 0:
+            run(["git", "checkout", current], capture_output=True)
+            raise SystemExit(f"[エラー] 失敗しました: {' '.join(args)}")
+    run(["git", "checkout", current], capture_output=True)
+    print(f"  {branch_target} へ反映しました（利用者の「更新を確認」に出ます）")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="リリース作業")
     level = parser.add_mutually_exclusive_group(required=True)
@@ -126,7 +165,10 @@ def main() -> int:
                         help="変更内容（複数指定可）。省略時はCHANGELOGの記載を使う")
     parser.add_argument("--branch", default=BRANCH_DEFAULT, help="配布に使うブランチ")
     parser.add_argument("--skip-tests", action="store_true", help="テストを飛ばす（非推奨）")
-    parser.add_argument("--push", action="store_true", help="コミット後にpushする")
+    parser.add_argument(
+        "--no-publish", action="store_true",
+        help="push と main への反映を行わない（手元で止める）",
+    )
     parser.add_argument("--dry-run", action="store_true", help="書き換えずに内容だけ見る")
     args = parser.parse_args()
 
@@ -212,15 +254,12 @@ def main() -> int:
     else:
         print(f"  v{version} をコミットしました")
 
-    if args.push:
-        branch = run(["git", "rev-parse", "--abbrev-ref", "HEAD"],
-                     capture_output=True, check=True).stdout.strip()
-        print(f"\npush: {branch}")
-        if run(["git", "push", "-u", "origin", branch]).returncode != 0:
-            raise SystemExit("[エラー] pushに失敗しました")
+    if args.no_publish:
+        print("\n配布していません（--no-publish）。手元のコミットのみです。")
+        print(f"  配布するには: python tools/release.py --set {version} を使わず、")
+        print(f"  git push -u origin <branch> → {args.branch} へ反映")
     else:
-        print("\npushはしていません。配布するには push してください。")
-        print(f"  git push -u origin <branch>   → その後 {args.branch} へ反映")
+        publish(args.branch)
 
     print(f"\n完了: v{version}")
     return 0

@@ -1,9 +1,9 @@
 {
-  "version": "1.5.2",
-  "released_at": "2026-09-18T17:50:44+00:00",
+  "version": "1.5.3",
+  "released_at": "2026-09-19T04:20:57+00:00",
   "channel": "main",
   "notes": [
-    "未接続の理由（トークンファイルが無い／中身が不正）を診断レポートに表示するようにした"
+    "リリースすると配布元（main）まで自動で反映されるようにした"
   ],
   "files": {
     ".env.example": {
@@ -67,19 +67,23 @@
       "size": 70
     },
     "CHANGELOG.md": {
-      "sha256": "c41139812932fb148005c0d761daf848af88f965b2da1fe7986db7bf1723b0ed",
-      "size": 3041
+      "sha256": "605bb741a2b7914fea2b43f00ebc40c3afce5eceb235c6fdcbf5c56fb1292408",
+      "size": 3141
+    },
+    "CLAUDE.md": {
+      "sha256": "217cf8a09cfba1a23e9d45c0781912fa3a5a52af5ac48e9a0c50db2fb8bd09a1",
+      "size": 2598
     },
     "README.md": {
-      "sha256": "86dd9728ef7c6bd544cd7c9f0c1d5d6e688a1989d6e152a4f1b2c8400759bba4",
-      "size": 29421
+      "sha256": "b3d83b221842d3a799701a6fdb4ecd7442ea900c4465210b8135524313163a39",
+      "size": 29459
     },
     "SETUP_AUTOPOST.md": {
       "sha256": "07bb0fe787f62bdb80bf0c3d1b2868a284ff9a28db7e55e99f8d7119f56c1c4d",
       "size": 34836
     },
     "VERSION": {
-      "sha256": "ded1b601e81d31ca1f65c4f3ccf2ebd7992b6390e37bc2a86f3837282f1e00cf",
+      "sha256": "c03e3824001f39b9518249b8d6522422fc4de7227e12a568c0164662b03b7758",
       "size": 6
     },
     "autopost.py": {
@@ -543,8 +547,8 @@
       "size": 2911
     },
     "tools/release.py": {
-      "sha256": "9924e9882016694c54474a28c73f09d6ceee7cf92a2e6d826a27d23ed1e6b025",
-      "size": 9188
+      "sha256": "1b4814e9f8766075fb9891e7b776ff8af50e1d17f9d3ebc7f201df243cfb4464",
+      "size": 10971
     },
     "tools/selftest.py": {
       "sha256": "96182068a7ab9c6dfc1a75da34211d388498ebc594120a75dfea1e2ca7a31cfd",

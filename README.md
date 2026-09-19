@@ -532,8 +532,8 @@ python tools/release.py --minor --notes "Instagram Reelに対応" --notes "Analy
 順に、自己テスト → バージョン更新（`VERSION` が唯一の出所）→ `CHANGELOG.md` 追記
 → `update_manifest.json` 生成 → コミット、を行う。
 
-`--push` を付けたときだけ push する。付けない限り外部へは出ない。
-`--dry-run` で書き換えずに内容だけ確認できる。
+これだけで `main` への反映まで進み、利用者の「更新を確認」に出る。
+手元で止めたいときだけ `--no-publish`。`--dry-run` で内容だけ確認できる。
 
 配布は「公開GitHubリポジトリの `main` ブランチ」。ビルド成果物もEXEも無く、
 Pythonのソースがそのまま動くため、ファイルの置き換えだけで更新できる。
