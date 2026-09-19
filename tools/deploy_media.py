@@ -45,6 +45,63 @@ def run_step(title: str, args: list[str]) -> bool:
     return subprocess.run([sys.executable, *args], cwd=ROOT).returncode == 0
 
 
+def read_env() -> list[str]:
+    path = ROOT / ".env"
+    if not path.is_file():
+        return []
+    return path.read_text(encoding="utf-8").splitlines()
+
+
+def set_env_value(key: str, value: str) -> None:
+    """.env の1行だけを書き換える（他の行には触らない）。"""
+    path = ROOT / ".env"
+    lines = read_env()
+    for index, line in enumerate(lines):
+        if line.strip().startswith(f"{key}="):
+            lines[index] = f"{key}={value}"
+            break
+    else:
+        lines.append(f"{key}={value}")
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def fix_base_url(settings: Settings, project: str) -> str | None:
+    """公開URLの設定が実在しないものなら、正しい値に直す。
+
+    ダミーのまま運用されると、スマホ用ページのURLが永遠に開けない。
+    """
+    import requests
+
+    correct = f"https://{project}.pages.dev"
+    current = (settings.local_host_base_url or "").rstrip("/")
+    if current == correct:
+        return None
+
+    reachable = False
+    if current:
+        try:
+            reachable = requests.get(current, timeout=15).status_code < 400
+        except requests.RequestException:
+            reachable = False
+
+    if current and reachable and "example.com" not in current:
+        return None      # 独自ドメインなど、別の正しい設定を使っている
+
+    print(f"\n公開URLの設定が正しくありません。")
+    print(f"  いまの設定 : {current or '（未設定）'}")
+    print(f"  正しい値   : {correct}")
+    answer = ask("\n.env を自動で直しますか？ [Y/n]: ", "y").lower()
+    if answer in ("n", "no"):
+        print("そのままにします。手で直す場合は .env の LOCAL_HOST_BASE_URL です。")
+        return None
+
+    set_env_value("LOCAL_HOST_BASE_URL", correct)
+    set_env_value("IMAGE_HOST", "local")
+    set_env_value("LOCAL_HOST_DIR", MEDIA_DIR)
+    print(f"  直しました: LOCAL_HOST_BASE_URL={correct}")
+    return correct
+
+
 def main() -> int:
     settings = Settings.load()
     print(f"{LINE}\n 画像とスマホ用ページを公開する\n{LINE}")
@@ -78,6 +135,14 @@ def main() -> int:
         print(f"  PAGES_DEPLOY_COMMAND={command}")
     else:
         print(f"\n[3/4] 公開\n{'-' * 52}")
+
+    # 公開URLの設定を先に直す（ページのURLに使うため）
+    project = DEFAULT_PROJECT
+    if "--project-name" in command:
+        project = command.split("--project-name", 1)[1].split()[0]
+    if fix_base_url(settings, project):
+        settings = Settings.load()
+        result = mobile.build(settings, Path(MEDIA_DIR), log=lambda m: None)
 
     print(f"\n実行: {command}")
     print("※ 初回は Cloudflare のログイン画面がブラウザで開きます\n")
