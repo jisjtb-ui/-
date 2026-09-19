@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 import secrets
 import shutil
+import time
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -211,10 +212,20 @@ def verify_published(url: str, log: LogFn = print) -> bool:
 
     if not url.startswith("http"):
         return False
-    try:
-        response = requests.get(url, timeout=20)
-    except requests.RequestException as exc:
-        log(f"  確認できませんでした（{type(exc).__name__}）")
+
+    # 反映に数秒かかることや、一時的に繋がらないことがあるので何度か試す
+    response = None
+    for attempt in range(3):
+        try:
+            response = requests.get(url, timeout=25)
+            break
+        except requests.RequestException as exc:
+            if attempt == 2:
+                log(f"  確認できませんでした（{type(exc).__name__}）")
+                log("  ※ 公開自体は成功している可能性があります。下のURLを開いてみてください")
+                return False
+            time.sleep(3)
+    if response is None:
         return False
 
     if response.status_code != 200:

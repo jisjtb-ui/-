@@ -1,9 +1,10 @@
 {
-  "version": "1.7.1",
-  "released_at": "2026-09-19T05:16:25+00:00",
+  "version": "1.7.2",
+  "released_at": "2026-09-19T05:25:55+00:00",
   "channel": "main",
   "notes": [
-    "画像の書き出しで「新たに/すでにある/元が無い」を分けて表示するようにした（0件の意味が分かるように）"
+    "公開の確認に失敗しても、URLを必ず表示するようにした（確認失敗と公開失敗は別）",
+    "確認は3回まで再試行する"
   ],
   "files": {
     ".env.example": {
@@ -71,8 +72,8 @@
       "size": 70
     },
     "CHANGELOG.md": {
-      "sha256": "a18d096a0d8e654aa46ec8bf111dd360be55c8f5eccac5eb36f9920e54d02ae7",
-      "size": 4562
+      "sha256": "e844d6146573f0721c67776e53e3018e2f986ac27a7513a01c50aa3a157f6d6b",
+      "size": 4728
     },
     "CLAUDE.md": {
       "sha256": "217cf8a09cfba1a23e9d45c0781912fa3a5a52af5ac48e9a0c50db2fb8bd09a1",
@@ -87,7 +88,7 @@
       "size": 37272
     },
     "VERSION": {
-      "sha256": "249182a01164b81a5f7af87e5c5cdbd3344a80a7a66dfca624cecfb1501b2420",
+      "sha256": "e6b7255e251fae180891178dc54e93117e0e522c67cd10145600f71c36216ee9",
       "size": 6
     },
     "autopost.py": {
@@ -99,8 +100,8 @@
       "size": 412
     },
     "autopost/cli.py": {
-      "sha256": "b874ee1eaf3f61739067a9d0fa6cd8494574fb8180597ae9859a4a19cb877723",
-      "size": 47962
+      "sha256": "d910e196ba734ad859400b017a7fb23b97f32349f6a557a9ce413a09b19e4edd",
+      "size": 48082
     },
     "autopost/collector.py": {
       "sha256": "6ecdb17571daa83dbd312e3e9c50146280929571b7ea8eb135434e90329f5492",
@@ -155,8 +156,8 @@
       "size": 3191
     },
     "autopost/mobile.py": {
-      "sha256": "5e1f121c7bdc16d360ea06d842328dc042f4482583c36479e9cc04f7f854aeec",
-      "size": 23135
+      "sha256": "89a1e47b937c6169aa6cd7e2f3d3c658f4a1cd451553a64bb220bb70a41f0af3",
+      "size": 23579
     },
     "autopost/models.py": {
       "sha256": "4f2ed6eac6627f24f94f558693c2e7235a9b5b15b85ce51c8744d6cbdf97c4b3",
@@ -543,8 +544,8 @@
       "size": 2805
     },
     "tools/deploy_media.py": {
-      "sha256": "2869eddb605e28f1b6e4c3939c6908527236e42ea42e82da348dba70ee650811",
-      "size": 4545
+      "sha256": "d3f2ac4037473cb49f721211fedae4e0d91d832a72ec1d1ce5a391644273c6f0",
+      "size": 4718
     },
     "tools/reel_handoff.py": {
       "sha256": "f2711721e55a00dac9429840215c3f0cdce00c20ffdd4cf6afbca0053c7560da",

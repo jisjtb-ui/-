@@ -323,9 +323,10 @@ def cmd_mobile(args, settings: Settings, queue: Queue) -> int:
         else:
             command = (settings.pages_deploy_command
                        or "npx wrangler pages deploy pages_media --project-name <プロジェクト名>")
-            print("\n--- まだスマホから開けません ---")
-            print("作ったページはPCの中にあるだけで、まだ公開されていません。")
-            print("次を実行してから、もう一度このボタンを押してください:")
+            print("\n--- 確認できませんでした ---")
+            print("公開が終わっていないか、確認に失敗しただけかもしれません。")
+            print(f"\nまずこのURLをスマホで開いてみてください:\n  {result['url']}\n")
+            print("開けない場合は、次を実行してからもう一度このボタンを押してください:")
             print(f"\n  {command}\n")
             print("※ .env の PAGES_DEPLOY_COMMAND を設定すると、次回から自動で公開されます")
     else:
