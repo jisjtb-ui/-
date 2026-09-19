@@ -161,6 +161,67 @@ POLICY_TEMPLATE = """<!DOCTYPE html>
 """
 
 
+CALLBACK_PAGE = """<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>認証コード</title>
+<style>
+  body { margin:0; padding:40px 20px; background:#fbfbfb; color:#1a1a1a;
+         font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;
+         line-height:1.8; }
+  main { max-width:640px; margin:0 auto; }
+  h1 { font-size:20px; margin:0 0 8px; }
+  p { margin:0 0 16px; color:#555; font-size:14px; }
+  .code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:13px;
+          word-break:break-all; background:#fff; border:1px solid #e6e6e6;
+          border-radius:10px; padding:14px; margin:16px 0; }
+  button { width:100%; padding:14px; font-size:15px; font-weight:600; border-radius:10px;
+           border:1px solid #1a1a1a; background:#1a1a1a; color:#fff; }
+  .err { color:#a33; }
+  ol { padding-left:20px; color:#555; font-size:14px; }
+</style>
+</head>
+<body><main>
+<h1 id="title">認証コードを受け取りました</h1>
+<p id="lead">この画面のURL全体を、アプリに貼り付けてください。</p>
+<div class="code" id="url"></div>
+<button id="copy">URLをコピー</button>
+<ol>
+  <li>コピーしたURLを、コマンド画面の「リダイレクト先URL:」に貼る</li>
+  <li>Enterを押すと接続が完了します</li>
+</ol>
+<script>
+  const params = new URLSearchParams(location.search);
+  const full = location.href;
+  document.getElementById("url").textContent = full;
+  if (params.get("error") || params.get("error_message")) {
+    document.getElementById("title").textContent = "認証できませんでした";
+    document.getElementById("title").className = "err";
+    document.getElementById("lead").textContent =
+      params.get("error_message") || params.get("error_description") || params.get("error");
+  } else if (!params.get("code")) {
+    document.getElementById("title").textContent = "ここは認証の受け取り口です";
+    document.getElementById("lead").textContent =
+      "アプリから認証を始めると、ここに認証コードが表示されます。";
+  }
+  document.getElementById("copy").onclick = async () => {
+    try { await navigator.clipboard.writeText(full); }
+    catch (e) {
+      const a = document.createElement("textarea");
+      a.value = full; document.body.appendChild(a); a.select();
+      document.execCommand("copy"); a.remove();
+    }
+    document.getElementById("copy").textContent = "コピーしました";
+  };
+</script>
+</main></body>
+</html>
+"""
+
+
 def write_policy_pages(destination: Path, log: LogFn = print) -> list[str]:
     """コールバック欄に入れるページを書き出し、置いたパスを返す。"""
     written: list[str] = []
@@ -171,6 +232,11 @@ def write_policy_pages(destination: Path, log: LogFn = print) -> list[str]:
             POLICY_TEMPLATE.format(title=title, lead=lead, body=body), encoding="utf-8"
         )
         written.append(f"{slug}/")
+    callback = destination / "callback"
+    callback.mkdir(parents=True, exist_ok=True)
+    (callback / "index.html").write_text(CALLBACK_PAGE, encoding="utf-8")
+    written.append("callback/")
+
     log(f"コールバック用のページを書き出しました: {', '.join(written)}")
     return written
 

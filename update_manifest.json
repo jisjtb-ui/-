@@ -1,14 +1,15 @@
 {
-  "version": "1.10.2",
-  "released_at": "2026-09-19T15:11:53+00:00",
+  "version": "1.11.0",
+  "released_at": "2026-09-19T15:49:46+00:00",
   "channel": "main",
   "notes": [
-    "占いの2枚が投稿に含まれていなかったのを修正。画像の絞り込みが question/answer だけを見ていた"
+    "認証の受け取り口ページ（/callback/）を追加。コードをコピーできるので手動認証が楽になる",
+    "認証に失敗した場合は、その理由もページに表示する"
   ],
   "files": {
     ".env.example": {
-      "sha256": "02f2d5eb6335e0c3841f185cd6f43bd880b2656a6d8a8d9119903c3e4020ae61",
-      "size": 8205
+      "sha256": "eb54fe85149633f37c9e329394e647b6e887962eab698aad46953c896b878a72",
+      "size": 8291
     },
     ".gitattributes": {
       "sha256": "3fa230e012e5907422ba6c650fd2a1798f7cb7b07a2912285e64790e2ff97fc6",
@@ -71,8 +72,8 @@
       "size": 70
     },
     "CHANGELOG.md": {
-      "sha256": "c0a1dc0b7e17ec378cf982ab78084a19705775f5835b4de9096dc1783697bdd7",
-      "size": 6737
+      "sha256": "1aee57143ab5b3c3b981db1aa5b08941ac74fc0843ebd1ebe3c1d47f6dda4e69",
+      "size": 6952
     },
     "CLAUDE.md": {
       "sha256": "217cf8a09cfba1a23e9d45c0781912fa3a5a52af5ac48e9a0c50db2fb8bd09a1",
@@ -83,11 +84,11 @@
       "size": 29553
     },
     "SETUP_AUTOPOST.md": {
-      "sha256": "a403a68d5902daebc6ba9f59d79dc7bb1624177ad5fe5807bb161d3ab880ed84",
-      "size": 37272
+      "sha256": "cda0916092b68dc40bd7d7501382d4b961027969fcabf09175385e2e96440708",
+      "size": 38714
     },
     "VERSION": {
-      "sha256": "50020f5178d4e42fca05b2455fbe25f0a8a19b7537bab9fa87429ec5ebe20de1",
+      "sha256": "74ee4d121463989183f9a9b848577eb2434f3f5d095de2a4b197bf29ffa2399b",
       "size": 7
     },
     "autopost.py": {
@@ -155,8 +156,8 @@
       "size": 3191
     },
     "autopost/mobile.py": {
-      "sha256": "89a1e47b937c6169aa6cd7e2f3d3c658f4a1cd451553a64bb220bb70a41f0af3",
-      "size": 23579
+      "sha256": "081c2bf43d4a1d29cba0450ea26b851d4cd4f4dee41cb4694c8215ac71530574",
+      "size": 26415
     },
     "autopost/models.py": {
       "sha256": "4f2ed6eac6627f24f94f558693c2e7235a9b5b15b85ce51c8744d6cbdf97c4b3",
