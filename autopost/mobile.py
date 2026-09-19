@@ -119,6 +119,61 @@ def _collect(settings: Settings, store: ExperimentStore, destination: Path,
     return cards
 
 
+# Metaアプリの「データ削除」「アンインストール」コールバック欄に入れるページ。
+# 中身より、そのURLが実在することが求められる。
+POLICY_PAGES = {
+    "data-deletion": (
+        "データ削除のご依頼",
+        "このアプリは、投稿用の画像とその投稿結果のみを扱います。",
+        "削除をご希望の場合は、アプリ内の設定から連携を解除してください。"
+        "保存しているデータは連携解除の時点で利用を停止します。",
+    ),
+    "deauth": (
+        "連携の解除について",
+        "このページは、アプリの連携が解除されたことを受け取るためのものです。",
+        "連携を解除すると、以降このアプリからの投稿は行われません。",
+    ),
+}
+
+POLICY_TEMPLATE = """<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>{title}</title>
+<style>
+  body {{ margin:0; padding:48px 20px; background:#fbfbfb; color:#1a1a1a;
+         font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;
+         line-height:1.8; }}
+  main {{ max-width:640px; margin:0 auto; }}
+  h1 {{ font-size:20px; margin:0 0 24px; }}
+  p {{ margin:0 0 16px; }}
+</style>
+</head>
+<body><main>
+<h1>{title}</h1>
+<p>{lead}</p>
+<p>{body}</p>
+</main></body>
+</html>
+"""
+
+
+def write_policy_pages(destination: Path, log: LogFn = print) -> list[str]:
+    """コールバック欄に入れるページを書き出し、置いたパスを返す。"""
+    written: list[str] = []
+    for slug, (title, lead, body) in POLICY_PAGES.items():
+        folder = destination / slug
+        folder.mkdir(parents=True, exist_ok=True)
+        (folder / "index.html").write_text(
+            POLICY_TEMPLATE.format(title=title, lead=lead, body=body), encoding="utf-8"
+        )
+        written.append(f"{slug}/")
+    log(f"コールバック用のページを書き出しました: {', '.join(written)}")
+    return written
+
+
 def build(settings: Settings, destination: Path | None = None,
           log: LogFn = print) -> dict:
     """一覧ページを書き出し、開くべきURLを返す。"""
@@ -137,6 +192,7 @@ def build(settings: Settings, destination: Path | None = None,
         _render(cards, settings.publish_worker_url), encoding="utf-8"
     )
     (destination / "robots.txt").write_text(ROBOTS, encoding="utf-8")
+    write_policy_pages(destination, log)
 
     base = (settings.local_host_base_url or "").rstrip("/")
     url = f"{base}/{slug}/" if base else f"（{folder}）"

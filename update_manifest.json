@@ -1,10 +1,9 @@
 {
-  "version": "1.6.1",
-  "released_at": "2026-09-19T04:35:57+00:00",
+  "version": "1.6.2",
+  "released_at": "2026-09-19T04:44:27+00:00",
   "channel": "main",
   "notes": [
-    "認可画面のエラーを読み取り、登録すべきリダイレクトURIをそのまま表示するようにした",
-    "1349168 / 1349245 / error_code=1 に、それぞれ対処手順を出す"
+    "Metaアプリの「データ削除」「アンインストール」コールバック欄に入れるページを自動生成するようにした"
   ],
   "files": {
     ".env.example": {
@@ -68,8 +67,8 @@
       "size": 70
     },
     "CHANGELOG.md": {
-      "sha256": "803b25f295d628d142f9386bae8722ab6252bc911df0a90ff3a42c52f9a868b7",
-      "size": 4008
+      "sha256": "8e1b3926eadcc151572ae8a410de5b48f272625b9a8f626cb77eec3769119020",
+      "size": 4168
     },
     "CLAUDE.md": {
       "sha256": "217cf8a09cfba1a23e9d45c0781912fa3a5a52af5ac48e9a0c50db2fb8bd09a1",
@@ -84,7 +83,7 @@
       "size": 36264
     },
     "VERSION": {
-      "sha256": "6430a242e9486093ef6f71d9086d48f61ba102f0d2fb0f5b95334c6007a46db3",
+      "sha256": "a2d5e268fe70979caccd895156b3d33bd61a3cc7e660ab7a5b07066849b3e248",
       "size": 6
     },
     "autopost.py": {
@@ -152,8 +151,8 @@
       "size": 3191
     },
     "autopost/mobile.py": {
-      "sha256": "6e7fd62e5dc0f8c93c59fd8cd7a5e9be1b9f3cfc89ee04f1edb6d82af8681d21",
-      "size": 20960
+      "sha256": "5e1f121c7bdc16d360ea06d842328dc042f4482583c36479e9cc04f7f854aeec",
+      "size": 23135
     },
     "autopost/models.py": {
       "sha256": "4f2ed6eac6627f24f94f558693c2e7235a9b5b15b85ce51c8744d6cbdf97c4b3",
