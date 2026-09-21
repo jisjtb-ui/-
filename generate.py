@@ -251,6 +251,7 @@ def main(argv: list[str] | None = None) -> int:
     print("-" * 56)
 
     created = 0
+    comment_prompts = cta.comment_prompt_cycle(rng, args.tests_per_post)
     for offset in range(args.posts):
         post_id = start_id + offset
         try:
@@ -296,6 +297,7 @@ def main(argv: list[str] | None = None) -> int:
                 overwrite=args.overwrite,
                 cta=cta,
                 actions=actions,
+                comment_prompt=next(comment_prompts),
             )
         except FileExistsError as exc:
             print(f"[スキップ] {exc}（上書きするなら --overwrite）", file=sys.stderr)

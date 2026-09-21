@@ -1,10 +1,11 @@
 {
-  "version": "1.11.0",
-  "released_at": "2026-09-19T15:49:46+00:00",
+  "version": "1.12.0",
+  "released_at": "2026-09-21T18:00:06+00:00",
   "channel": "main",
   "notes": [
-    "認証の受け取り口ページ（/callback/）を追加。コードをコピーできるので手動認証が楽になる",
-    "認証に失敗した場合は、その理由もページに表示する"
+    "1枚目にコメント誘導を追加。「一番当たってたの何番？」を投稿ごとに文を変えて小さく入れる",
+    "12通りを順番に配り、使い切るまで同じ文を出さないようにした",
+    "問題数は文中に自動で反映される（4問なら「4問のうち」）"
   ],
   "files": {
     ".env.example": {
@@ -72,8 +73,8 @@
       "size": 70
     },
     "CHANGELOG.md": {
-      "sha256": "1aee57143ab5b3c3b981db1aa5b08941ac74fc0843ebd1ebe3c1d47f6dda4e69",
-      "size": 6952
+      "sha256": "aa713a244f1fae275a144b08a326747dcc58259f27431764ac0cc4c0fdbc095d",
+      "size": 7270
     },
     "CLAUDE.md": {
       "sha256": "217cf8a09cfba1a23e9d45c0781912fa3a5a52af5ac48e9a0c50db2fb8bd09a1",
@@ -88,7 +89,7 @@
       "size": 38714
     },
     "VERSION": {
-      "sha256": "74ee4d121463989183f9a9b848577eb2434f3f5d095de2a4b197bf29ffa2399b",
+      "sha256": "c92df6bdde330be219d62f48ec6490b01889436f2f59027aab200e74de619168",
       "size": 7
     },
     "autopost.py": {
@@ -256,8 +257,8 @@
       "size": 3790
     },
     "data/cta.json": {
-      "sha256": "c950eb8e27401a33677dfd57ecdd8df6f255c8a94754d1423ebcd631b37d7f3b",
-      "size": 1535
+      "sha256": "c97bad2afb9cc2ef5ded03349724c7268f929747d8e3bebedf06a1545fd5c06b",
+      "size": 4825
     },
     "data/cta_actions.json": {
       "sha256": "c6b00346995ffcc14f5eef6af765ce2d60bd26fce1625b165a0f2e22bf3ddccc",
@@ -352,8 +353,8 @@
       "size": 11101
     },
     "generate.py": {
-      "sha256": "f0384db6b7ab963137795b5530ab4d51a23b4f9ef2cb2366d00a1eb2214df6c0",
-      "size": 13652
+      "sha256": "1542dc2bb2683dd3cbfe2d78f309ff606e6734bcd020184fbc938faac18baae6",
+      "size": 13779
     },
     "manage.py": {
       "sha256": "6b2a0095633cc9a6200221c2c7c73cc338810d558808cdcded1f5478e854546e",
@@ -368,8 +369,8 @@
       "size": 7659
     },
     "night_test/builder.py": {
-      "sha256": "242a1cf2e675d909e0188982724b1ee7fb22f07fe5dcfceaa762ecee989d6053",
-      "size": 6489
+      "sha256": "fce0447e6f4a5ac3b19cb0147f38ba0ec24682e015b0554d9f1a7b48f97541e0",
+      "size": 6804
     },
     "night_test/captions.py": {
       "sha256": "d03a2060c8a1199a4f8c7a9dcd36ca4bab7297b871c745917762790c959a8916",
@@ -384,8 +385,8 @@
       "size": 14445
     },
     "night_test/cta.py": {
-      "sha256": "91c29f5fea5289e8c26b98e7e49e22a6c29c27b03435360b2e57169ddcdaa1ca",
-      "size": 3739
+      "sha256": "126333c9e0ea7405062590e312add2a81498f7106704f9b491d37021db7759e4",
+      "size": 4916
     },
     "night_test/emoji.py": {
       "sha256": "80df1bbf26d3dd78fa0741151abf3f94e416d366e87bcdc590f942e4f9d3e124",
@@ -400,8 +401,8 @@
       "size": 7706
     },
     "night_test/renderer.py": {
-      "sha256": "8af66e9dbb337f818df63d1d3a664f4fb21e053052d2a0bb9912ccb5c531f35d",
-      "size": 20891
+      "sha256": "55ced5d5189ea8aa9d2dedf3824b644d939a8592cc2e75b8d8410c5834daf15c",
+      "size": 21836
     },
     "night_test/textlayout.py": {
       "sha256": "66ca63638b383c2fffba1f222cd06f51069a72fcb048e89a97ad446d737571f4",
@@ -560,8 +561,8 @@
       "size": 10971
     },
     "tools/selftest.py": {
-      "sha256": "3ac6544729049a68a71b974f17de4ce38251408cf27ed6d014f153b7759b3e54",
-      "size": 10198
+      "sha256": "5bfe36a10ddb8ad9fa3c0d3bf01f3844f8913ae7e424b553f427f1503009e0a3",
+      "size": 11105
     },
     "tools/setup_all.py": {
       "sha256": "d6263fb81a999642bff2c39378fabaa9ab3ba9d2d82121f5945efe2e156e31a0",

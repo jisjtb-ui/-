@@ -66,11 +66,16 @@ class Renderer:
 
     def render_message(
         self, headline: str, items: list[str], footer: str = "",
-        emphasis: bool = True, cta_top: str = "",
+        emphasis: bool = True, cta_top: str = "", note: str = "",
     ) -> Image.Image:
-        """占いの「選ぶ」「答え」ページ。見出し＋並び＋締めの3段だけ。"""
+        """占いの「選ぶ」「答え」ページ。見出し＋並び＋締めの3段だけ。
+
+        note は最下部に小さく置く一文（コメント誘導）。本文より目立たせない。
+        """
         return self._render(
-            lambda s: self._build_message(headline, items, footer, emphasis, s, cta_top)
+            lambda s: self._build_message(
+                headline, items, footer, emphasis, s, cta_top, note
+            )
         )
 
     # ------------------------------------------------------------------
@@ -432,7 +437,7 @@ class Renderer:
 
     def _build_message(
         self, headline: str, items: list[str], footer: str, emphasis: bool,
-        scale: float, cta_top: str = "",
+        scale: float, cta_top: str = "", note: str = "",
     ) -> Stack:
         """テストのページより余白を多くとり、行動に集中させる。"""
         lay = self.layout
@@ -488,6 +493,27 @@ class Renderer:
                     line_height=self._lh(f_foot, lay.line_heights.cta),
                     tracking=lay.px(1 * scale),
                     space_after=lay.px(sp.between_cta * scale),
+                )
+            )
+
+        # コメント誘導。いちばん小さく、間を空けて置く
+        if note:
+            f_note = self._font(lay.sizes.cta_secondary * 0.88, scale)
+            stack.add(
+                Block(
+                    lines=[],
+                    font=f_note,
+                    line_height=0,
+                    kind="space",
+                    space_after=lay.px(sp.before_cta * 0.9 * scale),
+                )
+            )
+            stack.add(
+                Block(
+                    lines=wrap_balanced(note, f_note, self._wrap_width(f_note)),
+                    font=f_note,
+                    line_height=self._lh(f_note, lay.line_heights.cta),
+                    tracking=lay.px(1 * scale),
                 )
             )
         return stack

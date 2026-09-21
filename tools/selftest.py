@@ -168,6 +168,21 @@ def main() -> int:
     check("答えページに4つの結果が出る", len(reveal) == 5)
     check("差し込み位置が設定で変えられる", isinstance(action_set.insert_after, int))
 
+    section("1枚目のコメント誘導")
+    from night_test.cta import CtaConfig
+
+    cta = CtaConfig.load(ROOT / "data" / "cta.json").select()
+    check("文言が複数ある", len(cta.comment_prompts) >= 8, str(len(cta.comment_prompts)))
+    cycle = cta.comment_prompt_cycle(random.Random(7), 4)
+    picked = [next(cycle) for _ in range(len(cta.comment_prompts))]
+    check("使い切るまで同じ文を出さない", len(set(picked)) == len(picked))
+    check("問題数が文に反映される", all("{n}" not in t for t in picked))
+    check("数字1つで答えられる言い回し",
+          all(("何番" in t or "番号" in t or "何問目" in t) for t in picked),
+          str([t for t in picked if not ("何番" in t or "番号" in t or "何問目" in t)]))
+    check("長文を求めていない", all(len(t) <= 28 for t in picked),
+          str([t for t in picked if len(t) > 28]))
+
     section("投稿に含める画像")
     from autopost.loader import IMAGE_RE
 

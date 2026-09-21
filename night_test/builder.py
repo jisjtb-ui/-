@@ -43,6 +43,7 @@ def build_post(
     overwrite: bool = False,
     cta: CtaTexts | None = None,
     actions: ActionSet | None = None,
+    comment_prompt: str | None = None,
 ) -> PostResult:
     """画像10枚と caption.txt / meta.json を1フォルダに書き出す。
 
@@ -58,6 +59,9 @@ def build_post(
     # アクション別CTAを使うときは、最終ページを「保存→共有→コメント」から
     # 「プロフィール／いいね／フォロー／共有 → それぞれの結果」に置き換える。
     assigned = [] if actions.is_empty() else actions.assign(rng)
+    # 1枚目に入れるコメント誘導（投稿ごとに文を変える）
+    if comment_prompt is None:
+        comment_prompt = cta.comment_prompt(rng, len(tests))
     # 占いを使うときは、結果を最終ページに載せない。
     # 「選ぶ → めくる → 答え」の2枚組にして、押す理由とめくる理由を作る。
     final_lines = [] if assigned else cta.final_lines
@@ -91,6 +95,7 @@ def build_post(
                 [actions.action_labels.get(a, a) for a in actions.actions],
                 actions.prompt_footer,
                 cta_top=cta.first_page if slot == 1 else "",
+                note=comment_prompt if slot == 1 else "",
             ).save(path, "PNG", optimize=True)
         elif kind == "reveal":
             path = folder / f"{slot:02d}_reveal.png"
@@ -133,6 +138,7 @@ def build_post(
                 "final": f"{len(tests) * 2:02d}_answer.png" if final_lines else None,
             },
             "final_lines": list(final_lines),
+            "comment_prompt": comment_prompt,
         },
         # アクション別CTAの割り当て（後からアクション別の効果を集計するため）
         "cta_actions": actions.to_meta(assigned) if assigned else None,

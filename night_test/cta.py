@@ -35,6 +35,8 @@ class CtaTexts:
     final_save: str = ""
     final_share: str = ""
     final_comment: str = ""
+    # 1枚目に入れるコメント誘導。投稿ごとに1つ選ぶ
+    comment_prompts: tuple[str, ...] = ()
 
     @property
     def final_lines(self) -> list[str]:
@@ -50,7 +52,29 @@ class CtaTexts:
             "final_save": self.final_save,
             "final_share": self.final_share,
             "final_comment": self.final_comment,
+            "comment_prompt_count": len(self.comment_prompts),
         }
+
+    def comment_prompt(self, rng, test_count: int = 0) -> str:
+        """コメント誘導を1つ選ぶ。{n} は問題数に置き換える。"""
+        if not self.comment_prompts:
+            return ""
+        return rng.choice(self.comment_prompts).replace("{n}", str(test_count or ""))
+
+    def comment_prompt_cycle(self, rng, test_count: int = 0):
+        """順番に配る。全部使い切るまで同じ文を出さない。
+
+        毎回ランダムに選ぶと偏って、同じ文が続けて出てしまう。
+        """
+        if not self.comment_prompts:
+            while True:
+                yield ""
+        pool: list[str] = []
+        while True:
+            if not pool:
+                pool = list(self.comment_prompts)
+                rng.shuffle(pool)
+            yield pool.pop().replace("{n}", str(test_count or ""))
 
     def is_empty(self) -> bool:
         return not (self.first_page or self.final_lines)
@@ -75,6 +99,9 @@ class CtaConfig:
                 final_save=entry.get("final_save", "").strip(),
                 final_share=entry.get("final_share", "").strip(),
                 final_comment=entry.get("final_comment", "").strip(),
+                comment_prompts=tuple(
+                    t.strip() for t in (entry.get("comment_prompts") or []) if t.strip()
+                ),
             )
         if not sets:
             raise CtaError(f"CTAセットが定義されていません: {path}")
