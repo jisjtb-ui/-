@@ -90,6 +90,13 @@ def prepare_image(source: Path, destination: Path) -> PreparedImage:
         )
 
 
+def _apply_sequence_times(paths: list[Path]) -> None:
+    """並び順どおりの更新日時を振る（アップローダーが日時で並べても崩れないように）。"""
+    from night_test.builder import set_sequence_times
+
+    set_sequence_times(paths)
+
+
 def prepare_post_images(
     post_id: str, images: list[Path], cache_dir: Path, force: bool = False
 ) -> list[PreparedImage]:
@@ -135,6 +142,7 @@ def prepare_post_images(
         prepared.append(item)
 
     stamp_path.write_text(json.dumps(stamp, ensure_ascii=False, indent=2), encoding="utf-8")
+    _apply_sequence_times([item.path for item in prepared])
     return prepared
 
 

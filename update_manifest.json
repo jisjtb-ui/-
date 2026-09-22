@@ -1,11 +1,9 @@
 {
-  "version": "1.12.0",
-  "released_at": "2026-09-21T18:00:06+00:00",
+  "version": "1.12.1",
+  "released_at": "2026-09-22T06:18:39+00:00",
   "channel": "main",
   "notes": [
-    "1枚目にコメント誘導を追加。「一番当たってたの何番？」を投稿ごとに文を変えて小さく入れる",
-    "12通りを順番に配り、使い切るまで同じ文を出さないようにした",
-    "問題数は文中に自動で反映される（4問なら「4問のうち」）"
+    "手で投稿するとき順番が崩れる問題を修正。画像の更新日時を1分ずつずらし、名前順でも日時順でも同じ並びになるようにした"
   ],
   "files": {
     ".env.example": {
@@ -73,8 +71,8 @@
       "size": 70
     },
     "CHANGELOG.md": {
-      "sha256": "aa713a244f1fae275a144b08a326747dcc58259f27431764ac0cc4c0fdbc095d",
-      "size": 7270
+      "sha256": "ec2e5c15ad583db1333be670d020a8c6509ca147685c4e85a3c99ec9fb105525",
+      "size": 7458
     },
     "CLAUDE.md": {
       "sha256": "217cf8a09cfba1a23e9d45c0781912fa3a5a52af5ac48e9a0c50db2fb8bd09a1",
@@ -85,11 +83,11 @@
       "size": 29553
     },
     "SETUP_AUTOPOST.md": {
-      "sha256": "cda0916092b68dc40bd7d7501382d4b961027969fcabf09175385e2e96440708",
-      "size": 38714
+      "sha256": "12a3c415ece5ad440b525ac44b645083d890e5b6e25e2fd9e6fd1d111bcaecfe",
+      "size": 39534
     },
     "VERSION": {
-      "sha256": "c92df6bdde330be219d62f48ec6490b01889436f2f59027aab200e74de619168",
+      "sha256": "d723798f2436b46872ee9a012632d6f5602ab9297be05780a79ba29733f8a532",
       "size": 7
     },
     "autopost.py": {
@@ -145,8 +143,8 @@
       "size": 2841
     },
     "autopost/imageprep.py": {
-      "sha256": "cc189665916a4e960be3973af062e1c6977959e989f9c0bb0d737f13318b0c87",
-      "size": 5212
+      "sha256": "b423159f065cc14006b6b23f5aced659734693feed3a64f131194ae6ff4d3945",
+      "size": 5541
     },
     "autopost/loader.py": {
       "sha256": "32ecaaa50d76de71c5f4fa8d3ce2a7dbd8947577637fd0f9027bf3ea5f336537",
@@ -369,8 +367,8 @@
       "size": 7659
     },
     "night_test/builder.py": {
-      "sha256": "fce0447e6f4a5ac3b19cb0147f38ba0ec24682e015b0554d9f1a7b48f97541e0",
-      "size": 6804
+      "sha256": "2c5d0564a843101ac16e7b595171e9718e35ed5859f760c392b0d39c9e2781df",
+      "size": 7679
     },
     "night_test/captions.py": {
       "sha256": "d03a2060c8a1199a4f8c7a9dcd36ca4bab7297b871c745917762790c959a8916",
@@ -561,8 +559,8 @@
       "size": 10971
     },
     "tools/selftest.py": {
-      "sha256": "5bfe36a10ddb8ad9fa3c0d3bf01f3844f8913ae7e424b553f427f1503009e0a3",
-      "size": 11105
+      "sha256": "4b46c1798d7f0382bca326ffe608e7f86a9629ce0bb8e04a8638513a5377c5a0",
+      "size": 11879
     },
     "tools/setup_all.py": {
       "sha256": "d6263fb81a999642bff2c39378fabaa9ab3ba9d2d82121f5945efe2e156e31a0",

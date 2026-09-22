@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import json
 import random
+import os
 import shutil
+import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -28,6 +30,25 @@ class PostResult:
 
 def post_folder_name(post_id: int) -> str:
     return f"post_{post_id:03d}"
+
+
+# エクスプローラーは更新日時を「分」までしか見ない。同じ分に並ぶと
+# 日時で並べ替えたときの順番が不定になり、投稿の順番が崩れる。
+# 1分ずつずらして、名前順でも日時順でも同じ並びになるようにする。
+SEQUENCE_SPACING_SECONDS = 60
+
+
+def set_sequence_times(paths: list[Path], spacing: int = SEQUENCE_SPACING_SECONDS) -> None:
+    """並び順どおりの更新日時を振る。"""
+    if not paths:
+        return
+    base = int(time.time()) - len(paths) * spacing
+    for index, path in enumerate(paths):
+        stamp = base + index * spacing
+        try:
+            os.utime(path, (stamp, stamp))
+        except OSError:      # 権限やファイルシステムの都合で失敗しても致命的ではない
+            pass
 
 
 def build_post(
@@ -118,6 +139,8 @@ def build_post(
                     test, number, final_lines if is_last_test else ()
                 ).save(path, "PNG", optimize=True)
         images.append(path)
+
+    set_sequence_times(images)
 
     caption = build_caption(caption_data, rng, category, tests)
     (folder / "caption.txt").write_text(caption, encoding="utf-8")

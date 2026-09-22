@@ -183,6 +183,27 @@ def main() -> int:
     check("長文を求めていない", all(len(t) <= 28 for t in picked),
           str([t for t in picked if len(t) > 28]))
 
+    section("投稿の順番")
+    from night_test.builder import set_sequence_times
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        names = [f"{i:02d}_x.png" for i in range(1, 11)]
+        paths = []
+        for name in names:
+            path = root / name
+            path.write_bytes(b"x")
+            paths.append(path)
+        set_sequence_times(paths)
+
+        by_name = sorted(paths, key=lambda p: p.name)
+        by_time = sorted(paths, key=lambda p: p.stat().st_mtime)
+        check("名前順と日時順が一致する", by_name == by_time)
+
+        minutes = {int(p.stat().st_mtime // 60) for p in paths}
+        check("1枚ずつ別の分になっている", len(minutes) == len(paths),
+              f"{len(minutes)}種類")
+
     section("投稿に含める画像")
     from autopost.loader import IMAGE_RE
 
