@@ -1,9 +1,9 @@
 {
-  "version": "1.12.1",
-  "released_at": "2026-09-22T06:18:39+00:00",
+  "version": "1.12.2",
+  "released_at": "2026-09-22T06:27:09+00:00",
   "channel": "main",
   "notes": [
-    "手で投稿するとき順番が崩れる問題を修正。画像の更新日時を1分ずつずらし、名前順でも日時順でも同じ並びになるようにした"
+    "答えの書き直しを継続。マチアプ・ホテル・雰囲気・スキンシップ・欲求・主導権の6カテゴリ216個"
   ],
   "files": {
     ".env.example": {
@@ -71,8 +71,8 @@
       "size": 70
     },
     "CHANGELOG.md": {
-      "sha256": "ec2e5c15ad583db1333be670d020a8c6509ca147685c4e85a3c99ec9fb105525",
-      "size": 7458
+      "sha256": "36521661f143d614b1c33583973727f6caefaeffe39c1d2aed3138f442ee1389",
+      "size": 7607
     },
     "CLAUDE.md": {
       "sha256": "217cf8a09cfba1a23e9d45c0781912fa3a5a52af5ac48e9a0c50db2fb8bd09a1",
@@ -87,7 +87,7 @@
       "size": 39534
     },
     "VERSION": {
-      "sha256": "d723798f2436b46872ee9a012632d6f5602ab9297be05780a79ba29733f8a532",
+      "sha256": "39ff53dce98b1cf6b5738dfb096b827a6575a540767b294310c4becc61e987c3",
       "size": 7
     },
     "autopost.py": {
@@ -271,8 +271,8 @@
       "size": 9946
     },
     "data/tests/app.json": {
-      "sha256": "db91f90e83d9f0f6356ee302ab3136cc6f19623eefd84405f2a659ce7604e81e",
-      "size": 8446
+      "sha256": "9872dadad1d8de490fc0b3ec5f563654f7aecbcf2ef2461ef6b2c70b7edf9fd0",
+      "size": 9727
     },
     "data/tests/before.json": {
       "sha256": "b17525fd36c7ca7aa98f58e78a5ed55fec72d747f1f56f6f75db4c8feb6f9b8e",
@@ -291,8 +291,8 @@
       "size": 7535
     },
     "data/tests/desire.json": {
-      "sha256": "43273f4ff60f3c1ced3927a1c43024a2369790d81a5ae4883ab9dde1806aad99",
-      "size": 11335
+      "sha256": "3b890b8c2d16f676d8e52c2262b7043c72de836601f4cc819f62484c1d9cc2a1",
+      "size": 11755
     },
     "data/tests/dilemma.json": {
       "sha256": "7c3488459fc666733ebb8c066e44fe3c45c68724dc9ec7c56229d5598391d2e7",
@@ -311,12 +311,12 @@
       "size": 12121
     },
     "data/tests/hotel.json": {
-      "sha256": "5bdef25fef4cf2410ac87710649737ef00bba7badbfc0593f09b28825becd598",
-      "size": 8671
+      "sha256": "7211413c094e9028d3c688dd0147def1fc6410df6514fa9ace393582d2af5c01",
+      "size": 9729
     },
     "data/tests/lead.json": {
-      "sha256": "a45ebbe26f19d465448781611bc55f8adfcf0f653d6334fc5589f96c85e71561",
-      "size": 10710
+      "sha256": "2cf836cfd0a41876c11d3ae5887f8b348f9d0d8b88cf55771767ddcfed19444e",
+      "size": 12124
     },
     "data/tests/looks.json": {
       "sha256": "8a205eb3171bcd952df79d30e2e14b762575043ece45f43c246187e8da4f6d54",
@@ -331,8 +331,8 @@
       "size": 7677
     },
     "data/tests/mood.json": {
-      "sha256": "80d936ed8a032e838ce07aac11b9d3f818b0b9008077275894ffdb9ceb4ae56e",
-      "size": 7678
+      "sha256": "90cc6ce34b62e3426ed6513dca61d00ea1c98c4752f1fbebb6bf43b561c97d7b",
+      "size": 9247
     },
     "data/tests/opener.json": {
       "sha256": "94c0396896c120dfe293f902430235b000081f42b3a69174235a14c880f40d5d",
@@ -347,8 +347,8 @@
       "size": 9719
     },
     "data/tests/skinship.json": {
-      "sha256": "592313b0ae80cb030a738c2f4e8d6457b40067b469e626704482ac3d3d708048",
-      "size": 11101
+      "sha256": "a67925fe1ce536d86ae24482cd9a470012b18011d7b57994780cfc60aa579a3d",
+      "size": 11869
     },
     "generate.py": {
       "sha256": "1542dc2bb2683dd3cbfe2d78f309ff606e6734bcd020184fbc938faac18baae6",
