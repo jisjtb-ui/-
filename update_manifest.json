@@ -1,9 +1,10 @@
 {
-  "version": "1.12.2",
-  "released_at": "2026-09-22T06:27:09+00:00",
+  "version": "1.13.0",
+  "released_at": "2026-09-22T20:37:39+00:00",
   "channel": "main",
   "notes": [
-    "答えの書き直しを継続。マチアプ・ホテル・雰囲気・スキンシップ・欲求・主導権の6カテゴリ216個"
+    "答えの作り方を根本から変更。選択肢の意味を説明するのをやめ、選択肢から導けないことを言い当てる形にした",
+    "独占欲・一人の時間・秘密・本音・マチアプ・スキンシップの6カテゴリ216個を新基準で作り直し"
   ],
   "files": {
     ".env.example": {
@@ -71,8 +72,8 @@
       "size": 70
     },
     "CHANGELOG.md": {
-      "sha256": "36521661f143d614b1c33583973727f6caefaeffe39c1d2aed3138f442ee1389",
-      "size": 7607
+      "sha256": "c7da5c6aa40a31dfa653caced5afae1b2d3a908c9ea3ae22a875e37a1226e6f2",
+      "size": 7909
     },
     "CLAUDE.md": {
       "sha256": "217cf8a09cfba1a23e9d45c0781912fa3a5a52af5ac48e9a0c50db2fb8bd09a1",
@@ -87,7 +88,7 @@
       "size": 39534
     },
     "VERSION": {
-      "sha256": "39ff53dce98b1cf6b5738dfb096b827a6575a540767b294310c4becc61e987c3",
+      "sha256": "b4a9545a385e9701482be56a0efee678d467d9c586ec476f2c5986cfaa24e96c",
       "size": 7
     },
     "autopost.py": {
@@ -267,12 +268,12 @@
       "size": 3540
     },
     "data/tests/alone.json": {
-      "sha256": "0963304b2d5eefb8e11f6d035ff3980ce50914ed4148d8a3a73a46e61c15e421",
-      "size": 9946
+      "sha256": "67b353174c280315b4f08e36e6b17fc1f0f653abc55808d013a57dd3786aa066",
+      "size": 8443
     },
     "data/tests/app.json": {
-      "sha256": "9872dadad1d8de490fc0b3ec5f563654f7aecbcf2ef2461ef6b2c70b7edf9fd0",
-      "size": 9727
+      "sha256": "1e8a77052f3e08645965fcec7a4459067c70736e9617d0a004010efab01f72cd",
+      "size": 8518
     },
     "data/tests/before.json": {
       "sha256": "b17525fd36c7ca7aa98f58e78a5ed55fec72d747f1f56f6f75db4c8feb6f9b8e",
@@ -307,8 +308,8 @@
       "size": 7674
     },
     "data/tests/honne.json": {
-      "sha256": "5adf7a70e0cf7e90ab02c92e588f113c6d23aec27903f4768c7fb8b4b8fef1fb",
-      "size": 12121
+      "sha256": "1cb05b45bd3f26b188e561c61647b1725d29232ab7a8bd35d3e047ff2fc0a485",
+      "size": 10618
     },
     "data/tests/hotel.json": {
       "sha256": "7211413c094e9028d3c688dd0147def1fc6410df6514fa9ace393582d2af5c01",
@@ -339,16 +340,16 @@
       "size": 13301
     },
     "data/tests/possessive.json": {
-      "sha256": "b1e80582dfe617d54cf0fe3ac1a7d20d3047b1a18fc56a808b897a8b9e046f85",
-      "size": 12647
+      "sha256": "eec5093ec597df6189d78bcda07d112bb7ae1764ee2b9a8887c11af06e4f030b",
+      "size": 10880
     },
     "data/tests/secret.json": {
-      "sha256": "27c90e899abc8c0768f77db2b00baf4d24044f60a2f52bb28fd7629cfbc92697",
-      "size": 9719
+      "sha256": "3961631e7b1179373b4457130b8ce91dead88a45c62490de2d9a9c602aeae353",
+      "size": 8757
     },
     "data/tests/skinship.json": {
-      "sha256": "a67925fe1ce536d86ae24482cd9a470012b18011d7b57994780cfc60aa579a3d",
-      "size": 11869
+      "sha256": "750839b83ad5ec13bf7ce310e0bbbe1d954e23f9c54d452e9f1bcd0eb19cfc1e",
+      "size": 11738
     },
     "generate.py": {
       "sha256": "1542dc2bb2683dd3cbfe2d78f309ff606e6734bcd020184fbc938faac18baae6",
