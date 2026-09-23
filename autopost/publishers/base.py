@@ -68,7 +68,8 @@ class AnalyticsResult:
 
     platform: str
     external_post_id: str
-    impressions: int | None = None
+    impressions: int | None = None   # 2024-07-02以降の投稿では提供されない
+    reach: int | None = None         # 見た人数（重複なし）
     views: int | None = None
     likes: int | None = None
     comments: int | None = None

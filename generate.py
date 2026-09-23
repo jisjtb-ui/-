@@ -40,6 +40,8 @@ TESTS_DIR = DATA_DIR / "tests"
 CAPTIONS_PATH = DATA_DIR / "captions.json"
 HEADERS_PATH = DATA_DIR / "headers.json"
 CTA_PATH = DATA_DIR / "cta.json"
+# 実績に応じてカテゴリを抽選するモード
+AUTO_CATEGORY = "auto"
 ACTION_CTA_PATH = DATA_DIR / "cta_actions.json"
 DEFAULT_OUTPUT = ROOT / "output"
 DEFAULT_HISTORY = ROOT / "history.json"
@@ -209,15 +211,34 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.list_categories:
         print("利用できるカテゴリ:")
-        for name in categories + [RANDOM_CATEGORY]:
-            count = len(items) if name == RANDOM_CATEGORY else sum(1 for i in items if i.category == name)
+        for name in categories + [RANDOM_CATEGORY, AUTO_CATEGORY]:
+            if name in (RANDOM_CATEGORY, AUTO_CATEGORY):
+                count = len(items)
+            else:
+                count = sum(1 for i in items if i.category == name)
             print(f"  {name:<14} ネタ {count} 件")
         return 0
 
-    if args.category not in categories and args.category != RANDOM_CATEGORY:
+    # auto: 実績に応じたweightで、1投稿ごとにカテゴリを1つ引く。
+    # random と違い「その投稿のカテゴリ」が1つに定まるので、
+    # あとから反応データをカテゴリへ正しく紐付けられる。
+    weight_table: dict[str, float] | None = None
+    if args.category == AUTO_CATEGORY:
+        try:
+            from autopost.config import Settings as _S
+            from autopost.experiments import ExperimentStore
+            from autopost.weights import WeightStore
+
+            _settings = _S.load()
+            _weights = WeightStore(ExperimentStore(_settings.experiments_db_path))
+            weight_table = _weights.ensure(categories)
+        except Exception as exc:                  # 投稿側が未設定でも生成は止めない
+            print(f"[注意] weightを読めないため均等に選びます: {exc}", file=sys.stderr)
+            weight_table = {c: 1.0 for c in categories}
+    elif args.category not in categories and args.category != RANDOM_CATEGORY:
         print(
             f"[エラー] 不明なカテゴリ: {args.category}\n"
-            f"        指定できるのは: {', '.join(categories + [RANDOM_CATEGORY])}",
+            f"        指定できるのは: {', '.join(categories + [RANDOM_CATEGORY, AUTO_CATEGORY])}",
             file=sys.stderr,
         )
         return 1
@@ -254,15 +275,20 @@ def main(argv: list[str] | None = None) -> int:
     comment_prompts = cta.comment_prompt_cycle(rng, args.tests_per_post)
     for offset in range(args.posts):
         post_id = start_id + offset
+        post_category = args.category
+        if weight_table:
+            from autopost.weights import draw_category
+
+            post_category = draw_category(weight_table, rng)
         try:
             tests = build_post_tests(
-                items, history, rng, args.category, args.tests_per_post
+                items, history, rng, post_category, args.tests_per_post
             )
         except ContentError as exc:
             print(f"[中断] {exc}", file=sys.stderr)
             break
 
-        header = args.header or pick_header(header_data, rng, args.category, tests)
+        header = args.header or pick_header(header_data, rng, post_category, tests)
         apply_header(tests, header)
 
         if args.dry_run:
@@ -279,7 +305,7 @@ def main(argv: list[str] | None = None) -> int:
                       f" / C {test['choices'].get('C','')} / D {test['choices'].get('D','')}")
             created += 1
             history.record_post(
-                post_id, args.category, post_folder_name(post_id), tests, cta_set=cta.name
+                post_id, post_category, post_folder_name(post_id), tests, cta_set=cta.name
             )
             continue
 
@@ -287,7 +313,7 @@ def main(argv: list[str] | None = None) -> int:
             result = build_post(
                 post_id=post_id,
                 tests=tests,
-                category=args.category,
+                category=post_category,
                 output_dir=output_dir,
                 renderer=renderer,
                 caption_data=caption_data,
@@ -304,7 +330,7 @@ def main(argv: list[str] | None = None) -> int:
             continue
 
         history.record_post(
-            post_id, args.category, result.folder.name, tests, cta_set=cta.name
+            post_id, post_category, result.folder.name, tests, cta_set=cta.name
         )
         created += 1
         titles = " / ".join(t["title"] for t in tests)

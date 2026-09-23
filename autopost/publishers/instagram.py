@@ -41,7 +41,7 @@ MEDIA_METRICS_FALLBACK = ("impressions", "reach", "engagement", "saved")
 METRIC_MAP = {
     "views": "views",
     "impressions": "impressions",
-    "reach": "impressions",
+    "reach": "reach",
     "likes": "likes",
     "comments": "comments",
     "shares": "shares",

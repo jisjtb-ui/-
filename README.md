@@ -330,6 +330,7 @@ python generate.py --validate
 - `10_Reelを書き出す.bat` … Instagram Reel（縦動画）を書き出す
 - `11_スマホ用ページを作る.bat` … スマホから投稿するための一覧ページ
 - `12_画像を公開する.bat` … Cloudflare Pages へ公開する（コマンド不要）
+- `13_成績を見る.bat` … カテゴリ別の成績と、生成割合が変わった理由を見る
 ├─ tools/                  ボタンから呼ばれるPythonスクリプト
 ├─ scripts/                ボタンの中身
 ├─ autopost.py             自動投稿CLI

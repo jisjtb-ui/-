@@ -235,6 +235,24 @@ def build_parser() -> argparse.ArgumentParser:
     reel_posted.add_argument("--media-id", default="", help="InstagramのメディアID")
     reel_posted.add_argument("--keep", action="store_true", help="書き出したファイルを消さない")
 
+    weights_parser = sub.add_parser("weights", help="カテゴリ別の生成割合")
+    w_sub = weights_parser.add_subparsers(dest="weights_command", required=True)
+    w_sub.add_parser("show", help="現在の割合と成績を表示")
+    w_update = w_sub.add_parser("update", help="反応データから割合を更新")
+    w_update.add_argument("--dry-run", action="store_true", help="変更せず内容だけ見る")
+    w_set = w_sub.add_parser("set", help="割合を手で決める")
+    w_set.add_argument("category")
+    w_set.add_argument("weight", type=float)
+    w_lock = w_sub.add_parser("lock", help="自動更新から外す")
+    w_lock.add_argument("category")
+    w_unlock = w_sub.add_parser("unlock", help="自動更新に戻す")
+    w_unlock.add_argument("category")
+    w_reset = w_sub.add_parser("reset", help="初期値（均等）へ戻す")
+    w_reset.add_argument("--yes", action="store_true")
+
+    analytics = sub.add_parser("analytics", help="カテゴリ別の成績レポート")
+    analytics.add_argument("--out", default="カテゴリ成績.txt")
+
     sub.add_parser("version", help="バージョンを表示")
 
     update_parser = sub.add_parser("update", help="ソフト本体の更新")
@@ -290,6 +308,8 @@ def main(argv: list[str] | None = None) -> int:
         "doctor": cmd_doctor,
         "mobile": cmd_mobile,
         "reel": cmd_reel,
+        "weights": cmd_weights,
+        "analytics": cmd_analytics,
         "version": cmd_version,
         "update": cmd_update,
         "migrate": cmd_migrate,
@@ -432,6 +452,82 @@ def cmd_reel(args, settings: Settings, queue: Queue) -> int:
             cleanup(experiment.source_post_id, settings)
             print("書き出したファイルを片付けました")
     return 0
+
+
+# ----------------------------------------------------------------------
+def _categories() -> list[str]:
+    """いま使えるカテゴリ名。ハードコードせずネタから読み取る。"""
+    from night_test.content import available_categories, load_items
+
+    return available_categories(load_items(Path("data/tests")))
+
+
+def cmd_weights(args, settings: Settings, queue: Queue) -> int:
+    from .experiments import ExperimentStore
+    from .weights import WeightStore, apply_update, collect_stats
+
+    store = ExperimentStore(settings.experiments_db_path)
+    weights = WeightStore(store)
+    categories = _categories()
+
+    if args.weights_command == "show":
+        weights.ensure(categories)
+        stats = collect_stats(settings, store, weights)
+        print(f"{'カテゴリ':<14}{'weight':>8}{'中央値':>10}{'件数':>6}")
+        for stat in sorted(stats.values(), key=lambda s: -s.weight):
+            score = f"{stat.score:,.0f}" if stat.score is not None else "－"
+            mark = " 固定" if stat.locked else ""
+            print(f"{stat.category:<14}{stat.weight:7.1f}%{score:>10}{stat.sample_size:>6}{mark}")
+        print(f"{'合計':<14}{sum(s.weight for s in stats.values()):7.1f}%")
+        return 0
+
+    if args.weights_command == "update":
+        changes = apply_update(settings, store, weights, categories, dry_run=args.dry_run)
+        for change in sorted(changes, key=lambda c: -abs(c.delta)):
+            if abs(change.delta) < 0.01:
+                continue
+            print(f"\n{change.category}: {change.before:.1f}% → {change.after:.1f}%"
+                  f"（{change.delta:+.1f}）")
+            print(f"  理由: {change.reason}")
+        return 0
+
+    if args.weights_command == "set":
+        if args.category not in categories:
+            print(f"[エラー] 不明なカテゴリ: {args.category}")
+            return 1
+        weights.ensure(categories)
+        weights.set_weight(args.category, args.weight)
+        print(f"{args.category} を {args.weight:.1f}% にしました")
+        print("※ 合計は次の update で100に揃います")
+        return 0
+
+    if args.weights_command in ("lock", "unlock"):
+        weights.ensure(categories)
+        weights.set_locked(args.category, args.weights_command == "lock")
+        state = "固定しました（自動更新の対象外）" if args.weights_command == "lock" else "自動更新に戻しました"
+        print(f"{args.category} を{state}")
+        return 0
+
+    # reset
+    if not args.yes:
+        try:
+            answer = input("初期値（均等）へ戻します。よろしいですか？ [y/N] ").strip().lower()
+        except EOFError:                # タスクスケジューラなど、画面が無いところから呼ばれた
+            print("確認できないため中止しました（--yes を付けると確認なしで戻します）")
+            return 1
+        if answer not in ("y", "yes"):
+            print("中止しました")
+            return 0
+    result = weights.reset(categories)
+    print(f"{len(result)}カテゴリを均等（各 {100/len(result):.1f}%）に戻しました")
+    return 0
+
+
+# ----------------------------------------------------------------------
+def cmd_analytics(args, settings: Settings, queue: Queue) -> int:
+    from . import report
+
+    return report.run(settings, Path(args.out))
 
 
 # ----------------------------------------------------------------------

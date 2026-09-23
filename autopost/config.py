@@ -112,6 +112,17 @@ class Settings:
 
     # 1日に配信する件数の上限（API上限より十分低い安全側の既定値）
     #   Threads: API上限250投稿 / Instagram: API上限100投稿
+    # カテゴリ別の生成割合の自動最適化
+    weight_auto: bool = True            # 自動最適化のON/OFF
+    weight_metric: str = "views"        # 評価に使う指標
+    weight_snapshot: str = "24h"        # どの時点の数字で評価するか
+    weight_window: int = 20             # 直近何件の中央値で見るか
+    weight_min_samples: int = 5         # これ未満は控えめに動かす
+    weight_min: float = 5.0             # 最低weight（探索枠。0にはしない）
+    weight_max: float = 40.0            # 最大weight
+    weight_max_step: float = 3.0        # 1回の更新で動ける最大幅
+    weight_sensitivity: float = 6.0     # 倍率1.0からのズレをどれだけ反映するか
+
     # スマホからの「今すぐ投稿」（Cloudflare Worker 経由）
     publish_worker_url: str = ""
     publish_passphrase: str = ""
@@ -196,6 +207,15 @@ class Settings:
             auto_topup_min=_get_int("AUTO_TOPUP_MIN", 10),
             auto_topup_count=_get_int("AUTO_TOPUP_COUNT", 30),
             pages_deploy_command=_get("PAGES_DEPLOY_COMMAND"),
+            weight_auto=_get_bool("WEIGHT_AUTO", True),
+            weight_metric=_get("WEIGHT_METRIC", "views"),
+            weight_snapshot=_get("WEIGHT_SNAPSHOT", "24h"),
+            weight_window=_get_int("WEIGHT_WINDOW", 20),
+            weight_min_samples=_get_int("WEIGHT_MIN_SAMPLES", 5),
+            weight_min=_get_float("WEIGHT_MIN", 5.0),
+            weight_max=_get_float("WEIGHT_MAX", 40.0),
+            weight_max_step=_get_float("WEIGHT_MAX_STEP", 3.0),
+            weight_sensitivity=_get_float("WEIGHT_SENSITIVITY", 6.0),
             publish_worker_url=_get("PUBLISH_WORKER_URL").rstrip("/"),
             publish_passphrase=_get("PUBLISH_PASSPHRASE"),
             reel_output_dir=_get("REEL_OUTPUT_DIR", "reels_ready"),

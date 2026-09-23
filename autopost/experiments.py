@@ -43,8 +43,8 @@ STALE_MINUTES = 15
 
 # 共通指標。プラットフォームに存在しない指標は NULL のままにする
 COMMON_METRICS = (
-    "impressions", "views", "likes", "comments", "shares",
-    "saves", "clicks", "followers_gained",
+    "impressions", "reach", "views", "likes", "comments", "shares",
+    "saves", "clicks", "followers_gained", "watch_time_seconds", "completion_rate",
 )
 
 SCHEMA = """
@@ -95,6 +95,7 @@ CREATE TABLE IF NOT EXISTS experiment_metrics (
     period_start      TEXT,
     period_end        TEXT,
     impressions       INTEGER,
+    reach             INTEGER,
     views             INTEGER,
     likes             INTEGER,
     comments          INTEGER,
@@ -102,10 +103,38 @@ CREATE TABLE IF NOT EXISTS experiment_metrics (
     saves             INTEGER,
     clicks            INTEGER,
     followers_gained  INTEGER,
+    watch_time_seconds REAL,
+    completion_rate   REAL,
     platform_metrics  TEXT NOT NULL DEFAULT '{}',
     FOREIGN KEY(experiment_id) REFERENCES experiments(experiment_id)
 );
 CREATE INDEX IF NOT EXISTS idx_metrics_exp ON experiment_metrics(experiment_id, platform);
+
+-- カテゴリ別の生成割合。platform='' は全媒体共通（Phase 1）。
+-- 将来 platform 別に分けるときは、行を足すだけで済む。
+CREATE TABLE IF NOT EXISTS category_weights (
+    platform     TEXT NOT NULL DEFAULT '',
+    category     TEXT NOT NULL,
+    weight       REAL NOT NULL,
+    locked       INTEGER NOT NULL DEFAULT 0,
+    updated_at   TEXT NOT NULL,
+    PRIMARY KEY (platform, category)
+);
+
+-- なぜweightが変わったのかを後から説明できるようにする
+CREATE TABLE IF NOT EXISTS weight_history (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    evaluated_at  TEXT NOT NULL,
+    platform      TEXT NOT NULL DEFAULT '',
+    category      TEXT NOT NULL,
+    weight_before REAL NOT NULL,
+    weight_after  REAL NOT NULL,
+    sample_size   INTEGER NOT NULL DEFAULT 0,
+    score         REAL,
+    baseline      REAL,
+    reason        TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS idx_weight_hist ON weight_history(evaluated_at);
 
 CREATE TABLE IF NOT EXISTS experiment_events (
     id             INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -182,6 +211,7 @@ class Metrics:
     period_start: str | None = None
     period_end: str | None = None
     impressions: int | None = None
+    reach: int | None = None
     views: int | None = None
     likes: int | None = None
     comments: int | None = None
@@ -189,6 +219,8 @@ class Metrics:
     saves: int | None = None
     clicks: int | None = None
     followers_gained: int | None = None
+    watch_time_seconds: float | None = None
+    completion_rate: float | None = None
     platform_metrics: dict = field(default_factory=dict)
 
     def summary(self) -> str:
@@ -218,6 +250,11 @@ class ExperimentStore:
         for name, ddl in (
             ("snapshot", "ALTER TABLE experiment_metrics ADD COLUMN snapshot TEXT NOT NULL DEFAULT ''"),
             ("hours_since_post", "ALTER TABLE experiment_metrics ADD COLUMN hours_since_post REAL"),
+            ("reach", "ALTER TABLE experiment_metrics ADD COLUMN reach INTEGER"),
+            ("watch_time_seconds",
+             "ALTER TABLE experiment_metrics ADD COLUMN watch_time_seconds REAL"),
+            ("completion_rate",
+             "ALTER TABLE experiment_metrics ADD COLUMN completion_rate REAL"),
         ):
             if name not in columns:
                 conn.execute(ddl)

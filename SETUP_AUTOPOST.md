@@ -814,6 +814,107 @@ python autopost.py update --rollback v1.1.0_20260918_020420
 投稿する前に、**1枚目が「今のあなたの恋愛運は？」になっているか**を必ず確認してください。
 ここが違っていれば順番が崩れています。
 
+## 成績の良いカテゴリを自動で増やす
+
+反応の良かったカテゴリを、次回から少しずつ多く作ります。
+`13_成績を見る.bat` をダブルクリックすると、いまの割合と
+「なぜ変わったのか」が読めます。
+
+**変えるのはカテゴリの出現割合だけです。**
+文章・フック・CTA・デザイン・ページ数・投稿時刻には一切触りません。
+
+### 動く仕組み
+
+```
+投稿する          →  7_SNS予約を実行.bat（または毎日のタスク）
+反応データを取る   →  5_反応データを集める.bat（1h / 6h / 24h / 72h）
+カテゴリ別に集計   →  各カテゴリの直近20件の「中央値」
+weightを更新      →  全カテゴリの中央値と比べて、上下に最大3%動かす
+次回の抽選に反映   →  CATEGORY=auto で生成したとき
+```
+
+毎日のタスク（`3_毎日自動で送る.bat` が登録するもの）には、
+反応データの取得のあとに更新が入っています。手で回すときは
+`python autopost.py weights update` です。
+
+**24h時点のデータが集まるまでは動きません。** 投稿した当日は
+まだ `1h` と `6h` しか無いため、割合は変わりません。これは正常です。
+
+### 平均ではなく中央値を使う理由
+
+1本だけ極端に伸びた投稿があると、平均はそれに引っぱられます。
+中央値なら、たまたま当たった1本でカテゴリ全体の評価が変わりません。
+
+### 0になるカテゴリを作らない
+
+成績が悪くても、weightには**下限**があります（既定5%）。
+下限に達したカテゴリは、そこで下げ止まります。たまたま数字が
+悪かっただけのカテゴリを二度と作らなくなる、という事故を防ぐためです。
+
+カテゴリ数が多いと「21カテゴリ × 最低5% = 105%」のように
+成立しなくなるため、その場合は下限を自動で下げます
+（21カテゴリなら約2.4%）。
+
+### 設定（`.env`）
+
+| 項目 | 既定 | 意味 |
+| --- | --- | --- |
+| `WEIGHT_AUTO` | `true` | `false` にすると自動更新を止める（手で設定した割合はそのまま使われる） |
+| `WEIGHT_METRIC` | `views` | 評価に使う指標 |
+| `WEIGHT_SNAPSHOT` | `24h` | どの時点のデータで評価するか |
+| `WEIGHT_WINDOW` | `20` | 各カテゴリの直近何件を見るか |
+| `WEIGHT_MIN_SAMPLES` | `5` | これ未満の件数のカテゴリは控えめにしか動かさない |
+| `WEIGHT_MIN` / `WEIGHT_MAX` | `5.0` / `40.0` | 1カテゴリのweightの下限・上限（%） |
+| `WEIGHT_MAX_STEP` | `3.0` | 1回の更新で動かせる最大幅（%） |
+| `WEIGHT_SENSITIVITY` | `6.0` | 成績差をどれくらい強く反映するか |
+
+### 手で触る
+
+```bat
+rem いまの割合と成績を見る
+python autopost.py weights show
+
+rem いま更新する（--dry-run なら保存せず結果だけ見る）
+python autopost.py weights update
+python autopost.py weights update --dry-run
+
+rem 特定のカテゴリを自分で決めて、自動更新の対象から外す
+python autopost.py weights set hotel 25
+python autopost.py weights lock hotel
+python autopost.py weights unlock hotel
+
+rem 均等（初期値）へ戻す
+python autopost.py weights reset
+```
+
+`lock` したカテゴリは、自動更新でも、カテゴリを追加したときの
+再計算でも動きません。
+
+### 取得できる指標・取得できない指標
+
+公式APIで返るものだけを保存します。**返らないものは空欄のままにし、
+推測値は入れません。**
+
+| 指標 | Threads | Instagram | 備考 |
+| --- | --- | --- | --- |
+| views | ○ | ○ | 既定の評価指標 |
+| reach | × | ○ | 見た人数（重複なし） |
+| impressions | × | △ | 2024-07-02以降に作られた投稿では返りません |
+| likes | ○ | ○ | |
+| comments | ○ | ○ | Threadsでは `replies` |
+| shares | ○ | ○ | Threadsでは `reposts` + `quotes` |
+| saves | × | ○ | Instagramの `saved` |
+| 平均視聴時間 | × | × | Reel専用の指標。Reelは手動投稿のため媒体IDが手元に無く、取得できません |
+| 視聴完了率 | × | × | 同上 |
+| フォロワー増加（投稿単位） | × | × | どちらのAPIも投稿ごとには返しません |
+
+`views` が取れなかった投稿は `impressions` → `reach` の順に、
+**実際に取れた数字**へ切り替えます（推測はしません）。
+
+- Threads: [Insights](https://developers.facebook.com/docs/threads/insights)
+- Instagram: [IG Media Insights](https://developers.facebook.com/docs/instagram-platform/reference/instagram-media/insights/)
+
+
 ## うまく動かないとき
 
 `9_不具合を調べる.bat` をダブルクリックしてください。次を自動で調べます。

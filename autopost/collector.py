@@ -149,6 +149,7 @@ class AnalyticsCollector:
             period_start=result.period_start,
             period_end=result.period_end,
             impressions=result.impressions,
+            reach=result.reach,
             views=result.views,
             likes=result.likes,
             comments=result.comments,

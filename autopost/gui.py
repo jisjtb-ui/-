@@ -112,6 +112,7 @@ class AutoPostApp:
         ttk.Button(buttons, text="今すぐ実行", command=self.run_once).pack(side=LEFT, padx=4)
         self.watch_button = ttk.Button(buttons, text="自動投稿を開始", command=self.toggle_watch)
         self.watch_button.pack(side=LEFT, padx=4)
+        ttk.Button(buttons, text="成績を見る", command=self.show_report).pack(side=LEFT, padx=4)
 
         panes = ttk.PanedWindow(self.root, orient=tk.VERTICAL)
         panes.pack(fill=BOTH, expand=True, padx=8, pady=4)
@@ -384,6 +385,29 @@ class AutoPostApp:
         threading.Thread(target=work, daemon=True).start()
 
     # ------------------------------------------------------------------
+    def show_report(self) -> None:
+        """カテゴリ別の成績と、生成割合が変わった理由を別窓で表示する。"""
+        try:
+            from . import report as report_module
+
+            text = report_module.build(self.settings)
+        except Exception as exc:                       # DBが無い場合など
+            self.log(f"成績を読めませんでした: {exc}")
+            return
+
+        window = tk.Toplevel(self.root)
+        window.title("カテゴリ別の成績")
+        window.geometry("720x560")
+        box = tk.Text(window, wrap="none", font=("Consolas", 10))
+        scroll_y = ttk.Scrollbar(window, orient="vertical", command=box.yview)
+        scroll_x = ttk.Scrollbar(window, orient="horizontal", command=box.xview)
+        box.configure(yscrollcommand=scroll_y.set, xscrollcommand=scroll_x.set)
+        scroll_y.pack(side=RIGHT, fill=Y)
+        scroll_x.pack(side=tk.BOTTOM, fill=X)
+        box.pack(side=LEFT, fill=BOTH, expand=True)
+        box.insert("1.0", text)
+        box.configure(state="disabled")
+
     def refresh_queue(self) -> None:
         for row in self.tree.get_children():
             self.tree.delete(row)

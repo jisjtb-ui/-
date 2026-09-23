@@ -1,23 +1,24 @@
 {
-  "version": "1.13.0",
-  "released_at": "2026-09-22T20:37:39+00:00",
+  "version": "1.14.0",
+  "released_at": "2026-09-23T23:13:27+00:00",
   "channel": "main",
   "notes": [
-    "答えの作り方を根本から変更。選択肢の意味を説明するのをやめ、選択肢から導けないことを言い当てる形にした",
-    "独占欲・一人の時間・秘密・本音・マチアプ・スキンシップの6カテゴリ216個を新基準で作り直し"
+    "反応の良いカテゴリの生成割合を自動で増やす",
+    "13_成績を見る.bat と GUIの「成績を見る」を追加。weightが変わった理由が読める",
+    "Instagramの reach を独立した指標として保存（impressionsへ混ぜない）"
   ],
   "files": {
     ".env.example": {
-      "sha256": "eb54fe85149633f37c9e329394e647b6e887962eab698aad46953c896b878a72",
-      "size": 8291
+      "sha256": "5abdca4abb06e115a7fc09adc09bd92771171d858e162f3d4fdd471a07faf00e",
+      "size": 9357
     },
     ".gitattributes": {
       "sha256": "3fa230e012e5907422ba6c650fd2a1798f7cb7b07a2912285e64790e2ff97fc6",
       "size": 170
     },
     ".gitignore": {
-      "sha256": "8c836d492e16a8a59e0eb9307a0737d7d90c32cc273bf60175e69b8444c04943",
-      "size": 822
+      "sha256": "1d1ae019a25b3e7626c826735dc5c2e772ba3563f376e77b96c16a2e46cb9425",
+      "size": 897
     },
     "0_更新を確認.bat": {
       "sha256": "bfd9a0e4bdfca0434466df016146fc76b35c9300abefd17583695bddbaf24564",
@@ -72,23 +73,23 @@
       "size": 70
     },
     "CHANGELOG.md": {
-      "sha256": "c7da5c6aa40a31dfa653caced5afae1b2d3a908c9ea3ae22a875e37a1226e6f2",
-      "size": 7909
+      "sha256": "74409fce1274e8bfcc88a21d7f9f8143b78abab4d1a199e93ab93c938fec89b1",
+      "size": 8186
     },
     "CLAUDE.md": {
-      "sha256": "217cf8a09cfba1a23e9d45c0781912fa3a5a52af5ac48e9a0c50db2fb8bd09a1",
-      "size": 2598
+      "sha256": "18e92f98e034499e24dba277fe963b6756b158dee3027950f04fa2ae2465bd3d",
+      "size": 3264
     },
     "README.md": {
-      "sha256": "c08f64c1df1d472aa6285aab8a4a820aa5f2e75e03b38f9750ea13d8affcc9a2",
-      "size": 29553
+      "sha256": "8f354befa8a8f91209cb560f80706977db35755aa1472f07d448bfc6cece3a99",
+      "size": 29657
     },
     "SETUP_AUTOPOST.md": {
-      "sha256": "12a3c415ece5ad440b525ac44b645083d890e5b6e25e2fd9e6fd1d111bcaecfe",
-      "size": 39534
+      "sha256": "3727dfea5fc4cc9a5c84c739cc45dfb99eaac4bdc7e716430637f577c1f3de5f",
+      "size": 44265
     },
     "VERSION": {
-      "sha256": "b4a9545a385e9701482be56a0efee678d467d9c586ec476f2c5986cfaa24e96c",
+      "sha256": "bb0df1bd902faba507c15975eb9973e695f2732f760d851b4f9c7ba17068f5ff",
       "size": 7
     },
     "autopost.py": {
@@ -100,16 +101,16 @@
       "size": 412
     },
     "autopost/cli.py": {
-      "sha256": "851c0525def1f34bc3f024d0ebcc3cba16139215a7dc94a7b7e8b907d1bfd9da",
-      "size": 49644
+      "sha256": "54c6089c48ab4943c2c46733d3a6c270b758826cb7d3f25fcadef137a4f3e825",
+      "size": 54180
     },
     "autopost/collector.py": {
-      "sha256": "6ecdb17571daa83dbd312e3e9c50146280929571b7ea8eb135434e90329f5492",
-      "size": 7243
+      "sha256": "d1f2af7f2e5dfbfac172684b91b8b62d829c28b02210dffee0771734587f232e",
+      "size": 7275
     },
     "autopost/config.py": {
-      "sha256": "d58f5c606e485b49647e7a57f5bf2241c604f1fdefae1dd8a8a3392c6178b67d",
-      "size": 14085
+      "sha256": "426ae2a3b4a741bbbcc9ab45fc7b1b7030d91e0fa2e4b4a6d08dfc52693273e4",
+      "size": 15370
     },
     "autopost/db.py": {
       "sha256": "8028294bf1aa283e90e24a0c3f32f43ce7d81cd3c98de3814740f3d1df527d17",
@@ -124,12 +125,12 @@
       "size": 9998
     },
     "autopost/experiments.py": {
-      "sha256": "293dde8510dc5a263e361ae6b50b0a01f8885adb3dc9df45d82d806ff1eb9410",
-      "size": 24449
+      "sha256": "e2de927de4b1c287cc2f2236899457cd4693c60a7382c2159f9d84c348c6ca73",
+      "size": 26013
     },
     "autopost/gui.py": {
-      "sha256": "56a17a7ffd4d6e54e739718833763d09d3a26b0615284e2501fe43567ac08d3b",
-      "size": 19882
+      "sha256": "58148056bd0fa665b88a0aa0cd96d1fb64697ccaf0fc83c04838df0a2e89e8ca",
+      "size": 21052
     },
     "autopost/hosting/__init__.py": {
       "sha256": "651877132d7779df36ed4fb179a7e7cf1e9e771cb9254b2126f7f8bc0cc3ff07",
@@ -200,12 +201,12 @@
       "size": 1269
     },
     "autopost/publishers/base.py": {
-      "sha256": "82c3d32ec89253067221f7693463a32688fa184b27c2eb6552c98743c9ed681d",
-      "size": 5896
+      "sha256": "23bc28b4ee2a7162419c200cd1763e05ac999212e6f7df4a780225e90edc23c6",
+      "size": 6020
     },
     "autopost/publishers/instagram.py": {
-      "sha256": "52fbdb9afa0059f402b89c635bed2b2756ec9c2bfa4b0255dfdc8df4f7fdd4be",
-      "size": 14282
+      "sha256": "5cdab18a1cb4e3c977d60ef6714d6894ed363875d88f983341f1c570390038cf",
+      "size": 14276
     },
     "autopost/publishers/pinterest.py": {
       "sha256": "d60ebaad983670db94250cd74964bad3a34062502e84ad2c9260f1abd3695867",
@@ -352,8 +353,8 @@
       "size": 11738
     },
     "generate.py": {
-      "sha256": "1542dc2bb2683dd3cbfe2d78f309ff606e6734bcd020184fbc938faac18baae6",
-      "size": 13779
+      "sha256": "7d83885f932c00dad2b55926ee13864ad110201b763a5bf09382a1277efebb3b",
+      "size": 15099
     },
     "manage.py": {
       "sha256": "6b2a0095633cc9a6200221c2c7c73cc338810d558808cdcded1f5478e854546e",
@@ -524,8 +525,8 @@
       "size": 141
     },
     "scripts/sns_publish_task.cmd": {
-      "sha256": "ae79dbcec4cb715761b5fbd993565e5c435d4285bc8bb1e20de025ecfcdec053",
-      "size": 439
+      "sha256": "7e4724acd65e70d8daec55ccf73788724d83c14be95c92f86f1a50d8c5f39e96",
+      "size": 536
     },
     "scripts/tiktok_drafts.bat": {
       "sha256": "09b11976934bffc07b675bdb64441ae35725812686791ce41d50cd87fdb27fb8",
@@ -560,8 +561,8 @@
       "size": 10971
     },
     "tools/selftest.py": {
-      "sha256": "4b46c1798d7f0382bca326ffe608e7f86a9629ce0bb8e04a8638513a5377c5a0",
-      "size": 11879
+      "sha256": "ace61be14227019735e3648420b0cb504efbf39bdbef19951abc476d9f596577",
+      "size": 19337
     },
     "tools/setup_all.py": {
       "sha256": "d6263fb81a999642bff2c39378fabaa9ab3ba9d2d82121f5945efe2e156e31a0",
