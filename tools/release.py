@@ -8,7 +8,7 @@
   1. 自己テスト（tools/selftest.py）
   2. バージョンを上げる（VERSION が唯一の出所）
   3. CHANGELOG.md に変更内容を追記
-  4. update_manifest.json を生成（Git管理下のファイルのSHA256一覧）
+  4. 新規ファイルをGitへ登録し、update_manifest.json を生成（SHA256一覧）
   5. コミット
   6. --push を付けたときだけ push する
 
@@ -62,6 +62,17 @@ def tracked_files() -> list[str]:
 # アプリ本体ではないもの。配布物に混ざると、利用者の環境へ持ち込まれる。
 NEVER_SHIP = ("pages_media/", "reels_ready/", "output/", "ready/", "posted/",
               "backups/", ".tokens/", ".autopost_cache/")
+
+
+def untracked_files() -> list[str]:
+    """Gitがまだ知らないファイル（.gitignore 済みは除く）。
+
+    目録は `git ls-files` から作るため、ここに残っているファイルは
+    **配布物へ入らない**。新規ファイルを足したリリースで取りこぼす原因。
+    """
+    result = run(["git", "ls-files", "--others", "--exclude-standard", "-z"],
+                 capture_output=True, check=True)
+    return sorted(p for p in result.stdout.split("\0") if p)
 
 
 def assert_no_generated_files() -> None:
@@ -124,7 +135,7 @@ def publish(branch_target: str) -> None:
     current = run(["git", "rev-parse", "--abbrev-ref", "HEAD"],
                   capture_output=True, check=True).stdout.strip()
 
-    print(f"\n[6/6] 配布（{current} → {branch_target}）")
+    print(f"\n[7/7] 配布（{current} → {branch_target}）")
     if run(["git", "push", "-u", "origin", current]).returncode != 0:
         raise SystemExit("[エラー] 作業ブランチの push に失敗しました")
 
@@ -187,9 +198,9 @@ def main() -> int:
 
     # 1. テスト
     if args.skip_tests:
-        print("\n[1/5] テスト … 飛ばしました")
+        print("\n[1/7] テスト … 飛ばしました")
     else:
-        print("\n[1/5] テスト")
+        print("\n[1/7] テスト")
         result = run([sys.executable, "tools/selftest.py"])
         if result.returncode != 0:
             raise SystemExit("[中止] テストが通らないためリリースしません")
@@ -208,20 +219,36 @@ def main() -> int:
         return 0
 
     # 2. バージョン
-    print("\n[2/5] バージョンを更新")
+    print("\n[2/7] バージョンを更新")
     write_version(version)
     print(f"  VERSION → {version}")
 
     # 3. CHANGELOG
-    print("\n[3/5] CHANGELOG")
+    print("\n[3/7] CHANGELOG")
     if args.notes:
         prepend_changelog(version, notes)
         print(f"  v{version} の項目を追記しました")
     else:
         print("  既存の記載を使います")
 
-    # 4. manifest
-    print("\n[4/5] 更新情報を生成")
+    # 4. 配布物を確定させる
+    #    目録は `git ls-files` から作るので、新規ファイルを先に登録しないと
+    #    目録に載らず、利用者のPCへ届かない（v1.14.0で実際に起きた）。
+    print("\n[4/7] 配布物を確定")
+    run(["git", "add", "-A"], check=True)
+    assert_no_generated_files()
+    left_out = untracked_files()
+    if left_out:
+        raise SystemExit(
+            "[中止] 次のファイルがGitに登録されていないため配布できません:\n"
+            + "\n".join(f"  {p}" for p in left_out[:10])
+            + (f"\n  …ほか{len(left_out) - 10}件" if len(left_out) > 10 else "")
+            + "\n\n  配布しないものは .gitignore へ、配布するものは git add してください"
+        )
+    print(f"  Git管理下 {len(tracked_files())}ファイル / 未登録 0ファイル")
+
+    # 5. manifest
+    print("\n[5/7] 更新情報を生成")
     manifest = build_manifest(version, notes, args.branch)
     MANIFEST_FILE.write_text(
         json.dumps(manifest.to_dict(), ensure_ascii=False, indent=2) + "\n",
@@ -244,8 +271,8 @@ def main() -> int:
         raise SystemExit("[中止] 目録のハッシュが合っていません: " + ", ".join(stale[:5]))
     print("  配布漏れ・ハッシュ不一致なし")
 
-    # 5. コミット
-    print("\n[5/5] コミット")
+    # 6. コミット
+    print("\n[6/7] コミット")
     run(["git", "add", "-A"], check=True)
     message = f"Release v{version}\n\n" + "\n".join(f"- {n}" for n in notes)
     commit = run(["git", "commit", "-m", message], capture_output=True)

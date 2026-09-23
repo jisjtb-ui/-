@@ -318,10 +318,16 @@ def topup(
         log("  [中断] 画像の公開URLが未設定です（.env の LOCAL_HOST_BASE_URL など）")
         return {"generated": 0, "error": "no_base_url"}
 
-    log(f"  待ちが {lowest}件 まで減ったため、{generate_count}件を生成します")
+    # カテゴリを明示しないと generate.py の既定（random）になり、
+    # weightで決めた割合が次回生成へ反映されない。
+    category = settings.auto_topup_category or "auto"
+    log(f"  待ちが {lowest}件 まで減ったため、{generate_count}件を生成します"
+        f"（カテゴリ: {category}）")
     root = Path(__file__).resolve().parent.parent
     result = subprocess.run(
-        [sys.executable, "generate.py", "--posts", str(generate_count)], cwd=root
+        [sys.executable, "generate.py", "--posts", str(generate_count),
+         "--category", category],
+        cwd=root,
     )
     if result.returncode != 0:
         log("  [中断] コンテンツ生成に失敗しました")

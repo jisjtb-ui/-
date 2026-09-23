@@ -238,6 +238,48 @@ def main() -> int:
         check("Workerの動作", result.returncode == 0,
               (result.stderr or result.stdout).strip()[-300:])
 
+    section("配布物の目録")
+    import json as _json
+
+    manifest_path = ROOT / "update_manifest.json"
+    if not manifest_path.is_file():
+        check("update_manifest.json がある", False, "まだ生成されていません")
+    else:
+        listed = set(_json.loads(manifest_path.read_text(encoding="utf-8"))["files"])
+        # アプリが実際に読み込むPythonファイルは、すべて目録に載っていなければ
+        # 利用者のPCへ届かない（v1.14.0で weights.py が届かなかった）
+        modules = sorted(
+            str(path.relative_to(ROOT)).replace("\\", "/")
+            for path in list((ROOT / "autopost").rglob("*.py"))
+            + list((ROOT / "night_test").rglob("*.py"))
+            + list((ROOT / "tools").glob("*.py"))
+            if "__pycache__" not in path.parts
+        )
+        roots = sorted(
+            path.name for path in ROOT.iterdir()
+            if path.suffix in (".py", ".bat") and path.is_file()
+        )
+        buttons = sorted(path.name for path in ROOT.glob("*.bat"))
+        missing = [p for p in modules + roots if p not in listed]
+        check("Pythonとボタンがすべて目録に載っている",
+              not missing, "漏れ: " + ", ".join(missing[:6]))
+        check("ボタンが1つ以上載っている",
+              all(b in listed for b in buttons),
+              "漏れ: " + ", ".join(b for b in buttons if b not in listed))
+        data_files = sorted(
+            str(path.relative_to(ROOT)).replace("\\", "/")
+            for path in (ROOT / "data").rglob("*.json")
+        )
+        check("data/ のJSONがすべて目録に載っている",
+              all(p in listed for p in data_files),
+              "漏れ: " + ", ".join(p for p in data_files if p not in listed)[:200])
+
+    result = subprocess.run(["git", "ls-files", "--others", "--exclude-standard"],
+                            cwd=ROOT, capture_output=True, text=True)
+    leftover = [line for line in result.stdout.splitlines() if line.strip()]
+    check("Gitに登録していないファイルが残っていない",
+          not leftover, "未登録: " + ", ".join(leftover[:6]))
+
     section("カテゴリweightの自動最適化")
     import random as _random
     from dataclasses import replace as _replace

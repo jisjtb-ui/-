@@ -3,11 +3,14 @@
 from .base import (
     AnalyticsResult,
     ManualRequired,
+    MetricNotSupported,
     NotSupported,
     PermanentError,
+    PermissionDenied,
     PublishError,
     PublishResult,
     Publisher,
+    RateLimited,
     TransientError,
 )
 
@@ -20,6 +23,9 @@ __all__ = [
     "PermanentError",
     "ManualRequired",
     "NotSupported",
+    "RateLimited",
+    "PermissionDenied",
+    "MetricNotSupported",
     "get_publisher",
 ]
 

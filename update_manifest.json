@@ -1,16 +1,17 @@
 {
-  "version": "1.14.0",
-  "released_at": "2026-09-23T23:13:27+00:00",
+  "version": "1.14.1",
+  "released_at": "2026-09-23T23:41:43+00:00",
   "channel": "main",
   "notes": [
-    "反応の良いカテゴリの生成割合を自動で増やす",
-    "13_成績を見る.bat と GUIの「成績を見る」を追加。weightが変わった理由が読める",
-    "Instagramの reach を独立した指標として保存（impressionsへ混ぜない）"
+    "配布の目録に新規ファイルが載らない不具合を修正（weights.py などが届かず更新後に動かなくなっていた）",
+    "weightが読めないときの均等抽選が失敗していたのを修正",
+    "自動補充がカテゴリ指定なしで生成していたため、weightが次回生成に反映されていなかったのを修正",
+    "Instagramの反応データ取得で、権限不足・使えない指標・レート制限・通信失敗を区別。空の結果を測定済みとして保存しない"
   ],
   "files": {
     ".env.example": {
-      "sha256": "5abdca4abb06e115a7fc09adc09bd92771171d858e162f3d4fdd471a07faf00e",
-      "size": 9357
+      "sha256": "25e7520ee127e0be5e7b473552c853ca8f389a1b58cf8813ecb319be173b91ef",
+      "size": 9543
     },
     ".gitattributes": {
       "sha256": "3fa230e012e5907422ba6c650fd2a1798f7cb7b07a2912285e64790e2ff97fc6",
@@ -35,6 +36,10 @@
     "12_画像を公開する.bat": {
       "sha256": "efd039fd1e2a3292df0e1fe0c87c0f9726e7719a3ee3d88e1599eac2c438e160",
       "size": 70
+    },
+    "13_成績を見る.bat": {
+      "sha256": "32f5d212485f1c6c9861582b2ed4929a631e86bede4416cbfc26ac0668eeb3c3",
+      "size": 80
     },
     "1_セットアップ.bat": {
       "sha256": "db6af82e21d4c03bc308b13e5deb8f69a9957f2940d8467f918eba9160058e0b",
@@ -73,8 +78,8 @@
       "size": 70
     },
     "CHANGELOG.md": {
-      "sha256": "74409fce1274e8bfcc88a21d7f9f8143b78abab4d1a199e93ab93c938fec89b1",
-      "size": 8186
+      "sha256": "43c1a758efac185e2b288a8c6cdd31d8eda47336b166a8ae3d9920534483c06e",
+      "size": 8732
     },
     "CLAUDE.md": {
       "sha256": "18e92f98e034499e24dba277fe963b6756b158dee3027950f04fa2ae2465bd3d",
@@ -89,7 +94,7 @@
       "size": 44265
     },
     "VERSION": {
-      "sha256": "bb0df1bd902faba507c15975eb9973e695f2732f760d851b4f9c7ba17068f5ff",
+      "sha256": "0ccd4990d8e0fa4731ff613065a24fe917f2dcfbb1ed921e8269ade695077115",
       "size": 7
     },
     "autopost.py": {
@@ -109,8 +114,8 @@
       "size": 7275
     },
     "autopost/config.py": {
-      "sha256": "426ae2a3b4a741bbbcc9ab45fc7b1b7030d91e0fa2e4b4a6d08dfc52693273e4",
-      "size": 15370
+      "sha256": "84739e7c85857994119a4ea929fab1fc1114f698997688b8942a886321a8a37e",
+      "size": 15523
     },
     "autopost/db.py": {
       "sha256": "8028294bf1aa283e90e24a0c3f32f43ce7d81cd3c98de3814740f3d1df527d17",
@@ -197,16 +202,16 @@
       "size": 6915
     },
     "autopost/publishers/__init__.py": {
-      "sha256": "0a32982ac28f3466f9cb45a8ab79059feb88980cbdb158bf9dcf6f258ff41e8d",
-      "size": 1269
+      "sha256": "66b8991fb11c2b2d0da68c5863c39c7cfb0b85d29d9e1170ad09e0d1cb1c3dd7",
+      "size": 1401
     },
     "autopost/publishers/base.py": {
-      "sha256": "23bc28b4ee2a7162419c200cd1763e05ac999212e6f7df4a780225e90edc23c6",
-      "size": 6020
+      "sha256": "f859fa858013ba8bc497b4a3cb929968bb45a4106a00afca8d5617d62d44109a",
+      "size": 9017
     },
     "autopost/publishers/instagram.py": {
-      "sha256": "5cdab18a1cb4e3c977d60ef6714d6894ed363875d88f983341f1c570390038cf",
-      "size": 14276
+      "sha256": "c76dbd62ee5b1d6923bf9ef8bec90dad8c7760c52085757a0d0d0c9b363d23d7",
+      "size": 16346
     },
     "autopost/publishers/pinterest.py": {
       "sha256": "d60ebaad983670db94250cd74964bad3a34062502e84ad2c9260f1abd3695867",
@@ -225,8 +230,12 @@
       "size": 15312
     },
     "autopost/queueing.py": {
-      "sha256": "3bf58e72eca5286d9bad04e44b9b1b87918e4c20d49759e27ce94e1c4ccd4cac",
-      "size": 13693
+      "sha256": "0bb6c09681506100eda6c728518f21332f5a00bce848b4e8bb4552ca066f376a",
+      "size": 13987
+    },
+    "autopost/report.py": {
+      "sha256": "45de1076a8b37cde491e58321671f04a417220c98251f9b6c4a3c0d48571d36e",
+      "size": 6727
     },
     "autopost/scheduler.py": {
       "sha256": "79f58fe313af3c2e3d0553cc145893340ca6fcd48241eab855f5cb74aa7facb0",
@@ -247,6 +256,10 @@
     "autopost/version.py": {
       "sha256": "eead26cfe9742c0ddd690f16739a24d94c25a1bccffe0f70726803cb11ad1c24",
       "size": 2862
+    },
+    "autopost/weights.py": {
+      "sha256": "4509757d006b758e69077025f510dce7aa4b2987e16735ceb5261698db825121",
+      "size": 17395
     },
     "autopost_gui.py": {
       "sha256": "bdf3ca6a8468d1b2cd98633403fd54f6e8d694aabfb965dc3e6cefdaebf1c69f",
@@ -353,8 +366,8 @@
       "size": 11738
     },
     "generate.py": {
-      "sha256": "7d83885f932c00dad2b55926ee13864ad110201b763a5bf09382a1277efebb3b",
-      "size": 15099
+      "sha256": "5f3ed83ba092b2c3ce42d01f46ee9f179bed6505f678ca83f51fc140967d951d",
+      "size": 15603
     },
     "manage.py": {
       "sha256": "6b2a0095633cc9a6200221c2c7c73cc338810d558808cdcded1f5478e854546e",
@@ -557,12 +570,12 @@
       "size": 2911
     },
     "tools/release.py": {
-      "sha256": "1b4814e9f8766075fb9891e7b776ff8af50e1d17f9d3ebc7f201df243cfb4464",
-      "size": 10971
+      "sha256": "e235f686e2b35637cb1f8246487f75d46eb9fa5d28ab33bee219127384027582",
+      "size": 12377
     },
     "tools/selftest.py": {
-      "sha256": "ace61be14227019735e3648420b0cb504efbf39bdbef19951abc476d9f596577",
-      "size": 19337
+      "sha256": "42d380f73bc04c6d48fd4f19484549e37139e9830f963669a3e8d1f9f739dc00",
+      "size": 21510
     },
     "tools/setup_all.py": {
       "sha256": "d6263fb81a999642bff2c39378fabaa9ab3ba9d2d82121f5945efe2e156e31a0",

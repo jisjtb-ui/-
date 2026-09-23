@@ -26,10 +26,13 @@ from ..oauth import meta_oauth
 from ..oauth.store import TokenStore
 from .base import (
     AnalyticsResult,
+    MetricNotSupported,
     Pacer,
     PermanentError,
+    PermissionDenied,
     PublishResult,
     Publisher,
+    RateLimited,
     TransientError,
     request_json,
 )
@@ -55,6 +58,9 @@ PUBLISH_SETTLE_SECONDS = 3
 
 # 再試行しても直らないエラーコード
 PERMANENT_SUBCODES = {2207026, 2207003, 2207032, 2207020}
+# 権限・スコープ・そのオブジェクトを見る権利が無い
+PERMISSION_CODES = {10, 102, 200, 210, 803}
+PERMISSION_SUBCODES = {33}
 
 
 class InstagramPublisher(Publisher):
@@ -236,6 +242,7 @@ class InstagramPublisher(Publisher):
         token = self._token.access_token
 
         raw: dict[str, int] = {}
+        metric_errors: list[str] = []
         for metrics in (MEDIA_METRICS_PRIMARY, MEDIA_METRICS_FALLBACK):
             try:
                 self.pacer.wait()
@@ -245,8 +252,11 @@ class InstagramPublisher(Publisher):
                     params={"metric": ",".join(metrics), "access_token": token},
                 )
                 self._raise_for_error(data)
-            except PermanentError:
-                continue          # 指標名が古い/新しい場合はもう一方の組で試す
+            except MetricNotSupported as exc:
+                # 指標名が古い/新しい場合だけ、もう一方の組で試す。
+                # 権限不足やID不正は、ここで握りつぶさず呼び出し側へ返す。
+                metric_errors.append(str(exc))
+                continue
             for item in data.get("data", []):
                 name = item.get("name", "")
                 values = item.get("values") or []
@@ -257,6 +267,12 @@ class InstagramPublisher(Publisher):
                     raw[name] = int(value)
             if raw:
                 break
+
+        if not raw:
+            # 1つも取れていないものを返すと、呼び出し側が「測定済み・全部NULL」
+            # として保存してしまう。取得できなかったことを明示する。
+            detail = "／".join(metric_errors) or "応答に指標が含まれていません"
+            raise PermanentError(f"Insightsを取得できませんでした: {detail}")
 
         result = AnalyticsResult(
             platform=self.name, external_post_id=external_post_id, platform_metrics=raw
@@ -323,14 +339,40 @@ class InstagramPublisher(Publisher):
         code = error.get("code")
         subcode = error.get("error_subcode")
         if code in (4, 17, 32, 613):        # レート制限系
-            raise TransientError(f"レート制限（code={code}）: {message}")
-        if code in (190,):                  # トークン期限切れ・無効
+            raise RateLimited(f"レート制限（code={code}）: {message}")
+        if _looks_like_metric_problem(code, message):
+            # 指標名がこの投稿形式・APIバージョンに無いだけ。別の組で試せる
+            raise MetricNotSupported(f"使えない指標（code={code}）: {message}")
+        if code in (190,):                  # トークン期限切れ・無効（再接続で直る）
             raise TransientError(f"認証エラー（code=190）: {message}")
+        if code in PERMISSION_CODES or subcode in PERMISSION_SUBCODES:
+            # ここを一時的扱いにすると、権限不足に気づかないまま再試行し続ける
+            raise PermissionDenied(f"権限が足りません（code={code}）: {message}")
         if subcode in PERMANENT_SUBCODES:
             raise PermanentError(f"Instagramエラー（subcode={subcode}）: {message}")
         if code in (1, 2):                  # 一時的な内部エラー
             raise TransientError(f"一時的なエラー（code={code}）: {message}")
         raise PermanentError(f"Instagramエラー（code={code}）: {message}")
+
+
+# 「その指標はこの投稿形式では使えない」を表す言い回し。
+# Metaはこれを code=100 の汎用エラーで返すため、文面でしか区別できない。
+METRIC_PROBLEM_HINTS = (
+    "metric",
+    "metrics",
+    "not valid for this media",
+    "does not support",
+)
+
+
+def _looks_like_metric_problem(code, message: str) -> bool:
+    """指標名だけの問題か。権限不足やID不正と混同しないようにする。"""
+    if code not in (100,):
+        return False
+    lowered = (message or "").lower()
+    if "permission" in lowered or "access token" in lowered:
+        return False
+    return any(hint in lowered for hint in METRIC_PROBLEM_HINTS)
 
 
 def _compose_caption(experiment) -> str:

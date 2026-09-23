@@ -45,7 +45,34 @@ class ManualRequired(PublishError):
 
 
 class NotSupported(PublishError):
-    """そのプラットフォームのAPIに機能が存在しない場合。"""
+    """そのプラットフォームのAPIに機能が存在しない場合。
+
+    「取得できなかった」ではなく「そもそも取得手段が無い」。
+    反応データでは 取得不可 として記録し、失敗として数えない。
+    """
+
+
+class RateLimited(TransientError):
+    """レート制限。待ってから再試行する。"""
+
+    def __init__(self, message: str, retry_after: float = 0.0) -> None:
+        super().__init__(message)
+        self.retry_after = retry_after
+
+
+class PermissionDenied(PermanentError):
+    """権限・スコープ不足、またはそのオブジェクトを見る権利が無い。
+
+    指標名の問題とは区別する。ここで黙って次へ進むと、
+    権限不足のまま「空の結果を取得できた」ことにしてしまう。
+    """
+
+
+class MetricNotSupported(PermanentError):
+    """その投稿形式・APIバージョンでは、その指標名が使えない。
+
+    別の指標名の組で再試行してよい唯一のケース。
+    """
 
 
 @dataclass
@@ -77,9 +104,24 @@ class AnalyticsResult:
     saves: int | None = None
     clicks: int | None = None
     followers_gained: int | None = None
+    watch_time_seconds: float | None = None   # Reel等の平均視聴時間（秒）
+    completion_rate: float | None = None      # 視聴完了率（0.0〜1.0）
     period_start: str = ""
     period_end: str = ""
     platform_metrics: dict = field(default_factory=dict)
+
+    # 共通指標のうち、実際に数字が入ったものの名前
+    MEASURED = ("impressions", "reach", "views", "likes", "comments", "shares",
+                "saves", "clicks", "followers_gained", "watch_time_seconds",
+                "completion_rate")
+
+    def obtained(self) -> list[str]:
+        """実際に取得できた指標の名前。NULLのままのものは含めない。"""
+        return [name for name in self.MEASURED if getattr(self, name) is not None]
+
+    def is_empty(self) -> bool:
+        """1つも取得できていない。測定済みとして保存してはいけない。"""
+        return not self.obtained() and not self.platform_metrics
 
 
 class Publisher(ABC):
@@ -132,34 +174,64 @@ class Publisher(ABC):
         raise NotSupported(f"{self.name} は反応データの取得に未対応です")
 
 
+# レート制限で待つ上限。これを超える指示が来たら、待たずに次回へ回す。
+MAX_RETRY_WAIT_SECONDS = 60.0
+
+
+def _retry_after_seconds(response) -> float:
+    """Retry-After ヘッダの秒数。読めなければ 0。"""
+    raw = (response.headers.get("Retry-After") or "").strip()
+    try:
+        return max(0.0, float(raw))
+    except ValueError:
+        return 0.0
+
+
 def request_json(
     method: str,
     url: str,
     *,
     timeout: int = 60,
     retry_on_status: tuple[int, ...] = (429, 500, 502, 503, 504),
+    retries: int = 2,
+    sleep: Callable[[float], None] = time.sleep,
     **kwargs,
 ) -> dict:
-    """HTTPリクエストを投げてJSONを返す。通信系の失敗は TransientError にする。"""
-    try:
-        response = requests.request(method, url, timeout=timeout, **kwargs)
-    except requests.Timeout as exc:
-        raise TransientError(f"タイムアウトしました: {url}") from exc
-    except requests.ConnectionError as exc:
-        raise TransientError(f"接続できませんでした: {exc}") from exc
-    except requests.RequestException as exc:
-        raise TransientError(f"通信エラー: {exc}") from exc
+    """HTTPリクエストを投げてJSONを返す。
 
-    if response.status_code in retry_on_status:
-        raise TransientError(
-            f"一時的なエラー（HTTP {response.status_code}）: {response.text[:200]}"
-        )
-    try:
-        return response.json()
-    except ValueError as exc:
-        raise PermanentError(
-            f"応答を解釈できません（HTTP {response.status_code}）: {response.text[:200]}"
-        ) from exc
+    通信系の失敗は TransientError、レート制限は RateLimited にする。
+    レート制限と5xxは `retries` 回まで待ってから再試行する。待つ秒数は
+    Retry-After があればそれに従い、無ければ 2秒 → 4秒 と広げる。
+    """
+    attempt = 0
+    while True:
+        try:
+            response = requests.request(method, url, timeout=timeout, **kwargs)
+        except requests.Timeout as exc:
+            raise TransientError(f"タイムアウトしました: {url}") from exc
+        except requests.ConnectionError as exc:
+            raise TransientError(f"接続できませんでした: {exc}") from exc
+        except requests.RequestException as exc:
+            raise TransientError(f"通信エラー: {exc}") from exc
+
+        if response.status_code in retry_on_status:
+            wait = _retry_after_seconds(response) or 2.0 * (2 ** attempt)
+            limited = response.status_code == 429
+            if attempt < retries and wait <= MAX_RETRY_WAIT_SECONDS:
+                sleep(wait)
+                attempt += 1
+                continue
+            detail = f"（HTTP {response.status_code}）: {response.text[:200]}"
+            if limited:
+                raise RateLimited("レート制限" + detail, retry_after=wait)
+            raise TransientError("一時的なエラー" + detail)
+
+        try:
+            return response.json()
+        except ValueError as exc:
+            raise PermanentError(
+                f"応答を解釈できません（HTTP {response.status_code}）: {response.text[:200]}"
+            ) from exc
 
 
 class Pacer:

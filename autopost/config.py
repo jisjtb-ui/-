@@ -107,6 +107,7 @@ class Settings:
     auto_topup: bool = True
     auto_topup_min: int = 10
     auto_topup_count: int = 30
+    auto_topup_category: str = "auto"   # auto=weightで抽選 / random / 固定名
     # 画像を公開するコマンド（未設定なら手動デプロイが必要）
     pages_deploy_command: str = ""
 
@@ -206,6 +207,7 @@ class Settings:
             auto_topup=_get_bool("AUTO_TOPUP", True),
             auto_topup_min=_get_int("AUTO_TOPUP_MIN", 10),
             auto_topup_count=_get_int("AUTO_TOPUP_COUNT", 30),
+            auto_topup_category=_get("AUTO_TOPUP_CATEGORY", "auto"),
             pages_deploy_command=_get("PAGES_DEPLOY_COMMAND"),
             weight_auto=_get_bool("WEIGHT_AUTO", True),
             weight_metric=_get("WEIGHT_METRIC", "views"),

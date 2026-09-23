@@ -42,6 +42,15 @@ HEADERS_PATH = DATA_DIR / "headers.json"
 CTA_PATH = DATA_DIR / "cta.json"
 # 実績に応じてカテゴリを抽選するモード
 AUTO_CATEGORY = "auto"
+
+
+def equal_draw(weights: dict[str, float], rng: random.Random) -> str:
+    """均等にカテゴリを1つ引く。
+
+    autopost.weights が読めないときの保険なので、この関数は
+    そのモジュールに依存してはならない。
+    """
+    return rng.choice(sorted(weights))
 ACTION_CTA_PATH = DATA_DIR / "cta_actions.json"
 DEFAULT_OUTPUT = ROOT / "output"
 DEFAULT_HISTORY = ROOT / "history.json"
@@ -223,18 +232,22 @@ def main(argv: list[str] | None = None) -> int:
     # random と違い「その投稿のカテゴリ」が1つに定まるので、
     # あとから反応データをカテゴリへ正しく紐付けられる。
     weight_table: dict[str, float] | None = None
+    draw = equal_draw                             # weightが読めないときの保険
     if args.category == AUTO_CATEGORY:
         try:
             from autopost.config import Settings as _S
             from autopost.experiments import ExperimentStore
-            from autopost.weights import WeightStore
+            from autopost.weights import WeightStore, draw_category
 
             _settings = _S.load()
             _weights = WeightStore(ExperimentStore(_settings.experiments_db_path))
             weight_table = _weights.ensure(categories)
+            draw = draw_category
         except Exception as exc:                  # 投稿側が未設定でも生成は止めない
+            # ここでは autopost.weights を使えないので、均等抽選は自前で行う
             print(f"[注意] weightを読めないため均等に選びます: {exc}", file=sys.stderr)
             weight_table = {c: 1.0 for c in categories}
+            draw = equal_draw
     elif args.category not in categories and args.category != RANDOM_CATEGORY:
         print(
             f"[エラー] 不明なカテゴリ: {args.category}\n"
@@ -277,9 +290,7 @@ def main(argv: list[str] | None = None) -> int:
         post_id = start_id + offset
         post_category = args.category
         if weight_table:
-            from autopost.weights import draw_category
-
-            post_category = draw_category(weight_table, rng)
+            post_category = draw(weight_table, rng)
         try:
             tests = build_post_tests(
                 items, history, rng, post_category, args.tests_per_post
