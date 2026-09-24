@@ -30,7 +30,7 @@ push → `main` へ反映 まで進む。**利用者から毎回の許可を取�
 - `.bat` / `.cmd` は **ASCII のみ・CRLF**。日本語を入れると cmd.exe が壊れる
 - 日本語のメッセージは Python 側に置き、`.bat` はそれを呼ぶだけにする
 - PowerShell は使わない（BOM無しUTF-8を cp932 として読むため）
-- ダブルクリックで使うボタンはフォルダ直下に置く（`0_` 〜 `14_`）。ふだん使うのは `14_画面をひらく.bat`
+- ダブルクリックで使うボタンはフォルダ直下に置く（`0_` 〜 `17_`）。ふだん使うのは `14_画面をひらく.bat`
 
 ## 画像とコンテンツ
 
@@ -70,6 +70,28 @@ push → `main` へ反映 まで進む。**利用者から毎回の許可を取�
   0件と取得不可を混同しない
 - 許容時間を過ぎて測ったものは `late=1`。通常の評価には混ぜない
 
+## クラウド（PCを切っても投稿が続く側）
+
+`worker/` が Cloudflare 側。PCの電源と無関係に予約投稿を進める。
+
+- 分担は固定: PC=生成・編集・分析 / クラウド=予約・実行・トークン・結果
+- **Workers無料枠は1回の呼び出しで外部リクエスト50件まで。** 画像10枚の
+  カルーセルを1回でやると超えるので、段（children→carousel→publish）に
+  分けてCronの次の回へ引き継ぐ。ここを1回にまとめ直さない
+- トークンはD1へ **AES-GCMで暗号化** して入れる。鍵は Secret の `TOKEN_KEY`
+- 応答・画面・ログにトークンの値を出さない
+- 再試行は種類で分ける（`worker/src/errors.js`）。権限不足・トークン無効・
+  規約違反は再試行しない。どの場合も投稿内容は消さない
+- クラウドへ渡した配信はPC側で `cloud_queued`。`CLAIMABLE` に入れない
+  （これが二重投稿を防いでいる。安易に足さない）
+- 投稿先ごとの違いは Adapter に閉じ込める（`worker/src/adapters/`）。
+  共通化のために無理に揃えない
+- TikTokは下書き転送のままなので**完全自動ではない**。そう書く
+- 課金が必要なもの（R2など）を勝手に有効にしない
+
+検証: `node worker/test.mjs` `node worker/test-cloud.mjs`
+`python tools/test_cloud.py`（いずれも外部へは投稿しない）
+
 ## 外部API
 
 - 公式APIのみ。非公式API、ブラウザ操作による規約回避、Cookie取得は使わない
@@ -81,7 +103,8 @@ push → `main` へ反映 まで進む。**利用者から毎回の許可を取�
 
 変更したら `python tools/selftest.py` を通す。リリース時にも自動で走る。
 Analytics / weight だけなら `python tools/test_analytics.py` が速い。
-Worker を触ったら `node worker/test.mjs`。
+Worker を触ったら `node worker/test.mjs` と `node worker/test-cloud.mjs`。
+クラウドの受け渡しを触ったら `python tools/test_cloud.py`。
 
 新しいファイルを足したら、**目録（`update_manifest.json`）に載ることを
 確かめる**。載っていないと利用者のPCへ届かない（v1.14.0 で実際に起きた）。

@@ -1,28 +1,58 @@
 {
-  // スマホから「今すぐ投稿」を受け取るWorker。
-  // トークンは Secret として保管する（このファイルには書かない）。
+  // クラウド側。PCが止まっていても予約投稿が回り続ける。
   //
+  // 準備（1回だけ。すべて無料枠で足ります）:
+  //
+  //   cd worker
   //   npx wrangler kv namespace create PUBLISHED
-  //   ↑ で出た id を下の kv_namespaces に書く
+  //   npx wrangler d1 create honeshinri
+  //   ↑ で出た id を下の kv_namespaces / d1_databases に貼る
+  //   npx wrangler d1 execute honeshinri --remote --file schema.sql
   //
-  //   npx wrangler secret put PUBLISH_PASSPHRASE
-  //   npx wrangler secret put THREADS_ACCESS_TOKEN
-  //   npx wrangler secret put THREADS_USER_ID
-  //   npx wrangler secret put INSTAGRAM_ACCESS_TOKEN
-  //   npx wrangler secret put INSTAGRAM_ACCOUNT_ID
+  //   npx wrangler secret put PUBLISH_PASSPHRASE   スマホ・PCと共通の合言葉
+  //   npx wrangler secret put TOKEN_KEY            トークンを暗号化する鍵（長い乱文字）
+  //   npx wrangler secret put NTFY_TOPIC           通知の購読名（推測されにくい文字列）
+  //   npx wrangler secret put TIKTOK_CLIENT_KEY    TikTokを使う場合だけ
+  //   npx wrangler secret put TIKTOK_CLIENT_SECRET 同上
+  //
   //   npx wrangler deploy
+  //
+  // 従来の THREADS_* / INSTAGRAM_* のSecretは「今すぐ投稿」用に残してあります。
+  // 予約投稿のトークンはPC側から /api/account で登録し、D1へ暗号化して入ります。
   "name": "honeshinri-publish",
   "main": "src/index.js",
   "compatibility_date": "2026-09-18",
+
+  // 毎分。予約時刻の来た投稿を1段ずつ進める。
+  // 無料枠は1回の呼び出しで外部リクエスト50件までなので、段に分けてある。
+  "triggers": {
+    "crons": ["* * * * *"]
+  },
+
   "vars": {
     // 自分のPagesのURLだけを許可する（他人の画像を投稿させないため）
     "ALLOWED_IMAGE_PREFIX": "https://honeshinri-media.pages.dev/",
-    "ALLOWED_ORIGIN": "https://honeshinri-media.pages.dev"
+    "ALLOWED_ORIGIN": "https://honeshinri-media.pages.dev",
+    // TikTokの既定の送り方。upload=下書き転送 / direct_post=そのまま公開（審査が必要）
+    "TIKTOK_MODE": "upload"
   },
+
   "kv_namespaces": [
     {
       "binding": "PUBLISHED",
       "id": "ここに kv namespace create の id を貼る"
     }
-  ]
+  ],
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "honeshinri",
+      "database_id": "ここに d1 create の database_id を貼る"
+    }
+  ],
+
+  "observability": {
+    "enabled": true
+  }
 }

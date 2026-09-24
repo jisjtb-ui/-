@@ -271,6 +271,26 @@ def build_parser() -> argparse.ArgumentParser:
     w_reset = w_sub.add_parser("reset", help="初期値（均等）へ戻す")
     w_reset.add_argument("--yes", action="store_true")
 
+    # クラウド（PCを切っても動く側）
+    cloud_parser = sub.add_parser("cloud", help="クラウドへ予約を渡す / 状況を見る")
+    cl_sub = cloud_parser.add_subparsers(dest="cloud_command", required=True)
+    cl_sub.add_parser("health", help="クラウドの準備ができているか確かめる")
+    cl_connect = cl_sub.add_parser("connect", help="接続済みアカウントをクラウドへ預ける")
+    cl_connect.add_argument("category_id", type=int)
+    cl_connect.add_argument("platform", choices=AUTH_PLATFORMS)
+    cl_push = cl_sub.add_parser("push", help="予約をクラウドへ渡す（これでPCを切れる）")
+    cl_push.add_argument("--platform", action="append", choices=AUTH_PLATFORMS,
+                         help="渡す媒体を絞る（複数指定できます）")
+    cl_push.add_argument("--limit", type=int, default=500, help="渡す上限件数")
+    cl_push.add_argument("--dry-run", action="store_true", help="渡さずに内容だけ見る")
+    cl_sub.add_parser("status", help="クラウドの予約状況を見る")
+    cl_sub.add_parser("sync", help="クラウドの投稿結果をPCへ取り込む")
+    cl_sub.add_parser("accounts", help="クラウドに預けたアカウントを見る")
+    for name, help_text in (("cancel", "予約を取り消す"), ("now", "いますぐ投稿にする"),
+                            ("retry", "失敗した投稿をもう一度試す")):
+        action_parser = cl_sub.add_parser(name, help=help_text)
+        action_parser.add_argument("job_id")
+
     probe = sub.add_parser("probe",
                            help="公開済み投稿1件について、APIが実際に返す値を確かめる")
     probe.add_argument("--platform", default="instagram", choices=AUTH_PLATFORMS)
@@ -340,6 +360,7 @@ def main(argv: list[str] | None = None) -> int:
         "reel": cmd_reel,
         "category": cmd_category,
         "weights": cmd_weights,
+        "cloud": cmd_cloud,
         "probe": cmd_probe,
         "analytics": cmd_analytics,
         "version": cmd_version,
@@ -631,6 +652,91 @@ def cmd_weights(args, settings: Settings, queue: Queue) -> int:
             return 0
     result = weights.reset(list(subs))
     print(f"{len(result)}件を均等（各 {100 / max(1, len(result)):.1f}%）に戻しました")
+    return 0
+
+
+def cmd_cloud(args, settings: Settings, queue: Queue) -> int:
+    """クラウド（PCを切っても動く側）とのやりとり。"""
+    from . import cloud
+    from .experiments import ExperimentStore
+
+    store = ExperimentStore(settings.experiments_db_path)
+
+    try:
+        if args.cloud_command == "health":
+            info = cloud.CloudClient(settings).health()
+            print(f"クラウド : {settings.publish_worker_url}")
+            print(f"  応答          : {'あり' if info.get('ok') else 'なし'}")
+            print(f"  合言葉の設定   : {'済み' if info.get('ready') else '未設定'}")
+            print(f"  予約Queue(D1)  : {'あり' if info.get('cloud_queue') else 'なし'}")
+            print(f"  スマホ通知     : {'あり' if info.get('notifications') else 'なし'}")
+            print(f"\nスマホからはこのURLを開きます: {settings.publish_worker_url}/")
+            return 0
+
+        if args.cloud_command == "connect":
+            from .catalog import Catalog
+
+            catalog = Catalog(store)
+            cloud.connect(settings, catalog, args.category_id, args.platform)
+            return 0
+
+        if args.cloud_command == "push":
+            platforms = args.platform or None
+            report = cloud.push(settings, store, platforms=platforms,
+                                limit=args.limit, dry_run=args.dry_run)
+            print(f"\n{report.summary()}")
+            if args.dry_run:
+                print("（--dry-run のため、実際には渡していません）")
+                return 0
+            if report.marked:
+                print(f"PC側の {report.marked}件は「クラウド待ち」にしました"
+                      f"（PCでは投稿しません）")
+                print("\nここまで出たら、PCの電源を切っても指定時刻に投稿されます。")
+            return 1 if report.rejected else 0
+
+        if args.cloud_command == "status":
+            data = cloud.CloudClient(settings).status()
+            counts = data.get("counts") or {}
+            labels = {"draft": "下書き", "scheduled": "予約", "processing": "処理中",
+                      "posted": "投稿済み", "failed": "失敗", "retrying": "再試行",
+                      "cancelled": "取消"}
+            print("クラウドの予約状況")
+            for key, label in labels.items():
+                if key in counts:
+                    print(f"  {label:<10}{counts[key]}件")
+            nxt = data.get("next")
+            if nxt:
+                print(f"\n次の投稿 : {(nxt.get('scheduled_at') or '')[:16].replace('T', ' ')}"
+                      f"  {nxt.get('platform')} / {nxt.get('category') or nxt.get('account_id')}")
+            else:
+                print("\n次の投稿 : ありません")
+            for job in (data.get("failed") or [])[:5]:
+                print(f"  [失敗] {job.get('id')}: {job.get('error')}")
+            return 0
+
+        if args.cloud_command == "sync":
+            cloud.sync(settings, store)
+            return 0
+
+        if args.cloud_command == "accounts":
+            data = cloud.CloudClient(settings).accounts()
+            print(f"{'アカウント':<26}{'媒体':<12}{'接続':<8}期限")
+            for account in data.get("accounts") or []:
+                expires = (account.get("token_expires_at") or "")[:16].replace("T", " ")
+                print(f"{(account.get('label') or account.get('id')):<26}"
+                      f"{account.get('platform'):<12}"
+                      f"{'済み' if account.get('has_token') else '未'}    {expires or '—'}")
+            return 0
+
+        if args.cloud_command in ("cancel", "now", "retry"):
+            action = {"cancel": "cancel", "now": "post_now", "retry": "retry"}[args.cloud_command]
+            result = cloud.CloudClient(settings).action(action, args.job_id)
+            print("できました" if result.get("ok") else f"できません: {result.get('error')}")
+            return 0 if result.get("ok") else 1
+
+    except cloud.CloudError as error:
+        print(f"[エラー] {error}", file=sys.stderr)
+        return 1
     return 0
 
 

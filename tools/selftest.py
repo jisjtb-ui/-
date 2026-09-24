@@ -239,6 +239,36 @@ def main() -> int:
         check("Workerの動作", result.returncode == 0,
               (result.stderr or result.stdout).strip()[-300:])
 
+    section("クラウド予約投稿（PCを切っても動く部分）")
+    for script, title in (("worker/test.mjs", "Worker（今すぐ投稿）"),
+                          ("worker/test-cloud.mjs", "Worker（予約投稿・Cron）")):
+        if not (ROOT / script).is_file():
+            check(title, False, f"{script} がありません")
+            continue
+        result = subprocess.run(["node", script], cwd=ROOT,
+                                capture_output=True, text=True, timeout=300)
+        check(title, result.returncode == 0,
+              (result.stdout + result.stderr).strip()[-400:])
+
+    result = subprocess.run([sys.executable, "tools/test_cloud.py"], cwd=ROOT,
+                            capture_output=True, text=True, timeout=300)
+    check("PC側 → クラウド の受け渡し", result.returncode == 0,
+          (result.stdout + result.stderr).strip()[-400:])
+
+    worker_config = (ROOT / "worker" / "wrangler.jsonc").read_text(encoding="utf-8")
+    check("Cron Trigger が設定されている", '"crons"' in worker_config)
+    check("D1 のバインドがある", '"d1_databases"' in worker_config)
+    check("D1のスキーマがある", (ROOT / "worker" / "schema.sql").is_file())
+    cloud_source = (ROOT / "autopost" / "cloud.py").read_text(encoding="utf-8")
+    check("渡した予約はPC側で投稿しない（二重投稿の防止）",
+          "CLOUD_QUEUED" in cloud_source)
+    from autopost.experiments import CLAIMABLE, CLOUD_QUEUED, RUNNABLE
+
+    check("cloud_queued はPC側の実行対象に入らない",
+          CLOUD_QUEUED not in CLAIMABLE and CLOUD_QUEUED not in RUNNABLE)
+    check("16_クラウドへ渡す.bat がある", (ROOT / "16_クラウドへ渡す.bat").exists())
+    check("17_クラウドの状況.bat がある", (ROOT / "17_クラウドの状況.bat").exists())
+
     section("配布物の目録")
     import json as _json
 

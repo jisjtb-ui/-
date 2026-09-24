@@ -28,14 +28,16 @@ PUBLISHED = "published"                # 公開済み
 DRAFT_CREATED = "draft_created"        # 下書きとして転送済み（公開は本人が行う）
 FAILED = "failed"                      # 失敗（記録は消さない）
 MANUAL_REQUIRED = "manual_required"    # APIでは完結できず手作業が必要
+CLOUD_QUEUED = "cloud_queued"          # クラウドへ渡した（PC側では投稿しない）
 
 STATUSES = (
     GENERATED, MEDIA_READY, READY_TO_PUBLISH,
-    PUBLISHING, PUBLISHED, DRAFT_CREATED, FAILED, MANUAL_REQUIRED,
+    PUBLISHING, PUBLISHED, DRAFT_CREATED, FAILED, MANUAL_REQUIRED, CLOUD_QUEUED,
 )
 # 送信が完了した状態（1日の上限計算と二重送信防止に使う）
 DELIVERED = (PUBLISHED, DRAFT_CREATED)
-# 実行対象にできる状態（published は対象外＝二重投稿しない）
+# 実行対象にできる状態。published と cloud_queued は対象外＝二重投稿しない。
+# クラウドへ渡したものはクラウドだけが投稿する。
 CLAIMABLE = (READY_TO_PUBLISH, FAILED)
 RUNNABLE = CLAIMABLE + (PUBLISHING,)
 # publishing のまま放置された配信を「落ちた」とみなすまでの時間（分）
@@ -606,16 +608,19 @@ class ExperimentStore:
     def discard_pending(self) -> dict:
         """まだ配信していない実験を捨てる。作り直すとき用。
 
-        **配信済み・下書き転送済みのものには触らない。** 記録が消えると
-        二重投稿の判断ができなくなるため。
+        **配信済み・下書き転送済み・クラウド待ちのものには触らない。**
+        記録が消えると二重投稿の判断ができなくなるため。
         """
+        # クラウドへ渡したものも残す。消すとクラウドが投稿した結果を
+        # 突き合わせられなくなり、二重投稿の判断ができなくなる。
+        protected = DELIVERED + (CLOUD_QUEUED,)
         with self._connect() as conn:
-            delivered = ",".join("?" * len(DELIVERED))
+            delivered = ",".join("?" * len(protected))
             keep = [
                 row["experiment_id"]
                 for row in conn.execute(
                     f"SELECT DISTINCT experiment_id FROM experiment_publications"
-                    f" WHERE status IN ({delivered})", DELIVERED,
+                    f" WHERE status IN ({delivered})", protected,
                 )
             ]
             placeholders = ",".join("?" * len(keep)) if keep else ""

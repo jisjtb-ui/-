@@ -1,4 +1,16 @@
 /**
+ * クラウド側の本体。PCが止まっていても、ここだけで予約投稿が回り続ける。
+ *
+ *   Cron（毎分） → 予約時刻の来た投稿を1段進める   … runner.js
+ *   /api/*        PCからの一括登録、スマホからの操作 … api.js
+ *   /            スマホの管理画面                  … dashboard.js
+ *   /publish      スマホからの「今すぐ投稿」（従来どおり）
+ *
+ * トークンはD1へ暗号化して保存し、鍵はSecret（TOKEN_KEY）で持つ。
+ * 応答にトークンを出さない。
+ *
+ * --- 以下は従来からの「今すぐ投稿」の説明 ---
+ *
  * スマホから「今すぐ投稿」を受け取るWorker。
  *
  * トークンをスマホにもページにも置かないための中継役。
@@ -10,6 +22,13 @@
  * 投稿したものは KV に記録し、PCが取りに来る。
  * これがないとPC側の予約投稿と二重に出てしまう。
  */
+
+import {
+  handleAccount, handleAccounts, handleAction, handleEnqueue, handleJob,
+  handleMetrics, handleResults, handleStatus,
+} from "./api.js";
+import { dashboardHtml } from "./dashboard.js";
+import { tick } from "./runner.js";
 
 const THREADS_HOST = "https://graph.threads.net/v1.0";
 const GRAPH_HOST = "https://graph.instagram.com/v21.0";
@@ -260,7 +279,42 @@ async function handlePublished(env, origin) {
   return json({ items }, 200, origin);
 }
 
+/** 管理画面。合言葉は画面の中で入れるので、ここでは通す。 */
+const page = (html) =>
+  new Response(html, {
+    headers: {
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "no-store",
+      // 画面から外部へ何も送らない
+      "content-security-policy":
+        "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'",
+      "referrer-policy": "no-referrer",
+      "x-content-type-options": "nosniff",
+    },
+  });
+
+/** api.js の戻り値（status を含む）をHTTP応答へ直す。 */
+function fromResult(result, origin) {
+  const { status = 200, ...body } = result || {};
+  return json(body, status, origin);
+}
+
 export default {
+  /** Cron Trigger。PCの電源とは関係なく、Cloudflare側で毎分動く。 */
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(
+      (async () => {
+        if (!env.DB) return;
+        try {
+          await tick(env);
+        } catch (error) {
+          // 1回の失敗で止めない。次の分にまた来る
+          console.error("cron", error?.message || error);
+        }
+      })()
+    );
+  },
+
   async fetch(request, env) {
     const url = new URL(request.url);
     const origin = env.ALLOWED_ORIGIN || "*";
@@ -268,8 +322,17 @@ export default {
     if (request.method === "OPTIONS") {
       return preflight(origin);
     }
+    // スマホの管理画面（合言葉は画面の中で入れる）
+    if (url.pathname === "/" || url.pathname === "/dashboard") {
+      return page(dashboardHtml());
+    }
     if (url.pathname === "/health") {
-      return json({ ok: true, ready: Boolean(env.PUBLISH_PASSPHRASE) }, 200, origin);
+      return json({
+        ok: true,
+        ready: Boolean(env.PUBLISH_PASSPHRASE),
+        cloud_queue: Boolean(env.DB),
+        notifications: Boolean(env.NTFY_TOPIC),
+      }, 200, origin);
     }
 
     const given = request.headers.get("x-passphrase") || "";
@@ -277,11 +340,53 @@ export default {
       return json({ error: "合言葉が違います" }, 401, origin);
     }
 
+    // --- 従来からの「今すぐ投稿」 ---
     if (url.pathname === "/publish" && request.method === "POST") {
       return handlePublish(request, env, origin);
     }
     if (url.pathname === "/published" && request.method === "GET") {
       return handlePublished(env, origin);
+    }
+
+    // --- クラウドQueue（D1が無ければ使えない） ---
+    if (url.pathname.startsWith("/api/")) {
+      if (!env.DB) {
+        return json({ error: "クラウドQueueが未設定です（D1のバインドがありません）" },
+                    503, origin);
+      }
+      const body = request.method === "POST"
+        ? await request.json().catch(() => ({}))
+        : {};
+
+      if (url.pathname === "/api/enqueue" && request.method === "POST") {
+        return fromResult(await handleEnqueue(env, body), origin);
+      }
+      if (url.pathname === "/api/account" && request.method === "POST") {
+        return fromResult(await handleAccount(env, body), origin);
+      }
+      if (url.pathname === "/api/accounts" && request.method === "GET") {
+        return fromResult(await handleAccounts(env), origin);
+      }
+      if (url.pathname === "/api/status" && request.method === "GET") {
+        return fromResult(await handleStatus(env), origin);
+      }
+      if (url.pathname === "/api/results" && request.method === "GET") {
+        return fromResult(await handleResults(env, url), origin);
+      }
+      if (url.pathname === "/api/metrics" && request.method === "GET") {
+        return fromResult(await handleMetrics(env, url), origin);
+      }
+      if (url.pathname === "/api/action" && request.method === "POST") {
+        return fromResult(await handleAction(env, body), origin);
+      }
+      if (url.pathname.startsWith("/api/job/") && request.method === "GET") {
+        const id = decodeURIComponent(url.pathname.slice("/api/job/".length));
+        return fromResult(await handleJob(env, id), origin);
+      }
+      // 手で動かして確かめるための入口（Cronと同じ処理を1回だけ）
+      if (url.pathname === "/api/tick" && request.method === "POST") {
+        return json({ ok: true, ...(await tick(env)) }, 200, origin);
+      }
     }
     return json({ error: "not found" }, 404, origin);
   },

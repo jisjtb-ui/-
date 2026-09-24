@@ -814,6 +814,176 @@ python autopost.py update --rollback v1.1.0_20260918_020420
 投稿する前に、**1枚目が「今のあなたの恋愛運は？」になっているか**を必ず確認してください。
 ここが違っていれば順番が崩れています。
 
+## PCを切っても投稿を続ける（クラウド予約投稿）
+
+予約投稿だけをCloudflare側へ置きます。**登録が終わればPCの電源を切っても、
+指定時刻に投稿されます。**
+
+```
+PC（電源が必要）              クラウド（PCと無関係に動く）
+─────────────────            ──────────────────────────
+コンテンツ生成                予約Queue（D1）
+画像生成                      予約日時の管理
+投稿内容の編集      ──渡す──▶  投稿の実行（Cron 毎分）
+カテゴリ管理                  トークン管理・自動更新
+アカウント接続                投稿結果の記録・履歴
+分析画面                      失敗時の再試行
+大量作成                      スマホ通知
+```
+
+画像はすでにCloudflare Pagesに置いてあるので、PCのパスには依存しません。
+
+### 1回だけの準備
+
+費用はかかりません（すべて無料枠に収まります）。
+
+```bat
+cd worker
+npx wrangler kv namespace create PUBLISHED
+npx wrangler d1 create honeshinri
+```
+
+出てきた id を `worker/wrangler.jsonc` の `kv_namespaces` と
+`d1_databases` に貼ってから、表を作ります。
+
+```bat
+npx wrangler d1 execute honeshinri --remote --file schema.sql
+```
+
+秘密情報を入れます（画面には表示されません）。
+
+```bat
+npx wrangler secret put PUBLISH_PASSPHRASE
+npx wrangler secret put TOKEN_KEY
+npx wrangler secret put NTFY_TOPIC
+rem TikTokを使う場合だけ
+npx wrangler secret put TIKTOK_CLIENT_KEY
+npx wrangler secret put TIKTOK_CLIENT_SECRET
+```
+
+| Secret | 何を入れるか |
+| --- | --- |
+| `PUBLISH_PASSPHRASE` | `.env` と同じ合言葉 |
+| `TOKEN_KEY` | トークンを暗号化する鍵。長い乱文字（一度決めたら変えない） |
+| `NTFY_TOPIC` | スマホ通知の購読名。**推測されにくい文字列**にしてください |
+
+最後に配ります。
+
+```bat
+npx wrangler deploy
+```
+
+### 2回目以降の使い方
+
+```bat
+rem 準備ができているか
+python autopost.py cloud health
+
+rem 接続済みアカウントをクラウドへ預ける（Categoryごとに1回）
+python autopost.py cloud connect 1 instagram
+python autopost.py cloud connect 1 threads
+
+rem 予約をクラウドへ渡す（16_クラウドへ渡す.bat と同じ）
+python autopost.py cloud push
+
+rem 状況を見る／結果を取り込む（17_クラウドの状況.bat）
+python autopost.py cloud status
+python autopost.py cloud sync
+```
+
+`cloud push` が「ここまで出たら、PCの電源を切っても…」と表示したら、
+そこで電源を切って構いません。
+
+### スマホから見る
+
+`https://<あなたのWorker>.workers.dev/` を開いて、合言葉を1度入れるだけです。
+（`python autopost.py cloud health` がURLを表示します）
+
+見えるもの: 次の投稿 / 本日の予約 / 件数（予約・再試行・処理中・投稿済み・失敗・取消）
+/ SNS別 / アカウント別 / 失敗の理由。
+できる操作: **いますぐ投稿 / 予約時刻の変更 / 取消 / 失敗の再実行**。
+
+ホーム画面に追加しておくとアプリのように開けます。
+
+### 通知
+
+ntfy（無料・登録不要）を使います。iPhoneに `ntfy` アプリを入れて、
+`NTFY_TOPIC` に設定した購読名を登録してください。
+
+- 投稿できたとき
+- **失敗したとき（優先度を上げて通知）**
+- TikTokの下書きが届いて、アプリでの公開が必要なとき
+
+### 失敗したときの動き
+
+```
+1回目 失敗 → 1分後 → 5分後 → 15分後 → それでも駄目なら failed（通知）
+```
+
+ただし**直らないものは再試行しません。** 権限不足、トークン無効、
+画像や本文がAPIの条件に合わない場合は、すぐ failed にして通知します。
+どの場合でも**投稿内容は消しません。** 直したあと、スマホから
+「もう一度試す」を押せば再実行できます。
+
+### 二重投稿を防ぐしくみ
+
+1. クラウドへ渡した予約は、PC側で `cloud_queued` になり、`sns run` の
+   対象から外れます（PCを起動しても二重に出ません）
+2. クラウド側は投稿1件ごとに一意な鍵を持ち、同じものを二度登録しません
+3. 実行中は「取り置き」を付けるので、Cronが重なっても1つしか動きません
+
+### トークンの期限
+
+PCが止まっていても、クラウドが期限前に自動更新します。
+
+| 媒体 | 期限 | 更新 |
+| --- | --- | --- |
+| Threads | 60日 | 残り7日を切ったら自動更新（発行から24時間以上が必要） |
+| Instagram | 60日 | 同じ |
+| TikTok | 24時間 | 残り30分を切ったら自動更新（refresh_tokenは365日） |
+
+**60日を過ぎたトークンは更新できません。** 長く止める場合は、
+`python autopost.py cloud accounts` で期限を確認してください。
+
+### SNSごとの対応
+
+| 媒体 | クラウドからの自動投稿 | 備考 |
+| --- | --- | --- |
+| Threads | ○ 完全自動 | 画像10枚のカルーセル |
+| Instagram | ○ 完全自動 | 同じ。Reel（動画）は音源の都合で手動のまま |
+| TikTok | △ 下書きまで自動 | **公開はアプリでの操作が必要**（下書き転送の方針） |
+
+TikTokを完全自動にするには `video.publish` スコープの審査が必要です。
+未審査のアプリは非公開アカウントにしか投稿できません。
+審査を通したうえで、アカウントの設定を `direct_post` にしてください。
+
+### 費用
+
+| 使うもの | 無料枠 | この用途での見込み |
+| --- | --- | --- |
+| Workers | 10万リクエスト/日 | Cronは毎分＝1日1,440回。十分収まります |
+| D1 | 読み500万行/日・書き10万行/日・5GB | 1日数百件なら桁違いに余ります |
+| KV | 読み10万/日 | 「今すぐ投稿」の重複防止だけ |
+| Pages | 帯域無制限 | 画像の配信（今までと同じ） |
+| ntfy.sh | 無料 | 通知 |
+
+**月額0円の想定です。** 有料が必要になるのは、1日10万リクエストを超えるか、
+R2など別のサービスを足すときです。
+
+R2（画像の保存期間を細かく決めたい場合）は今は使っていません。
+有効化には支払い方法の登録が必要なので、勝手に有効にしていません。
+
+### 段階的に試す
+
+```
+1. cloud health          … 準備の確認（投稿しません）
+2. cloud push --dry-run  … 何を渡すか見るだけ
+3. cloud push            … 1件だけ渡して、スマホで見える状態にする
+4. スマホで「いますぐ投稿」… 1件だけ実際に投稿して確かめる
+5. PCの電源を切って予約投稿を待つ
+6. 複数SNS・複数アカウントに広げる
+```
+
 ## 画面だけで operate する（文字入力は最小限）
 
 `14_画面をひらく.bat` をダブルクリックすると、4つのタブが出ます。

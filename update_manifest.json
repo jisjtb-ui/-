@@ -1,15 +1,21 @@
 {
-  "version": "1.15.1",
-  "released_at": "2026-09-24T06:01:03+00:00",
+  "version": "1.16.0",
+  "released_at": "2026-09-24T10:14:00+00:00",
   "channel": "main",
   "notes": [
-    "Instagramの反応データで、使えない指標が1つ混ざると応答全体が落ちて視聴回数が入らなかったのを修正（断られたときだけ1つずつ聞き直す）",
-    "15_投稿を調べる.bat を追加。公開済み投稿の種類（Reelかカルーセルか）とAPIが実際に返す値を確認できる"
+    "クラウド予約投稿を追加。登録後はPCの電源を切っても指定時刻に投稿される（Cloudflare Workers + D1 + Cron Triggers）",
+    "16_クラウドへ渡す.bat / 17_クラウドの状況.bat を追加",
+    "スマホ用の管理画面をWorker自身が返すようにした。次の投稿・件数・失敗の確認と、いますぐ投稿/時刻変更/取消/再実行ができる",
+    "投稿先ごとの違いをAdapterに分けた（Instagram / Threads / TikTok）。YouTube Shorts や X を足しやすくしてある",
+    "トークンをD1へ暗号化して保存し、期限前にクラウド側で自動更新する（Threads/Instagram 60日、TikTok 24時間）",
+    "失敗の種類を分けて再試行する。権限不足・トークン無効・規約違反は再試行せず、投稿内容は消さない",
+    "ntfyでスマホへ通知する（特に失敗時）",
+    "反応データの取得もクラウド側で行い、PCへ取り込めるようにした"
   ],
   "files": {
     ".env.example": {
-      "sha256": "8b1791ac84e3fe8fdae449a73e84d2074fc22d4ed67f4bba2d8c629b9fd4f31f",
-      "size": 10204
+      "sha256": "9c64158c4e5b29d6150e4fffe5bcb04a23929875c5bf44f20eb4af1ead6293e4",
+      "size": 10653
     },
     ".gitattributes": {
       "sha256": "3fa230e012e5907422ba6c650fd2a1798f7cb7b07a2912285e64790e2ff97fc6",
@@ -46,6 +52,14 @@
     "15_投稿を調べる.bat": {
       "sha256": "4b1c50303b365e1ed80f0198c311067750b7dc68b112da812af2258a0d4878be",
       "size": 176
+    },
+    "16_クラウドへ渡す.bat": {
+      "sha256": "68854c3537aa2f493ebb56c79dfdaa64f898f048e9e519931b5b25c9f9acfcd9",
+      "size": 128
+    },
+    "17_クラウドの状況.bat": {
+      "sha256": "3876e61c562e26a934618159c54b53a14b9210079c7aa10cc97ad9a570379c00",
+      "size": 128
     },
     "1_セットアップ.bat": {
       "sha256": "db6af82e21d4c03bc308b13e5deb8f69a9957f2940d8467f918eba9160058e0b",
@@ -84,23 +98,23 @@
       "size": 70
     },
     "CHANGELOG.md": {
-      "sha256": "93eadc24fbbc7ee915a6b93ae36301187c5a40a20a7a078c2b278ca1c037dfe3",
-      "size": 10229
+      "sha256": "79b3044b2bc6a631072b64bec44afa2bf5b30efb5ada6eaaed4d3595a5013097",
+      "size": 11216
     },
     "CLAUDE.md": {
-      "sha256": "1e000e50dc44b96796e9c21c8db44af91a2d7dbbb6c246d4b4cf09f7a67746f0",
-      "size": 4987
+      "sha256": "f17a5b7be21051f35bf71ea48593713ea0074c10e3d66b72cf322ce2c7e9555a",
+      "size": 6546
     },
     "README.md": {
-      "sha256": "4ca4e6ab8effca7ca1bb69e6452cd475b999d5ce2e385894b9e182489dcea4d7",
-      "size": 29953
+      "sha256": "6045878d3beb936860edd24a1f99d93dd62ca4de18ac6e3b5929a0ff7c83fded",
+      "size": 30193
     },
     "SETUP_AUTOPOST.md": {
-      "sha256": "1398e4c9347538bf5c9f4439ed22616a7bdd67e30150faae0260f4795253d547",
-      "size": 50688
+      "sha256": "e747489460c708d171c0df9d0876867aa0d0585dc9229cc4d2db937996a4a209",
+      "size": 57645
     },
     "VERSION": {
-      "sha256": "3a1d1ce0e8ef392e0cebe5f16555a12b8c6f035af8996a59992c42f617264050",
+      "sha256": "46081fd90571a274160408ebc81fc91b78ffca4049d477998e3b6909ac245e05",
       "size": 7
     },
     "autopost.py": {
@@ -116,8 +130,12 @@
       "size": 16023
     },
     "autopost/cli.py": {
-      "sha256": "3e09f1450ef5f8172d96a2a103487c1eda8544f50442af32c228386acc401be3",
-      "size": 64282
+      "sha256": "c3d5e95b40715da16f90554e37be85eb80bd032c5aa82faa369190f2dddf5172",
+      "size": 70029
+    },
+    "autopost/cloud.py": {
+      "sha256": "96246e8a5663c3b623d45f05da7bcf9462daf59f8452fd771d41ac07886a6769",
+      "size": 15117
     },
     "autopost/collector.py": {
       "sha256": "018888400f129f0f2c90c00297273df8c649409ef9f75270fc20be8663729b31",
@@ -140,8 +158,8 @@
       "size": 10321
     },
     "autopost/experiments.py": {
-      "sha256": "ebc2e26c55555f3a6e19a0169dd78d6ef999d0f5857ae4cc54017df44053f861",
-      "size": 36645
+      "sha256": "7ab8f8e6692de84ddd9b84775d4e0636972a5307144010304a630d093fd9563c",
+      "size": 37104
     },
     "autopost/gui.py": {
       "sha256": "6eed57ca961aa1594863ef3ca094f0dae4dbc1e4c36db4cbb984164c51c8d4a6",
@@ -588,8 +606,8 @@
       "size": 12377
     },
     "tools/selftest.py": {
-      "sha256": "10f7e5aab097492e14226af0ed424aafaebe0b9d4c56be0086a5d6ab3e6c6d9b",
-      "size": 16748
+      "sha256": "95d213e35e3c511b91ff56055ec8146f45cb756a3d8c585947f969769d20c827",
+      "size": 18593
     },
     "tools/setup_all.py": {
       "sha256": "d6263fb81a999642bff2c39378fabaa9ab3ba9d2d82121f5945efe2e156e31a0",
@@ -603,17 +621,85 @@
       "sha256": "331279c410e7fbfd35a965591843f04a443cf5fe272ef24cf92b3f32ecf87ae8",
       "size": 34657
     },
+    "tools/test_cloud.py": {
+      "sha256": "834e8ff00c0ded5a2a18ef68923a3485af0e0eafc8278e8ecaee38e5a86ac177",
+      "size": 16102
+    },
+    "worker/fake-d1.mjs": {
+      "sha256": "c5644f483d9ee3a74fcb298bf143ac7f315e54d31e5c4ed6d0daf76f904242a9",
+      "size": 12790
+    },
+    "worker/schema.sql": {
+      "sha256": "c2b934eac1ed4c0c803eedce019224f29d9d03dfe38c43925c55ebc3aaf355be",
+      "size": 5312
+    },
+    "worker/src/adapters/index.js": {
+      "sha256": "96d77890ec525bd9447d8714ffce11ca355d740212c32621cb797a92dc7919ff",
+      "size": 777
+    },
+    "worker/src/adapters/instagram.js": {
+      "sha256": "67943225b87777a6c10ca2f96c3771bd731b72b8cd6c2cc3695c319025528b2e",
+      "size": 2946
+    },
+    "worker/src/adapters/meta.js": {
+      "sha256": "0f4007b0c5f7dda8223bb4ad9e21b7594384c7435357ba5f726b48a1e7737769",
+      "size": 5997
+    },
+    "worker/src/adapters/threads.js": {
+      "sha256": "3d4210ec007600c6bda3737adadd1c6ccfc25b99cfd38ea28cb36bb967002c12",
+      "size": 2096
+    },
+    "worker/src/adapters/tiktok.js": {
+      "sha256": "9da9c1e64f514bd2a7d8c954f547ad5b289e6f3ad4650952334b920e282142cb",
+      "size": 5207
+    },
+    "worker/src/api.js": {
+      "sha256": "d48a2cd22ed1fdc181eb25bd735d6c4caaf251da20768bec2e36f2002d542ef9",
+      "size": 6835
+    },
+    "worker/src/dashboard.js": {
+      "sha256": "7b2b8f810ae9a6c6ed81af00d855abb639062ea1013f13bd4745b0056bb888da",
+      "size": 10991
+    },
+    "worker/src/errors.js": {
+      "sha256": "0a6c7ec2497c086b2866affb131f229cf55462a63f66e46352d643360c0507e8",
+      "size": 3018
+    },
     "worker/src/index.js": {
-      "sha256": "52b927905261005266a559e9b9e0b0b469b50d8594a42c8db5ad9f1ad4d0198e",
-      "size": 10127
+      "sha256": "d8a3e1014081740b2f0f5d768ff20da9f831706c53c2f375d90f252a4dcc1e75",
+      "size": 14380
+    },
+    "worker/src/metrics.js": {
+      "sha256": "b53ddd6af233fa50c5d1a780c972ed5463a02b59cd42a4e69d8a26ad4712160f",
+      "size": 5419
+    },
+    "worker/src/notify.js": {
+      "sha256": "e6de07b342fde37668af08e22eece442f7f9a63cc0039f2955ae43c0fa53b29f",
+      "size": 2107
+    },
+    "worker/src/queue.js": {
+      "sha256": "099714023ddaa20b16d88bf78e14c6cad05fd81fdea14a7bc26bd844ea35c768",
+      "size": 9208
+    },
+    "worker/src/runner.js": {
+      "sha256": "1ec4044fa03f8943be5a66abc473f38d4f53238cab892fb655a74ec9cf8b7b66",
+      "size": 3768
+    },
+    "worker/src/tokens.js": {
+      "sha256": "ca0882552b5110101621dee405dff66b03f1266ce5b218bfbf1660bdb81e36d0",
+      "size": 7918
+    },
+    "worker/test-cloud.mjs": {
+      "sha256": "c3df6e02e9c5d46325b116fcb871a32a6e02e59781504177f68db6ff5b50b813",
+      "size": 23133
     },
     "worker/test.mjs": {
       "sha256": "e0e5ac5b203e12497b820f4c30103a0748b7b640f38513ac9f558ea2203e69c1",
       "size": 4700
     },
     "worker/wrangler.jsonc": {
-      "sha256": "210dd980727159ac14c83cbac90e9b91bba561f1232963848974ff7e9e7c1a3c",
-      "size": 1029
+      "sha256": "4001421600010412d50d34f39cfdc9ec496aacaa6421a9e6803634aac475b132",
+      "size": 2156
     }
   }
 }
