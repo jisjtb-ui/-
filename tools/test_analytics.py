@@ -522,6 +522,77 @@ def run(check) -> None:
     check("別Categoryのトークンは混ざらない",
           TokenStore(token_dir, second.id).load("threads") is None)
 
+    # --------------------------------------------------------------- 13b
+    # 使えない指標が1つ混ざっても、他の指標を取り切る
+    from unittest.mock import patch
+
+    from autopost.oauth.store import Token as _Token, TokenStore as _TokenStore
+    from autopost.publishers import instagram as _ig
+
+    token_store = _TokenStore(Path(tempfile.mkdtemp()))
+    token_store.save(_Token(platform="instagram", access_token="T", account_id="1"))
+
+    def _probe(responder):
+        calls = []
+
+        def wrapped(method, url, **kwargs):
+            metric = kwargs.get("params", {}).get("metric", "")
+            calls.append(metric)
+            return responder(metric)
+
+        publisher = _ig.InstagramPublisher(Settings.load(), token_store)
+        publisher._token = token_store.load("instagram")
+        with patch.object(_ig, "request_json", wrapped), \
+             patch.object(_ig.meta_oauth, "graph_base", lambda s: "https://graph"), \
+             patch.object(publisher, "preflight", lambda: None):
+            return publisher.get_analytics("999"), calls
+
+    def _refuse_views(metric):
+        wanted = [m.strip() for m in metric.split(",")]
+        if "views" in wanted and len(wanted) > 1:
+            return {"error": {"code": 100,
+                              "message": "metrics are not valid for this media"
+                                         " product type: views"}}
+        if wanted == ["views"]:
+            return {"error": {"code": 100,
+                              "message": "metric must be one of the following values"}}
+        return {"data": [{"name": m, "total_value": {"value": 111}}
+                         for m in wanted if m != "views"]}
+
+    result, calls = _probe(_refuse_views)
+    check("使えない指標が混ざっても他の指標を取り切る",
+          "reach" in result.obtained() and "likes" in result.obtained(),
+          str(result.obtained()))
+    check("使えない指標は0ではなく未取得のまま", result.views is None, str(result.views))
+
+    def _ok_partial(metric):
+        wanted = [m.strip() for m in metric.split(",")]
+        return {"data": [{"name": m, "total_value": {"value": 5}} for m in wanted
+                         if m in ("views", "reach", "likes")]}
+
+    result, calls = _probe(_ok_partial)
+    check("断られていなければ余計に問い合わせない", len(calls) == 1, f"{len(calls)}回")
+
+    def _permission_error(metric):
+        return {"error": {"code": 10, "message": "権限がありません"}}
+
+    try:
+        _probe(_permission_error)
+        denied = False
+    except PermissionDenied:
+        denied = True
+    check("権限不足は握りつぶさず呼び出し側へ返す", denied)
+
+    def _nothing(metric):
+        return {"data": []}
+
+    try:
+        _probe(_nothing)
+        raised = False
+    except Exception:
+        raised = True
+    check("1つも取れないときは測定済みにしない（例外にする）", raised)
+
     # --------------------------------------------------------------- 14
     # 生成 → 模擬投稿 → 取得 → 集計 → 更新 → 次回抽選 の一周
     settings, store, catalog, category, _ = _fresh()

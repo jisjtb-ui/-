@@ -332,6 +332,7 @@ python generate.py --validate
 - `12_画像を公開する.bat` … Cloudflare Pages へ公開する（コマンド不要）
 - `13_成績を見る.bat` … カテゴリ別の成績と、生成割合が変わった理由を見る
 - `14_画面をひらく.bat` … **ふだんはこれ。**Category作成・SNS接続・生成・成績をすべて画面から操作する
+- `15_投稿を調べる.bat` … 公開済み投稿について、APIが実際に返す値と投稿の種類（Reelかカルーセルか）を確かめる
 ├─ tools/                  ボタンから呼ばれるPythonスクリプト
 ├─ scripts/                ボタンの中身
 ├─ autopost.py             自動投稿CLI

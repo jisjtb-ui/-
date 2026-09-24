@@ -1,18 +1,10 @@
 {
-  "version": "1.15.0",
-  "released_at": "2026-09-24T00:14:46+00:00",
+  "version": "1.15.1",
+  "released_at": "2026-09-24T06:01:03+00:00",
   "channel": "main",
   "notes": [
-    "Category / SubCategory を作って選ぶ仕組みを追加。名前やIDを打ち直す場面をなくした",
-    "画面を4タブ構成にした（運用 / Category / 生成 / 成績）。14_画面をひらく.bat で開く",
-    "SNS接続をCategoryから開始し、認証後に接続先を聞き直さない。既存の接続はそのまま引き継ぐ",
-    "投稿先をCategoryに紐づくアカウントから自動で決める",
-    "weightをSubCategory単位にし、媒体内の相対値で比較するようにした（媒体の規模差で偏らない）",
-    "同じ測定データでweightが二重に動かないようにした",
-    "遅れて測った反応データを遅延として記録し、通常の評価に混ぜないようにした。計測区分は設定可能（7dを追加）",
-    "TikTokの反応データ取得を追加。下書き転送と写真投稿は取得不可として記録する",
-    "反応データの取得結果を測定済み/取得失敗/取得不可/レート制限で分けて数えるようにした",
-    "engine側でreachと視聴時間が保存されていなかったのを修正。保存経路を1本化した"
+    "Instagramの反応データで、使えない指標が1つ混ざると応答全体が落ちて視聴回数が入らなかったのを修正（断られたときだけ1つずつ聞き直す）",
+    "15_投稿を調べる.bat を追加。公開済み投稿の種類（Reelかカルーセルか）とAPIが実際に返す値を確認できる"
   ],
   "files": {
     ".env.example": {
@@ -51,6 +43,10 @@
       "sha256": "f0349f7377e1d693a165c92ea0c2244d719ff9274a803b9e77acf629b6a97509",
       "size": 90
     },
+    "15_投稿を調べる.bat": {
+      "sha256": "4b1c50303b365e1ed80f0198c311067750b7dc68b112da812af2258a0d4878be",
+      "size": 176
+    },
     "1_セットアップ.bat": {
       "sha256": "db6af82e21d4c03bc308b13e5deb8f69a9957f2940d8467f918eba9160058e0b",
       "size": 80
@@ -88,23 +84,23 @@
       "size": 70
     },
     "CHANGELOG.md": {
-      "sha256": "a08e379dcd7944c9435881e98ac114b3860b0d352f15f300382edcf52fd0003d",
-      "size": 9878
+      "sha256": "93eadc24fbbc7ee915a6b93ae36301187c5a40a20a7a078c2b278ca1c037dfe3",
+      "size": 10229
     },
     "CLAUDE.md": {
       "sha256": "1e000e50dc44b96796e9c21c8db44af91a2d7dbbb6c246d4b4cf09f7a67746f0",
       "size": 4987
     },
     "README.md": {
-      "sha256": "be7d81269add953d0fe41442ae4d4e0443916121a2f8cadaf6adfbcc28d17af0",
-      "size": 29797
+      "sha256": "4ca4e6ab8effca7ca1bb69e6452cd475b999d5ce2e385894b9e182489dcea4d7",
+      "size": 29953
     },
     "SETUP_AUTOPOST.md": {
       "sha256": "1398e4c9347538bf5c9f4439ed22616a7bdd67e30150faae0260f4795253d547",
       "size": 50688
     },
     "VERSION": {
-      "sha256": "d5b1f46669d1cff3be556b1656732c8777ad8ad3f3d05459cfb11dadb1f17d19",
+      "sha256": "3a1d1ce0e8ef392e0cebe5f16555a12b8c6f035af8996a59992c42f617264050",
       "size": 7
     },
     "autopost.py": {
@@ -120,8 +116,8 @@
       "size": 16023
     },
     "autopost/cli.py": {
-      "sha256": "66612911f7913ca6de09f9e39cde08129e6321961600b65974a2f6c5c2da719f",
-      "size": 59418
+      "sha256": "3e09f1450ef5f8172d96a2a103487c1eda8544f50442af32c228386acc401be3",
+      "size": 64282
     },
     "autopost/collector.py": {
       "sha256": "018888400f129f0f2c90c00297273df8c649409ef9f75270fc20be8663729b31",
@@ -228,8 +224,8 @@
       "size": 9017
     },
     "autopost/publishers/instagram.py": {
-      "sha256": "c76dbd62ee5b1d6923bf9ef8bec90dad8c7760c52085757a0d0d0c9b363d23d7",
-      "size": 16346
+      "sha256": "9c8c765eede5fb6da4d8df2bfafbbed53a53bec9cf6dd0fc182a85dd7c05e947",
+      "size": 18847
     },
     "autopost/publishers/pinterest.py": {
       "sha256": "d60ebaad983670db94250cd74964bad3a34062502e84ad2c9260f1abd3695867",
@@ -604,8 +600,8 @@
       "size": 9907
     },
     "tools/test_analytics.py": {
-      "sha256": "745513cdbf685830718f5f516b86910219ea34684343f1305a9bb89756b36f22",
-      "size": 31675
+      "sha256": "331279c410e7fbfd35a965591843f04a443cf5fe272ef24cf92b3f32ecf87ae8",
+      "size": 34657
     },
     "worker/src/index.js": {
       "sha256": "52b927905261005266a559e9b9e0b0b469b50d8594a42c8db5ad9f1ad4d0198e",

@@ -268,6 +268,18 @@ class InstagramPublisher(Publisher):
             if raw:
                 break
 
+        if metric_errors and len(raw) < len(MEDIA_METRICS_PRIMARY):
+            # まとめて頼むと、1つでもその投稿形式に無い指標が混ざった時点で
+            # 応答全体がエラーになる（views が永久に入らない原因）。
+            # まとめて頼んで断られたときだけ、足りない分を1つずつ聞き直す。
+            # （断られていないのに毎回聞き直すと、無駄にAPIを叩いてしまう）
+            for metric in MEDIA_METRICS_PRIMARY:
+                if metric in raw:
+                    continue
+                value = self._single_metric(base, external_post_id, token, metric)
+                if value is not None:
+                    raw[metric] = value
+
         if not raw:
             # 1つも取れていないものを返すと、呼び出し側が「測定済み・全部NULL」
             # として保存してしまう。取得できなかったことを明示する。
@@ -281,6 +293,44 @@ class InstagramPublisher(Publisher):
             if metric in raw and getattr(result, attribute) is None:
                 setattr(result, attribute, raw[metric])
         return result
+
+    def _single_metric(self, base: str, external_post_id: str, token: str,
+                       metric: str) -> int | None:
+        """指標を1つだけ聞く。使えない指標なら None を返す（例外にしない）。"""
+        try:
+            self.pacer.wait()
+            data = request_json(
+                "GET", f"{base}/{external_post_id}/insights",
+                params={"metric": metric, "access_token": token},
+            )
+            self._raise_for_error(data)
+        except (MetricNotSupported, PermanentError):
+            return None                 # この投稿形式では使えない指標
+        for item in data.get("data", []):
+            value = item.get("total_value", {}).get("value")
+            values = item.get("values") or []
+            if value is None and values:
+                value = values[0].get("value")
+            if isinstance(value, (int, float)):
+                return int(value)
+        return None
+
+    def describe_media(self, external_post_id: str) -> dict:
+        """投稿の種類を確かめる（カルーセルか、Reelか）。
+
+        ``media_product_type`` が REELS ならReelとして投稿されている。
+        本システムのInstagram投稿は CAROUSEL_ALBUM / FEED になる。
+        """
+        self.preflight()
+        base = meta_oauth.graph_base(self.settings)
+        self.pacer.wait()
+        data = request_json(
+            "GET", f"{base}/{external_post_id}",
+            params={"fields": "media_type,media_product_type,permalink,timestamp,like_count,comments_count",
+                    "access_token": self._token.access_token},
+        )
+        self._raise_for_error(data)
+        return {k: v for k, v in data.items() if k != "id"}
 
     def _permalink(self, base: str, media_id: str, token: str) -> str:
         try:

@@ -271,6 +271,14 @@ def build_parser() -> argparse.ArgumentParser:
     w_reset = w_sub.add_parser("reset", help="初期値（均等）へ戻す")
     w_reset.add_argument("--yes", action="store_true")
 
+    probe = sub.add_parser("probe",
+                           help="公開済み投稿1件について、APIが実際に返す値を確かめる")
+    probe.add_argument("--platform", default="instagram", choices=AUTH_PLATFORMS)
+    probe.add_argument("--experiment", help="特定の実験IDだけを見る")
+    probe.add_argument("--count", type=int, default=1, help="見る件数（既定: 1）")
+    probe.add_argument("--category-id", type=int,
+                       help="Categoryごとに接続している場合の対象Category")
+
     analytics = sub.add_parser("analytics", help="SubCategory別の成績レポート")
     analytics.add_argument("--out", default="カテゴリ成績.txt")
     analytics.add_argument("--category-id", type=int)
@@ -332,6 +340,7 @@ def main(argv: list[str] | None = None) -> int:
         "reel": cmd_reel,
         "category": cmd_category,
         "weights": cmd_weights,
+        "probe": cmd_probe,
         "analytics": cmd_analytics,
         "version": cmd_version,
         "update": cmd_update,
@@ -622,6 +631,98 @@ def cmd_weights(args, settings: Settings, queue: Queue) -> int:
             return 0
     result = weights.reset(list(subs))
     print(f"{len(result)}件を均等（各 {100 / max(1, len(result)):.1f}%）に戻しました")
+    return 0
+
+
+def cmd_probe(args, settings: Settings, queue: Queue) -> int:
+    """公開済みの投稿1件について、APIが実際に何を返すか確かめる。
+
+    「視聴回数が0のまま」「Reelとして投稿されているのか」を切り分けるための
+    読み取り専用の確認。新しい投稿はしない。数値は秘密情報ではないので出す。
+    """
+    from .experiments import DELIVERED, ExperimentStore
+    from .oauth.store import TokenStore
+    from .publishers import (
+        MetricNotSupported,
+        NotSupported,
+        PermissionDenied,
+        PublishError,
+        RateLimited,
+        get_publisher,
+    )
+
+    store = ExperimentStore(settings.experiments_db_path)
+    tokens = TokenStore(settings.token_dir, getattr(args, "category_id", None))
+
+    publications = [
+        p for p in store.publications(getattr(args, "experiment", None) or None,
+                                      None, args.platform)
+        if p.status in DELIVERED and p.external_post_id
+    ]
+    if not publications:
+        print(f"{args.platform} に「配信済み」の投稿がありません。")
+        print("  APIで公開した投稿がないと、反応データは取得できません。")
+        print("  状況の確認: python autopost.py sns status")
+        return 1
+
+    publications.sort(key=lambda p: p.published_at or "", reverse=True)
+    targets = publications[: max(1, args.count)]
+    publisher = get_publisher(args.platform, settings, tokens)
+
+    print(f"{args.platform} の公開済み投稿 {len(targets)}件を読み取ります"
+          f"（投稿はしません）\n")
+    for publication in targets:
+        print(f"[{publication.experiment_id}] 公開 {(publication.published_at or '')[:16]}")
+
+        describe = getattr(publisher, "describe_media", None)
+        if describe is not None:
+            try:
+                info = describe(publication.external_post_id)
+            except PublishError as exc:
+                print(f"  投稿の種類: 取得できませんでした（{exc}）")
+            else:
+                product = info.get("media_product_type", "不明")
+                kind = info.get("media_type", "不明")
+                print(f"  投稿の種類: {kind} / {product}"
+                      + ("  ← Reelとして投稿されています" if product == "REELS"
+                         else "  ← Reelではありません（カルーセル/フィード投稿）"))
+                if info.get("permalink"):
+                    print(f"  URL: {info['permalink']}")
+
+        try:
+            result = publisher.get_analytics(publication.external_post_id)
+        except NotSupported as exc:
+            print(f"  反応データ: 取得不可（{exc}）")
+            continue
+        except RateLimited as exc:
+            print(f"  反応データ: レート制限（{exc}）")
+            continue
+        except PermissionDenied as exc:
+            print(f"  反応データ: 権限不足（{exc}）")
+            print("    → 接続をやり直すと直ることがあります: "
+                  f"python autopost.py connect {args.platform}")
+            continue
+        except MetricNotSupported as exc:
+            print(f"  反応データ: この投稿形式では使えない指標でした（{exc}）")
+            continue
+        except PublishError as exc:
+            print(f"  反応データ: 取得失敗（{exc}）")
+            continue
+
+        obtained = result.obtained()
+        print(f"  取得できた指標 {len(obtained)}件:")
+        for name in obtained:
+            print(f"    {name:<20}{getattr(result, name)}")
+        missing = [n for n in result.MEASURED if n not in obtained]
+        if missing:
+            print(f"  返ってこなかった指標: {', '.join(missing)}")
+        if result.platform_metrics:
+            extra = ", ".join(f"{k}={v}" for k, v in result.platform_metrics.items())
+            print(f"  APIの生の値: {extra}")
+        if all(getattr(result, n) in (0, None) for n in ("views", "impressions", "reach")):
+            print("  ※ 表示系の数字がすべて0または未取得です。"
+                  "公開直後、または到達がまだ無い可能性があります。")
+        print()
     return 0
 
 
