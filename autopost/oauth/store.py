@@ -70,13 +70,49 @@ class Token:
 
 
 class TokenStore:
-    """トークンファイルの読み書き。"""
+    """トークンファイルの読み書き。
 
-    def __init__(self, directory: Path) -> None:
+    Categoryごとに別のアカウントへ接続できるよう、保存先を
+    ``.tokens/cat<番号>/<platform>.json`` に分ける。
+    ``category_id`` を渡さない従来の呼び出しは、これまでと同じ
+    ``.tokens/<platform>.json`` を読み書きする（既存の接続を壊さない）。
+    """
+
+    def __init__(self, directory: Path, category_id: int | None = None) -> None:
         self.directory = Path(directory)
+        self.category_id = category_id or None
+
+    def for_category(self, category_id: int | None) -> "TokenStore":
+        """同じ保存先の、Categoryに紐付いた読み書き口を返す。"""
+        return TokenStore(self.directory, category_id)
 
     def path_for(self, platform: str) -> Path:
+        if self.category_id:
+            return self.directory / f"cat{self.category_id}" / f"{platform}.json"
         return self.directory / f"{platform}.json"
+
+    def legacy_path_for(self, platform: str) -> Path:
+        """Category分けを始める前の保存先。"""
+        return self.directory / f"{platform}.json"
+
+    def adopt_legacy(self, platform: str) -> bool:
+        """Category分け前の接続を、このCategoryへ引き継ぐ。
+
+        元のファイルは残す（古いバージョンへ戻したときのため）。
+        """
+        if not self.category_id:
+            return False
+        target = self.path_for(platform)
+        legacy = self.legacy_path_for(platform)
+        if target.is_file() or not legacy.is_file():
+            return False
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(legacy.read_bytes())
+        try:
+            os.chmod(target, 0o600)
+        except OSError:
+            pass
+        return True
 
     def load(self, platform: str) -> Token | None:
         path = self.path_for(platform)
@@ -91,8 +127,8 @@ class TokenStore:
         return Token(**{k: v for k, v in data.items() if k in known})
 
     def save(self, token: Token) -> Path:
-        self.directory.mkdir(parents=True, exist_ok=True)
         path = self.path_for(token.platform)
+        path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(
             json.dumps(asdict(token), ensure_ascii=False, indent=2), encoding="utf-8"
         )

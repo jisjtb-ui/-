@@ -235,23 +235,45 @@ def build_parser() -> argparse.ArgumentParser:
     reel_posted.add_argument("--media-id", default="", help="InstagramのメディアID")
     reel_posted.add_argument("--keep", action="store_true", help="書き出したファイルを消さない")
 
-    weights_parser = sub.add_parser("weights", help="カテゴリ別の生成割合")
+    # Category / SubCategory（ふだんは画面から操作します）
+    category_parser = sub.add_parser("category", help="Category と SubCategory")
+    c_sub = category_parser.add_subparsers(dest="category_command", required=True)
+    c_sub.add_parser("list", help="一覧とID、接続状況を表示")
+    c_add = c_sub.add_parser("add", help="Categoryを作る")
+    c_add.add_argument("name")
+    c_addsub = c_sub.add_parser("add-sub", help="SubCategoryを追加する")
+    c_addsub.add_argument("category_id", type=int)
+    c_addsub.add_argument("name")
+    c_connect = c_sub.add_parser("connect", help="そのCategoryへ媒体を接続する")
+    c_connect.add_argument("category_id", type=int)
+    c_connect.add_argument("platform", choices=AUTH_PLATFORMS)
+    c_connect.add_argument("--manual", action="store_true",
+                           help="ブラウザを開けない環境で、URLを貼って進める")
+
+    weights_parser = sub.add_parser("weights", help="SubCategory別の生成割合")
+    weights_parser.add_argument("--category-id", type=int,
+                               help="対象Category（省略すると既定のCategory）")
     w_sub = weights_parser.add_subparsers(dest="weights_command", required=True)
     w_sub.add_parser("show", help="現在の割合と成績を表示")
     w_update = w_sub.add_parser("update", help="反応データから割合を更新")
     w_update.add_argument("--dry-run", action="store_true", help="変更せず内容だけ見る")
+    w_update.add_argument("--force", action="store_true",
+                          help="同じ測定データでも、もう一度適用する")
     w_set = w_sub.add_parser("set", help="割合を手で決める")
-    w_set.add_argument("category")
+    w_set.add_argument("sub_category_id", type=int)
     w_set.add_argument("weight", type=float)
     w_lock = w_sub.add_parser("lock", help="自動更新から外す")
-    w_lock.add_argument("category")
+    w_lock.add_argument("sub_category_id", type=int)
     w_unlock = w_sub.add_parser("unlock", help="自動更新に戻す")
-    w_unlock.add_argument("category")
+    w_unlock.add_argument("sub_category_id", type=int)
+    w_auto = w_sub.add_parser("auto", help="自動最適化のON/OFF")
+    w_auto.add_argument("state", choices=("on", "off"))
     w_reset = w_sub.add_parser("reset", help="初期値（均等）へ戻す")
     w_reset.add_argument("--yes", action="store_true")
 
-    analytics = sub.add_parser("analytics", help="カテゴリ別の成績レポート")
+    analytics = sub.add_parser("analytics", help="SubCategory別の成績レポート")
     analytics.add_argument("--out", default="カテゴリ成績.txt")
+    analytics.add_argument("--category-id", type=int)
 
     sub.add_parser("version", help="バージョンを表示")
 
@@ -308,6 +330,7 @@ def main(argv: list[str] | None = None) -> int:
         "doctor": cmd_doctor,
         "mobile": cmd_mobile,
         "reel": cmd_reel,
+        "category": cmd_category,
         "weights": cmd_weights,
         "analytics": cmd_analytics,
         "version": cmd_version,
@@ -462,50 +485,129 @@ def _categories() -> list[str]:
     return available_categories(load_items(Path("data/tests")))
 
 
-def cmd_weights(args, settings: Settings, queue: Queue) -> int:
+def _catalog_for(settings: Settings, category_id: int | None = None):
+    """台帳と、対象CategoryのSubCategory一覧（ID→表示名）を用意する。"""
+    from pathlib import Path as _Path
+
+    from .catalog import Catalog, ensure_default
     from .experiments import ExperimentStore
-    from .weights import WeightStore, apply_update, collect_stats
 
     store = ExperimentStore(settings.experiments_db_path)
-    weights = WeightStore(store)
-    categories = _categories()
+    catalog = Catalog(store)
+    tests_dir = _Path(__file__).resolve().parent.parent / "data" / "tests"
+    if category_id is None:
+        category = ensure_default(catalog, settings.default_category_name, tests_dir,
+                                  log=lambda m: None)
+    else:
+        category = catalog.category(category_id)
+        if category is None:
+            raise SystemExit(f"[エラー] Category id={category_id} が見つかりません")
+    subs = {s.id: s.name for s in catalog.sub_categories(category.id)}
+    return store, catalog, category, subs
+
+
+def cmd_category(args, settings: Settings, queue: Queue) -> int:
+    """Category / SubCategory の確認と作成（画面が使えないときの入口）。"""
+    store, catalog, _, _ = _catalog_for(settings)
+
+    if args.category_command == "list":
+        for category in catalog.categories(include_disabled=True):
+            mark = "" if category.enabled else "（停止中）"
+            print(f"[{category.id}] {category.name}{mark}")
+            for sub in catalog.sub_categories(category.id, include_disabled=True):
+                state = "" if sub.enabled else "  ← 抽選から除外"
+                print(f"      [{sub.id:>3}] {sub.name}{state}")
+            for account in catalog.accounts(category.id, list(AUTH_PLATFORMS)):
+                print(f"      {account.platform:<12}{account.label()}")
+        return 0
+
+    if args.category_command == "add":
+        category = catalog.add_category(args.name)
+        from pathlib import Path as _Path
+
+        from .catalog import ensure_default
+
+        ensure_default(catalog, category.name,
+                       _Path(__file__).resolve().parent.parent / "data" / "tests", log=print)
+        print(f"Category「{category.name}」を作りました（id={category.id}）")
+        return 0
+
+    if args.category_command == "add-sub":
+        sub = catalog.add_sub_category(args.category_id, args.name)
+        print(f"SubCategory「{sub.name}」を追加しました（id={sub.id}）")
+        return 0
+
+    if args.category_command == "connect":
+        from .catalog import connect_platform
+
+        account = connect_platform(settings, catalog, args.category_id, args.platform,
+                                   manual=getattr(args, "manual", False))
+        print(f"{args.platform} を接続しました: {account.label()}")
+        return 0
+
+    return 0
+
+
+def cmd_weights(args, settings: Settings, queue: Queue) -> int:
+    from .weights import SubWeightStore, apply_update, collect_stats, effective_bounds
+
+    store, catalog, category, subs = _catalog_for(settings, getattr(args, "category_id", None))
+    weights = SubWeightStore(store)
 
     if args.weights_command == "show":
-        weights.ensure(categories)
-        stats = collect_stats(settings, store, weights)
-        print(f"{'カテゴリ':<14}{'weight':>8}{'中央値':>10}{'件数':>6}")
+        weights.ensure(list(subs))
+        stats, _ = collect_stats(settings, store, weights, subs)
+        bounds = effective_bounds(settings, len(subs))
+        print(f"Category: {category.name}")
+        print(f"実効の下限・上限: {bounds.low:.2f}% 〜 {bounds.high:.1f}%")
+        if bounds.adjusted:
+            print(f"  ※ {bounds.reason}")
+        print(f"{'ID':>4}  {'SubCategory':<20}{'割合':>8}{'中央値':>10}{'件数':>6}")
         for stat in sorted(stats.values(), key=lambda s: -s.weight):
-            score = f"{stat.score:,.0f}" if stat.score is not None else "－"
-            mark = " 固定" if stat.locked else ""
-            print(f"{stat.category:<14}{stat.weight:7.1f}%{score:>10}{stat.sample_size:>6}{mark}")
-        print(f"{'合計':<14}{sum(s.weight for s in stats.values()):7.1f}%")
+            score = f"{stat.raw_median:,.0f}" if stat.raw_median is not None else "－"
+            marks = " 固定" if stat.locked else ""
+            if stat.sample_size and stat.shortage(settings.weight_min_samples):
+                marks += f" サンプル不足({stat.sample_size}/{settings.weight_min_samples})"
+            print(f"{stat.sub_category_id:>4}  {stat.name:<20}{stat.weight:7.1f}%"
+                  f"{score:>10}{stat.sample_size:>6}{marks}")
+        print(f"{'':>4}  {'合計':<20}{sum(s.weight for s in stats.values()):7.1f}%")
         return 0
 
     if args.weights_command == "update":
-        changes = apply_update(settings, store, weights, categories, dry_run=args.dry_run)
+        changes = apply_update(settings, store, weights, subs, dry_run=args.dry_run,
+                               force=getattr(args, "force", False))
         for change in sorted(changes, key=lambda c: -abs(c.delta)):
             if abs(change.delta) < 0.01:
                 continue
-            print(f"\n{change.category}: {change.before:.1f}% → {change.after:.1f}%"
+            print(f"\n{change.name}: {change.before:.1f}% → {change.after:.1f}%"
                   f"（{change.delta:+.1f}）")
             print(f"  理由: {change.reason}")
         return 0
 
     if args.weights_command == "set":
-        if args.category not in categories:
-            print(f"[エラー] 不明なカテゴリ: {args.category}")
+        if args.sub_category_id not in subs:
+            print(f"[エラー] SubCategory id={args.sub_category_id} がこのCategoryにありません")
+            print("  一覧は: python autopost.py category list")
             return 1
-        weights.ensure(categories)
-        weights.set_weight(args.category, args.weight)
-        print(f"{args.category} を {args.weight:.1f}% にしました")
+        weights.ensure(list(subs))
+        weights.set_weight(args.sub_category_id, args.weight)
+        print(f"{subs[args.sub_category_id]} を {args.weight:.1f}% にしました")
         print("※ 合計は次の update で100に揃います")
         return 0
 
     if args.weights_command in ("lock", "unlock"):
-        weights.ensure(categories)
-        weights.set_locked(args.category, args.weights_command == "lock")
-        state = "固定しました（自動更新の対象外）" if args.weights_command == "lock" else "自動更新に戻しました"
-        print(f"{args.category} を{state}")
+        weights.ensure(list(subs))
+        weights.set_locked(args.sub_category_id, args.weights_command == "lock")
+        state = ("固定しました（自動更新の対象外）" if args.weights_command == "lock"
+                 else "自動更新に戻しました")
+        print(f"{subs.get(args.sub_category_id, args.sub_category_id)} を{state}")
+        return 0
+
+    if args.weights_command == "auto":
+        from .weights import set_auto_enabled
+
+        set_auto_enabled(store, args.state == "on")
+        print(f"自動最適化を{'有効' if args.state == 'on' else '無効'}にしました")
         return 0
 
     # reset
@@ -518,16 +620,15 @@ def cmd_weights(args, settings: Settings, queue: Queue) -> int:
         if answer not in ("y", "yes"):
             print("中止しました")
             return 0
-    result = weights.reset(categories)
-    print(f"{len(result)}カテゴリを均等（各 {100/len(result):.1f}%）に戻しました")
+    result = weights.reset(list(subs))
+    print(f"{len(result)}件を均等（各 {100 / max(1, len(result)):.1f}%）に戻しました")
     return 0
 
 
-# ----------------------------------------------------------------------
 def cmd_analytics(args, settings: Settings, queue: Queue) -> int:
     from . import report
 
-    return report.run(settings, Path(args.out))
+    return report.run(settings, Path(args.out), category_id=getattr(args, "category_id", None))
 
 
 # ----------------------------------------------------------------------

@@ -73,6 +73,14 @@ def build_parser() -> argparse.ArgumentParser:
         default=RANDOM_CATEGORY,
         help="カテゴリ（love / relationship / dark / loneliness / personality / jealousy / values / random）",
     )
+    parser.add_argument(
+        "--category-id", type=int,
+        help="Category のID（画面から渡す。手で打つ必要はありません）",
+    )
+    parser.add_argument(
+        "--sub-category-id", type=int,
+        help="SubCategory のID。指定するとそれだけを作る（画面から渡す）",
+    )
     parser.add_argument("--width", type=int, default=DEFAULT_SIZE[0], help="画像の幅（既定: 1080）")
     parser.add_argument("--height", type=int, default=DEFAULT_SIZE[1], help="画像の高さ（既定: 1440）")
     parser.add_argument(
@@ -231,22 +239,54 @@ def main(argv: list[str] | None = None) -> int:
     # auto: 実績に応じたweightで、1投稿ごとにカテゴリを1つ引く。
     # random と違い「その投稿のカテゴリ」が1つに定まるので、
     # あとから反応データをカテゴリへ正しく紐付けられる。
-    weight_table: dict[str, float] | None = None
+    # 抽選は SubCategory のID単位で行う。画面から渡されるのもIDで、
+    # 利用者が名前やキーを打つ場面は作らない。
+    weight_table: dict[int, float] | None = None
     draw = equal_draw                             # weightが読めないときの保険
-    if args.category == AUTO_CATEGORY:
+    sub_keys: dict[int, str] = {}                 # sub_category_id → data/tests のキー
+    sub_names: dict[int, str] = {}
+    picked_sub_id: int | None = None
+    category_id: int | None = args.category_id
+
+    if args.sub_category_id or args.category == AUTO_CATEGORY:
         try:
+            from autopost.catalog import Catalog, ensure_default
             from autopost.config import Settings as _S
             from autopost.experiments import ExperimentStore
-            from autopost.weights import WeightStore, draw_category
+            from autopost.weights import SubWeightStore, draw_category
 
             _settings = _S.load()
-            _weights = WeightStore(ExperimentStore(_settings.experiments_db_path))
-            weight_table = _weights.ensure(categories)
-            draw = draw_category
+            _store = ExperimentStore(_settings.experiments_db_path)
+            _catalog = Catalog(_store)
+            if args.sub_category_id:
+                sub = _catalog.sub_category(args.sub_category_id)
+                if sub is None:
+                    print(f"[エラー] SubCategory id={args.sub_category_id} が見つかりません",
+                          file=sys.stderr)
+                    return 1
+                picked_sub_id = sub.id
+                category_id = sub.category_id
+                sub_keys = {sub.id: sub.source_key or sub.name}
+                sub_names = {sub.id: sub.name}
+            else:
+                if category_id is None:
+                    default = ensure_default(_catalog, _settings.default_category_name,
+                                             TESTS_DIR)
+                    category_id = default.id
+                subs = [s for s in _catalog.sub_categories(category_id)
+                        if (s.source_key or s.name) in categories]
+                if not subs:
+                    raise RuntimeError("使えるSubCategoryがありません")
+                sub_keys = {s.id: s.source_key or s.name for s in subs}
+                sub_names = {s.id: s.name for s in subs}
+                weight_table = SubWeightStore(_store).ensure(list(sub_keys))
+                draw = draw_category
         except Exception as exc:                  # 投稿側が未設定でも生成は止めない
             # ここでは autopost.weights を使えないので、均等抽選は自前で行う
             print(f"[注意] weightを読めないため均等に選びます: {exc}", file=sys.stderr)
             weight_table = {c: 1.0 for c in categories}
+            sub_keys = {c: c for c in categories}
+            sub_names = {c: c for c in categories}
             draw = equal_draw
     elif args.category not in categories and args.category != RANDOM_CATEGORY:
         print(
@@ -289,8 +329,13 @@ def main(argv: list[str] | None = None) -> int:
     for offset in range(args.posts):
         post_id = start_id + offset
         post_category = args.category
-        if weight_table:
-            post_category = draw(weight_table, rng)
+        sub_category_id = picked_sub_id
+        if picked_sub_id is not None:
+            post_category = sub_keys[picked_sub_id]
+        elif weight_table:
+            drawn = draw(weight_table, rng)
+            sub_category_id = drawn if isinstance(drawn, int) else None
+            post_category = sub_keys.get(drawn, drawn)
         try:
             tests = build_post_tests(
                 items, history, rng, post_category, args.tests_per_post
@@ -335,6 +380,9 @@ def main(argv: list[str] | None = None) -> int:
                 cta=cta,
                 actions=actions,
                 comment_prompt=next(comment_prompts),
+                extra_meta={"category_id": category_id,
+                            "sub_category_id": sub_category_id,
+                            "sub_category_name": sub_names.get(sub_category_id)},
             )
         except FileExistsError as exc:
             print(f"[スキップ] {exc}（上書きするなら --overwrite）", file=sys.stderr)

@@ -13,8 +13,11 @@ from pathlib import Path
 from tkinter import BOTH, END, LEFT, RIGHT, W, X, Y, BooleanVar, StringVar, Tk, filedialog, messagebox, ttk
 import tkinter as tk
 
+from .catalog import Catalog, ensure_default
 from .config import Settings
+from .experiments import ExperimentStore
 from .db import Queue, STATUS_POSTED
+from .gui_catalog import AnalyticsTab, CategoryTab, GenerateTab
 from .hosting import get_host
 from .loader import LoaderError, load_posts
 from .models import PLATFORMS
@@ -34,6 +37,11 @@ class AutoPostApp:
         self.settings = Settings.load()
         self.queue = Queue(self.settings.db_path)
         self.store = TokenStore(self.settings.token_dir)
+        self.experiments = ExperimentStore(self.settings.experiments_db_path)
+        self.catalog = Catalog(self.experiments)
+        self.tests_dir = Path(__file__).resolve().parent.parent / "data" / "tests"
+        ensure_default(self.catalog, self.settings.default_category_name,
+                       self.tests_dir, log=lambda m: None)
         self.messages: queue_module.Queue[tuple[str, object]] = queue_module.Queue()
         self.watching = False
 
@@ -62,7 +70,12 @@ class AutoPostApp:
     def _build(self) -> None:
         pad = {"padx": 8, "pady": 4}
 
-        version_frame = ttk.LabelFrame(self.root, text="ソフトのバージョン")
+        self.notebook = ttk.Notebook(self.root)
+        self.notebook.pack(fill=BOTH, expand=True)
+        operations = ttk.Frame(self.notebook)
+        self.notebook.add(operations, text="運用")
+
+        version_frame = ttk.LabelFrame(operations, text="ソフトのバージョン")
         version_frame.pack(fill=X, **pad)
         ttk.Label(version_frame, textvariable=self.update_var).pack(
             side=LEFT, padx=8, pady=8)
@@ -70,12 +83,12 @@ class AutoPostApp:
             version_frame, text="更新を確認", command=self.check_update)
         self.update_button.pack(side=RIGHT, padx=8, pady=8)
 
-        top = ttk.LabelFrame(self.root, text="投稿フォルダ")
+        top = ttk.LabelFrame(operations, text="投稿フォルダ")
         top.pack(fill=X, **pad)
         ttk.Entry(top, textvariable=self.folder_var).pack(side=LEFT, fill=X, expand=True, padx=8, pady=8)
         ttk.Button(top, text="参照", command=self.choose_folder).pack(side=LEFT, padx=8)
 
-        conn = ttk.LabelFrame(self.root, text="接続状況")
+        conn = ttk.LabelFrame(operations, text="接続状況")
         conn.pack(fill=X, **pad)
         for row, platform in enumerate(PLATFORMS):
             ttk.Label(conn, text=platform, width=12).grid(row=row, column=0, sticky=W, padx=8, pady=3)
@@ -87,7 +100,7 @@ class AutoPostApp:
         ttk.Label(conn, textvariable=self.host_var).grid(row=2, column=1, columnspan=2, sticky=W)
         ttk.Button(conn, text="再確認", command=self.refresh_status).grid(row=2, column=3, padx=6)
 
-        setting = ttk.LabelFrame(self.root, text="予約設定")
+        setting = ttk.LabelFrame(operations, text="予約設定")
         setting.pack(fill=X, **pad)
         fields = [
             ("開始日 (YYYY-MM-DD)", self.start_var, 14),
@@ -104,7 +117,7 @@ class AutoPostApp:
                 setting, text=platform, variable=self.platform_vars[platform]
             ).grid(row=1, column=col * 2, columnspan=2, sticky=W, padx=8)
 
-        buttons = ttk.Frame(self.root)
+        buttons = ttk.Frame(operations)
         buttons.pack(fill=X, **pad)
         ttk.Button(buttons, text="投稿を検証", command=self.validate).pack(side=LEFT, padx=4)
         ttk.Button(buttons, text="一括予約", command=self.schedule).pack(side=LEFT, padx=4)
@@ -114,7 +127,7 @@ class AutoPostApp:
         self.watch_button.pack(side=LEFT, padx=4)
         ttk.Button(buttons, text="成績を見る", command=self.show_report).pack(side=LEFT, padx=4)
 
-        panes = ttk.PanedWindow(self.root, orient=tk.VERTICAL)
+        panes = ttk.PanedWindow(operations, orient=tk.VERTICAL)
         panes.pack(fill=BOTH, expand=True, padx=8, pady=4)
 
         list_frame = ttk.LabelFrame(panes, text="予約一覧")
@@ -141,6 +154,15 @@ class AutoPostApp:
         self.log_text.pack(side=LEFT, fill=BOTH, expand=True)
         log_scroll.pack(side=RIGHT, fill=Y)
         panes.add(log_frame, weight=2)
+
+        # ログ欄ができたあとにタブを作る（初期化中もログへ書けるように）
+        self.category_tab = CategoryTab(self.notebook, self)
+        self.notebook.add(self.category_tab, text="Category")
+        self.generate_tab = GenerateTab(self.notebook, self)
+        self.notebook.add(self.generate_tab, text="生成")
+        self.analytics_tab = AnalyticsTab(self.notebook, self)
+        self.notebook.add(self.analytics_tab, text="成績")
+
 
     # ------------------------------------------------------------------
     # 操作
@@ -435,6 +457,62 @@ class AutoPostApp:
                 values=(post_id, entry["when"].strftime("%Y-%m-%d %H:%M"), cells[0], cells[1]),
             )
 
+    # ------------------------------------------------------------------
+    # 新しいタブから呼ばれる入口
+    # ------------------------------------------------------------------
+    def on_category_changed(self) -> None:
+        """Categoryの選択や中身が変わったとき、他のタブもそろえる。"""
+        for name in ("generate_tab", "analytics_tab"):
+            tab = getattr(self, name, None)
+            if tab is not None:
+                tab.reload()
+
+    def weight_table(self, category_id: int) -> dict[int, float]:
+        """そのCategoryのSubCategoryごとの生成割合。"""
+        from .weights import SubWeightStore
+
+        subs = [s.id for s in self.catalog.sub_categories(category_id, include_disabled=True)]
+        table = SubWeightStore(self.experiments).all()
+        return {s: table[s] for s in subs if s in table}
+
+    def run_generate(self, category_id: int, sub_category_id: int | None,
+                     count: int) -> str:
+        """generate.py を呼ぶ。渡すのはIDだけで、名前は渡さない。"""
+        import subprocess
+        import sys as _sys
+
+        root = Path(__file__).resolve().parent.parent
+        command = [_sys.executable, "generate.py", "--posts", str(count),
+                   "--category-id", str(category_id)]
+        if sub_category_id is None:
+            command += ["--category", "auto"]
+        else:
+            command += ["--sub-category-id", str(sub_category_id)]
+        result = subprocess.run(command, cwd=root, capture_output=True, text=True)
+        if result.returncode != 0:
+            raise RuntimeError((result.stderr or result.stdout).strip()[-400:])
+        tail = [line for line in result.stdout.splitlines() if line.strip()][-1:]
+        return "生成が終わりました" + (f"（{tail[0].strip()}）" if tail else "")
+
+    def run_enqueue(self, category_id: int, platforms: list[str]) -> str:
+        """接続済み媒体へ予約する。投稿先はCategoryから決まっている。"""
+        from . import queueing
+
+        root = Path(__file__).resolve().parent.parent
+        base_url = (self.settings.local_host_base_url
+                    or self.settings.r2_public_base_url)
+        if not base_url:
+            raise RuntimeError("画像の公開URLが未設定です（.env の LOCAL_HOST_BASE_URL など）")
+        report = queueing.enqueue_folder(
+            self.settings, self.experiments, root / "output", platforms,
+            base_url=base_url, log=lambda m: self.messages.put(("log", m)),
+        )
+        queueing.schedule_publications(
+            self.settings, self.experiments, platforms, datetime.now(),
+            [dtime(21, 0)], log=lambda m: self.messages.put(("log", m)),
+        )
+        return report.summary()
+
     def log(self, message: str) -> None:
         self.log_text.configure(state="normal")
         self.log_text.insert(END, f"[{datetime.now():%H:%M:%S}] {message}\n")
@@ -457,6 +535,15 @@ class AutoPostApp:
                 self.refresh_status()
             elif kind == "queue":
                 self.refresh_queue()
+            elif kind == "accounts":
+                for name in ("category_tab", "generate_tab"):
+                    tab = getattr(self, name, None)
+                    if tab is not None:
+                        tab.reload()
+            elif kind == "generate_done":
+                self.generate_tab.generate_button.configure(state="normal")
+            elif kind == "enqueue_done":
+                self.generate_tab.publish_button.configure(state="normal")
             elif kind == "update_checked":
                 self._offer_update(payload)
             elif kind == "update_done":

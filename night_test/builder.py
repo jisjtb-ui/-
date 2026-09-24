@@ -65,6 +65,7 @@ def build_post(
     cta: CtaTexts | None = None,
     actions: ActionSet | None = None,
     comment_prompt: str | None = None,
+    extra_meta: dict | None = None,
 ) -> PostResult:
     """画像10枚と caption.txt / meta.json を1フォルダに書き出す。
 
@@ -149,6 +150,8 @@ def build_post(
         "post_id": post_id,
         "folder": folder.name,
         "category": category,
+        # Category / SubCategory のID。投稿・集計まで同じIDで追える
+        **{k: v for k, v in (extra_meta or {}).items() if v is not None},
         "header": tests[0].get("header", "") if tests else "",
         "created_at": datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds"),
         "image_size": {"width": layout.width, "height": layout.height},

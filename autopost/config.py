@@ -114,6 +114,9 @@ class Settings:
     # 1日に配信する件数の上限（API上限より十分低い安全側の既定値）
     #   Threads: API上限250投稿 / Instagram: API上限100投稿
     # カテゴリ別の生成割合の自動最適化
+    default_category_name: str = "心理テスト"   # 初回に自動で作るCategory名
+    metric_snapshots: str = "1h=1,6h=6,24h=24,72h=72,7d=168"   # 計測区分=経過時間
+    metric_grace_hours: float = 6.0     # この時間内に測れなければ「遅延」として記録する
     weight_auto: bool = True            # 自動最適化のON/OFF
     weight_metric: str = "views"        # 評価に使う指標
     weight_snapshot: str = "24h"        # どの時点の数字で評価するか
@@ -183,6 +186,28 @@ class Settings:
     token_dir: Path = field(default_factory=lambda: DEFAULT_TOKEN_DIR)
 
     # ------------------------------------------------------------------
+    def snapshot_windows(self) -> tuple[tuple[str, float], ...]:
+        """計測区分の一覧。"1h=1,24h=24" のような書式を解く。
+
+        書式が壊れていても止まらないよう、読めた分だけ使う。
+        """
+        windows: list[tuple[str, float]] = []
+        for chunk in (self.metric_snapshots or "").split(","):
+            chunk = chunk.strip()
+            if not chunk:
+                continue
+            label, _, hours = chunk.partition("=")
+            label = label.strip()
+            try:
+                value = float(hours)
+            except ValueError:
+                continue
+            if label and value > 0:
+                windows.append((label, value))
+        if not windows:
+            windows = [("1h", 1.0), ("6h", 6.0), ("24h", 24.0), ("72h", 72.0), ("7d", 168.0)]
+        return tuple(sorted(set(windows), key=lambda item: item[1]))
+
     @classmethod
     def load(cls, env_path: Path = ENV_PATH) -> "Settings":
         load_env(env_path)
@@ -209,6 +234,9 @@ class Settings:
             auto_topup_count=_get_int("AUTO_TOPUP_COUNT", 30),
             auto_topup_category=_get("AUTO_TOPUP_CATEGORY", "auto"),
             pages_deploy_command=_get("PAGES_DEPLOY_COMMAND"),
+            default_category_name=_get("DEFAULT_CATEGORY_NAME", "心理テスト"),
+            metric_snapshots=_get("METRIC_SNAPSHOTS", "1h=1,6h=6,24h=24,72h=72,7d=168"),
+            metric_grace_hours=_get_float("METRIC_GRACE_HOURS", 6.0),
             weight_auto=_get_bool("WEIGHT_AUTO", True),
             weight_metric=_get("WEIGHT_METRIC", "views"),
             weight_snapshot=_get("WEIGHT_SNAPSHOT", "24h"),

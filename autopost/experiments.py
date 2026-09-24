@@ -51,7 +51,9 @@ SCHEMA = """
 CREATE TABLE IF NOT EXISTS experiments (
     experiment_id     TEXT PRIMARY KEY,
     hypothesis        TEXT NOT NULL DEFAULT '',
-    content_category  TEXT NOT NULL DEFAULT '',
+    content_category  TEXT NOT NULL DEFAULT '',   -- data/tests のキー（表示用ではない）
+    category_id       INTEGER,
+    sub_category_id   INTEGER,
     hook              TEXT NOT NULL DEFAULT '',
     text              TEXT NOT NULL DEFAULT '',
     image_prompt      TEXT NOT NULL DEFAULT '',
@@ -105,6 +107,12 @@ CREATE TABLE IF NOT EXISTS experiment_metrics (
     followers_gained  INTEGER,
     watch_time_seconds REAL,
     completion_rate   REAL,
+    external_post_id  TEXT NOT NULL DEFAULT '',
+    published_at      TEXT NOT NULL DEFAULT '',
+    sub_category_id   INTEGER,
+    content_id        TEXT NOT NULL DEFAULT '',   -- 生成物の投稿ID（post_001 など）
+    late              INTEGER NOT NULL DEFAULT 0, -- 許容時間を過ぎてから測った
+    window_hours      REAL,                       -- その計測区分の予定経過時間
     platform_metrics  TEXT NOT NULL DEFAULT '{}',
     FOREIGN KEY(experiment_id) REFERENCES experiments(experiment_id)
 );
@@ -136,6 +144,85 @@ CREATE TABLE IF NOT EXISTS weight_history (
 );
 CREATE INDEX IF NOT EXISTS idx_weight_hist ON weight_history(evaluated_at);
 
+-- SubCategory単位の生成割合。platform='' は全媒体共通（Phase 1）。
+-- 媒体別に分けるときは platform に媒体名を入れた行を足すだけで済む。
+CREATE TABLE IF NOT EXISTS sub_weights (
+    platform        TEXT NOT NULL DEFAULT '',
+    sub_category_id INTEGER NOT NULL,
+    weight          REAL NOT NULL,
+    locked          INTEGER NOT NULL DEFAULT 0,
+    updated_at      TEXT NOT NULL,
+    PRIMARY KEY (platform, sub_category_id)
+);
+
+CREATE TABLE IF NOT EXISTS sub_weight_history (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    evaluated_at    TEXT NOT NULL,
+    platform        TEXT NOT NULL DEFAULT '',
+    sub_category_id INTEGER NOT NULL,
+    weight_before   REAL NOT NULL,
+    weight_after    REAL NOT NULL,
+    sample_size     INTEGER NOT NULL DEFAULT 0,
+    score           REAL,
+    baseline        REAL,
+    data_key        TEXT NOT NULL DEFAULT '',   -- 使った測定データの指紋（重複適用の防止）
+    reason          TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS idx_subw_hist ON sub_weight_history(evaluated_at);
+
+-- 反応データの取得を試した記録。測定済み／取得失敗／取得不可を区別して数える。
+CREATE TABLE IF NOT EXISTS metric_attempts (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    experiment_id   TEXT NOT NULL,
+    platform        TEXT NOT NULL,
+    snapshot        TEXT NOT NULL DEFAULT '',
+    attempted_at    TEXT NOT NULL,
+    outcome         TEXT NOT NULL,              -- measured / failed / unavailable / rate_limited
+    reason          TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS idx_attempt ON metric_attempts(experiment_id, platform, snapshot);
+
+-- 画面から切り替える設定（.env より優先する）。秘密情報は入れない。
+CREATE TABLE IF NOT EXISTS app_flags (
+    key         TEXT PRIMARY KEY,
+    value       TEXT NOT NULL,
+    updated_at  TEXT NOT NULL
+);
+
+-- Category / SubCategory / 接続済みアカウント。
+-- 画面ではすべて「選択」で扱う。名前を別画面へ打ち直させないための土台。
+-- 秘密情報はここに入れない（トークンは .tokens/ のまま）。
+CREATE TABLE IF NOT EXISTS categories (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    name         TEXT NOT NULL UNIQUE,
+    enabled      INTEGER NOT NULL DEFAULT 1,
+    created_at   TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS sub_categories (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    category_id  INTEGER NOT NULL,
+    name         TEXT NOT NULL,                  -- 画面に出す名前
+    source_key   TEXT NOT NULL DEFAULT '',       -- data/tests のカテゴリ名（内部の紐付け）
+    enabled      INTEGER NOT NULL DEFAULT 1,
+    created_at   TEXT NOT NULL,
+    UNIQUE(category_id, name),
+    FOREIGN KEY(category_id) REFERENCES categories(id)
+);
+CREATE INDEX IF NOT EXISTS idx_sub_cat ON sub_categories(category_id);
+
+CREATE TABLE IF NOT EXISTS social_accounts (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    category_id  INTEGER NOT NULL,
+    platform     TEXT NOT NULL,
+    account_id   TEXT NOT NULL DEFAULT '',       -- 媒体側のID（秘密情報ではない）
+    account_name TEXT NOT NULL DEFAULT '',
+    status       TEXT NOT NULL DEFAULT 'disconnected',
+    connected_at TEXT NOT NULL DEFAULT '',
+    UNIQUE(category_id, platform),
+    FOREIGN KEY(category_id) REFERENCES categories(id)
+);
+
 CREATE TABLE IF NOT EXISTS experiment_events (
     id             INTEGER PRIMARY KEY AUTOINCREMENT,
     experiment_id  TEXT NOT NULL,
@@ -155,6 +242,8 @@ class Experiment:
     experiment_id: str
     hypothesis: str = ""
     content_category: str = ""
+    category_id: int | None = None
+    sub_category_id: int | None = None
     hook: str = ""
     text: str = ""
     image_prompt: str = ""
@@ -206,8 +295,14 @@ class Metrics:
     experiment_id: str
     platform: str
     collected_at: str = ""
-    snapshot: str = ""              # 1h / 6h / 24h / 72h など
+    snapshot: str = ""              # 1h / 6h / 24h / 72h / 7d など
     hours_since_post: float | None = None
+    window_hours: float | None = None      # その計測区分の予定経過時間
+    late: int = 0                          # 許容時間を過ぎてから測った
+    external_post_id: str = ""
+    published_at: str = ""
+    sub_category_id: int | None = None
+    content_id: str = ""                   # 生成物の投稿ID（post_001 など）
     period_start: str | None = None
     period_end: str | None = None
     impressions: int | None = None
@@ -255,6 +350,18 @@ class ExperimentStore:
              "ALTER TABLE experiment_metrics ADD COLUMN watch_time_seconds REAL"),
             ("completion_rate",
              "ALTER TABLE experiment_metrics ADD COLUMN completion_rate REAL"),
+            ("external_post_id",
+             "ALTER TABLE experiment_metrics ADD COLUMN external_post_id TEXT NOT NULL DEFAULT ''"),
+            ("published_at",
+             "ALTER TABLE experiment_metrics ADD COLUMN published_at TEXT NOT NULL DEFAULT ''"),
+            ("sub_category_id",
+             "ALTER TABLE experiment_metrics ADD COLUMN sub_category_id INTEGER"),
+            ("content_id",
+             "ALTER TABLE experiment_metrics ADD COLUMN content_id TEXT NOT NULL DEFAULT ''"),
+            ("late",
+             "ALTER TABLE experiment_metrics ADD COLUMN late INTEGER NOT NULL DEFAULT 0"),
+            ("window_hours",
+             "ALTER TABLE experiment_metrics ADD COLUMN window_hours REAL"),
         ):
             if name not in columns:
                 conn.execute(ddl)
@@ -264,6 +371,27 @@ class ExperimentStore:
         }
         if "scheduled_at" not in pub_columns:
             conn.execute("ALTER TABLE experiment_publications ADD COLUMN scheduled_at TEXT")
+
+        # Category / SubCategory への紐付け。既存行は NULL のまま残し、
+        # あとで既定Categoryへ結び付ける（データは消さない）。
+        exp_columns = {row["name"] for row in conn.execute("PRAGMA table_info(experiments)")}
+        for name, ddl in (
+            ("category_id", "ALTER TABLE experiments ADD COLUMN category_id INTEGER"),
+            ("sub_category_id", "ALTER TABLE experiments ADD COLUMN sub_category_id INTEGER"),
+        ):
+            if name not in exp_columns:
+                conn.execute(ddl)
+
+        weight_columns = {
+            row["name"] for row in conn.execute("PRAGMA table_info(category_weights)")
+        }
+        if weight_columns and "sub_category_id" not in weight_columns:
+            conn.execute("ALTER TABLE category_weights ADD COLUMN sub_category_id INTEGER")
+        history_columns = {
+            row["name"] for row in conn.execute("PRAGMA table_info(weight_history)")
+        }
+        if history_columns and "sub_category_id" not in history_columns:
+            conn.execute("ALTER TABLE weight_history ADD COLUMN sub_category_id INTEGER")
 
     @contextmanager
     def _connect(self):
@@ -299,12 +427,14 @@ class ExperimentStore:
         experiment.updated_at = now
         with self._connect() as conn:
             conn.execute(
-                "INSERT INTO experiments (experiment_id, hypothesis, content_category, hook,"
+                "INSERT INTO experiments (experiment_id, hypothesis, content_category,"
+                " category_id, sub_category_id, hook,"
                 " text, image_prompt, image_url, link, source_post_id, source_folder, tags,"
                 " extra, created_at, updated_at)"
-                " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (
                     experiment.experiment_id, experiment.hypothesis, experiment.content_category,
+                    experiment.category_id, experiment.sub_category_id,
                     experiment.hook, experiment.text, experiment.image_prompt, experiment.image_url,
                     experiment.link, experiment.source_post_id, experiment.source_folder,
                     json.dumps(experiment.tags, ensure_ascii=False),
@@ -515,18 +645,105 @@ class ExperimentStore:
     # ------------------------------------------------------------------
     # 反応データ
     # ------------------------------------------------------------------
-    def save_metrics(self, metrics: Metrics) -> None:
+    def save_metrics(self, metrics: Metrics, allow_duplicate: bool = False) -> bool:
+        """反応データを1件保存する。保存したら True。
+
+        同じ投稿・同じ媒体・同じ計測区分は1件だけにする。二重に入ると
+        評価件数が膨らみ、weightが同じデータで何度も動いてしまう。
+        同時に2つ走っても増えないよう、確認と書き込みを1つの
+        書き込みトランザクション（BEGIN IMMEDIATE）の中で行う。
+        """
         metrics.collected_at = metrics.collected_at or _now()
         data = asdict(metrics)
         data["platform_metrics"] = json.dumps(metrics.platform_metrics, ensure_ascii=False)
         columns = ", ".join(data)
         placeholders = ", ".join("?" * len(data))
         with self._connect() as conn:
-            conn.execute(
-                f"INSERT INTO experiment_metrics ({columns}) VALUES ({placeholders})",
-                list(data.values()),
-            )
+            conn.execute("BEGIN IMMEDIATE")
+            try:
+                if not allow_duplicate and metrics.snapshot:
+                    existing = conn.execute(
+                        "SELECT 1 FROM experiment_metrics"
+                        " WHERE experiment_id=? AND platform=? AND snapshot=?",
+                        (metrics.experiment_id, metrics.platform, metrics.snapshot),
+                    ).fetchone()
+                    if existing:
+                        conn.execute("ROLLBACK")
+                        return False
+                conn.execute(
+                    f"INSERT INTO experiment_metrics ({columns}) VALUES ({placeholders})",
+                    list(data.values()),
+                )
+                conn.execute("COMMIT")
+            except Exception:
+                conn.execute("ROLLBACK")
+                raise
         self.log(metrics.experiment_id, f"反応データを保存: {metrics.summary()}", metrics.platform)
+        return True
+
+    # ------------------------------------------------------------------
+    # 画面から切り替える設定（.env より優先する）
+    # ------------------------------------------------------------------
+    def get_flag(self, key: str) -> str | None:
+        with self._connect() as conn:
+            row = conn.execute("SELECT value FROM app_flags WHERE key=?", (key,)).fetchone()
+        return row["value"] if row else None
+
+    def set_flag(self, key: str, value: str) -> None:
+        with self._connect() as conn:
+            conn.execute(
+                "INSERT INTO app_flags (key, value, updated_at) VALUES (?, ?, ?)"
+                " ON CONFLICT(key) DO UPDATE SET value=excluded.value,"
+                " updated_at=excluded.updated_at",
+                (key, value, _now()),
+            )
+
+    def clear_flag(self, key: str) -> None:
+        with self._connect() as conn:
+            conn.execute("DELETE FROM app_flags WHERE key=?", (key,))
+
+    # ------------------------------------------------------------------
+    # 反応データを取りに行った記録（測定済み／失敗／取得不可を数えるため）
+    # ------------------------------------------------------------------
+    def record_attempt(self, experiment_id: str, platform: str, snapshot: str,
+                       outcome: str, reason: str = "") -> None:
+        with self._connect() as conn:
+            conn.execute(
+                "INSERT INTO metric_attempts"
+                " (experiment_id, platform, snapshot, attempted_at, outcome, reason)"
+                " VALUES (?, ?, ?, ?, ?, ?)",
+                (experiment_id, platform, snapshot, _now(), outcome, reason[:300]),
+            )
+
+    def attempt_counts(self) -> dict[str, int]:
+        """結果ごとの件数。同じ投稿・区分は最後の結果だけを数える。"""
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT outcome, COUNT(*) AS c FROM ("
+                "  SELECT experiment_id, platform, snapshot, outcome,"
+                "         ROW_NUMBER() OVER ("
+                "           PARTITION BY experiment_id, platform, snapshot"
+                "           ORDER BY attempted_at DESC, id DESC) AS rank"
+                "    FROM metric_attempts"
+                ") WHERE rank = 1 GROUP BY outcome"
+            ).fetchall()
+        return {row["outcome"]: row["c"] for row in rows}
+
+    def recent_failures(self, limit: int = 10) -> list[dict]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT * FROM metric_attempts WHERE outcome <> 'measured'"
+                " ORDER BY attempted_at DESC, id DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def last_collected_at(self) -> str:
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT MAX(collected_at) AS t FROM experiment_metrics"
+            ).fetchone()
+        return (row["t"] or "") if row else ""
 
     def collected_snapshots(self, experiment_id: str, platform: str) -> set[str]:
         """すでに取得済みのスナップショット名。"""

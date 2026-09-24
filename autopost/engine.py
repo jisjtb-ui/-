@@ -13,6 +13,7 @@ from datetime import datetime
 from typing import Callable
 
 from .config import Settings
+from .collector import metrics_from_result
 from .experiments import (
     DELIVERED,
     DRAFT_CREATED,
@@ -193,22 +194,22 @@ class ExperimentEngine:
                 self.log(f"  {label}: 取得失敗 {exc}")
                 continue
 
-            metrics = Metrics(
-                experiment_id=publication.experiment_id,
-                platform=publication.platform,
-                period_start=result.period_start,
-                period_end=result.period_end,
-                impressions=result.impressions,
-                views=result.views,
-                likes=result.likes,
-                comments=result.comments,
-                shares=result.shares,
-                saves=result.saves,
-                clicks=result.clicks,
-                followers_gained=result.followers_gained,
-                platform_metrics=result.platform_metrics,
+            if result.is_empty():
+                self.store.log(
+                    publication.experiment_id,
+                    "指標が1つも取れなかったため保存しません", publication.platform, "warn",
+                )
+                self.log(f"  {label}: 指標が取れず保存しませんでした")
+                continue
+
+            experiment = self.store.get(publication.experiment_id)
+            metrics = metrics_from_result(
+                publication, result,
+                sub_category_id=getattr(experiment, "sub_category_id", None) if experiment else None,
+                content_id=getattr(experiment, "source_post_id", "") if experiment else "",
             )
-            self.store.save_metrics(metrics)
+            if not self.store.save_metrics(metrics, allow_duplicate=True):
+                continue
             collected.append(metrics)
             self.log(f"  {label}: {metrics.summary()}")
         return collected
@@ -221,6 +222,8 @@ def create_experiment(
     *,
     hypothesis: str = "",
     content_category: str = "",
+    category_id: int | None = None,
+    sub_category_id: int | None = None,
     hook: str = "",
     text: str = "",
     image_prompt: str = "",
@@ -236,6 +239,8 @@ def create_experiment(
         experiment_id=store.next_experiment_id(datetime.now()),
         hypothesis=hypothesis,
         content_category=content_category,
+        category_id=category_id,
+        sub_category_id=sub_category_id,
         hook=hook,
         text=text,
         image_prompt=image_prompt,

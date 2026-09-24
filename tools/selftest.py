@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 import sys
@@ -280,148 +281,55 @@ def main() -> int:
     check("Gitに登録していないファイルが残っていない",
           not leftover, "未登録: " + ", ".join(leftover[:6]))
 
-    section("カテゴリweightの自動最適化")
-    import random as _random
-    from dataclasses import replace as _replace
+    section("Analytics と SubCategory weight")
+    try:
+        from tools import test_analytics
+    except ImportError:
+        sys.path.insert(0, str(ROOT / "tools"))
+        import test_analytics
+    try:
+        test_analytics.run(check)
+    except Exception as exc:
+        import traceback
 
-    from autopost.config import Settings as _Settings
-    from autopost.experiments import Experiment, ExperimentStore, Metrics
-    from autopost.weights import (
-        WeightStore,
-        apply_update,
-        collect_stats,
-        draw_category,
-        effective_bounds,
-        plan_update,
-    )
+        check("独立テストが最後まで走る", False, f"{exc} / {traceback.format_exc()[-300:]}")
 
-    base = _Settings.load()
-    many = [f"c{i:02d}" for i in range(21)]
-    low, high = effective_bounds(base, len(many))
-    check("カテゴリが多いと最低weightが自動で下がる",
-          low * len(many) <= 100.0 + 0.01,
-          f"最低 {low:.2f}% × {len(many)} = {low * len(many):.1f}%")
-    check("カテゴリが少ないときは設定値のまま",
-          effective_bounds(base, 4)[0] == base.weight_min)
-
-    rng = _random.Random(11)
-    drawn = [draw_category({"a": 90.0, "b": 10.0}, rng) for _ in range(2000)]
-    share = drawn.count("a") / len(drawn)
-    check("weightの大きいカテゴリがよく出る", 0.85 < share < 0.95, f"{share:.1%}")
-    check("weight0のカテゴリは出ない",
-          "z" not in {draw_category({"a": 50.0, "z": 0.0}, rng) for _ in range(200)})
-
-    with tempfile.TemporaryDirectory() as tmp:
-        settings = _Settings.load()
-        settings.experiments_db_path = Path(tmp) / "w.db"
-        settings.weight_auto = True
-        settings.weight_snapshot = "24h"
-        settings.weight_metric = "views"
-        settings.weight_min_samples = 3
-
-        store = ExperimentStore(settings.experiments_db_path)
-        weights = WeightStore(store)
-        categories = ["strong", "weak", "middle", "silent"]
-        weights.reset(categories)
-
-        # 投稿 → 反応データ、の1周ぶんを作る
-        views = {"strong": 5000, "middle": 1000, "weak": 200}
-        for category, value in views.items():
-            for i in range(6):
-                experiment_id = store.next_experiment_id()
-                store.create(Experiment(experiment_id=experiment_id,
-                                        content_category=category), ["threads"])
-                publication = store.publication(experiment_id, "threads")
-                store.mark_published(publication.id, f"x-{experiment_id}")
-                store.save_metrics(Metrics(experiment_id=experiment_id, platform="threads",
-                                           snapshot="24h", views=value))
-        # 1件だけ極端にバズったことにする（中央値なら引きずられない）
-        viral = store.next_experiment_id()
-        store.create(Experiment(experiment_id=viral, content_category="weak"), ["threads"])
-        store.mark_published(store.publication(viral, "threads").id, "x-viral")
-        store.save_metrics(Metrics(experiment_id=viral, platform="threads",
-                                   snapshot="24h", views=900000))
-
-        stats = collect_stats(settings, store, weights)
-        check("投稿数を数えられる", stats["strong"].posts == 6, str(stats["strong"].posts))
-        check("中央値が外れ値に引きずられない",
-              stats["weak"].score == 200, str(stats["weak"].score))
-        check("反応データが無いカテゴリは未測定のまま", stats["silent"].score is None)
-
-        before = weights.all()
-        apply_update(settings, store, weights, categories, log=lambda m: None)
-        after = weights.all()
-        check("成績が良いカテゴリのweightが増える",
-              after["strong"] > before["strong"],
-              f"{before['strong']:.1f}% → {after['strong']:.1f}%")
-        check("成績が悪いカテゴリのweightが減る",
-              after["weak"] < before["weak"],
-              f"{before['weak']:.1f}% → {after['weak']:.1f}%")
-        check("未測定のカテゴリは探索枠として残る", after["silent"] > 0)
-        check("1回の変化幅が上限を超えない",
-              all(abs(after[c] - before[c]) <= settings.weight_max_step + 0.01
-                  for c in categories))
-        check("合計が100のまま", abs(sum(after.values()) - 100.0) < 0.5,
-              f"{sum(after.values()):.1f}")
-
-        # 何度繰り返しても、合計100と下限は崩れない
-        floor = effective_bounds(settings, len(categories))[0]
-        for _ in range(30):
-            apply_update(settings, store, weights, categories, log=lambda m: None)
-        final = weights.all()
-        check("繰り返しても合計が100のまま", abs(sum(final.values()) - 100.0) < 0.5,
-              f"{sum(final.values()):.1f}")
-        check("どのカテゴリも0にならない", min(final.values()) >= floor - 0.01,
-              f"最小 {min(final.values()):.2f}% / 下限 {floor:.2f}%")
-        check("上限で頭打ちになる", final["strong"] <= settings.weight_max + 0.01,
-              f"{final['strong']:.1f}%")
-
-        # 次回の抽選に反映される
-        rng = _random.Random(3)
-        picks = [draw_category(final, rng) for _ in range(3000)]
-        check("更新後のweightが次回の抽選に反映される",
-              picks.count("strong") > picks.count("weak"),
-              f"strong {picks.count('strong')} / weak {picks.count('weak')}")
-
-        # 手動で固定したカテゴリは動かさない
-        weights.set_weight("weak", 20.0)
-        weights.set_locked("weak", True)
-        locked_before = weights.all()["weak"]
-        apply_update(settings, store, weights, categories, log=lambda m: None)
-        check("固定したカテゴリは自動更新で動かない",
-              abs(weights.all()["weak"] - locked_before) < 0.01,
-              f"{locked_before:.1f}% → {weights.all()['weak']:.1f}%")
-
-        check("変更理由が残る", all(h.get("reason") for h in weights.history(limit=10)))
-
-        # 無効にしていれば何も動かさない
-        off = _replace(settings, weight_auto=False) if hasattr(settings, "__dataclass_fields__") \
-            else settings
-        if off is not settings:
-            snapshot = weights.all()
-            apply_update(off, store, weights, categories, log=lambda m: None)
-            check("WEIGHT_AUTO=false なら変更しない", weights.all() == snapshot)
-
-        from autopost import report as _report
-
-        text = _report.build(settings)
-        check("成績レポートを作れる",
-              "カテゴリ" in text and "strong" in text, text[:120])
-
+    section("画面（GUI）")
     gui_source = (ROOT / "autopost" / "gui.py").read_text(encoding="utf-8")
-    check("GUIに成績ボタンがある",
-          "成績を見る" in gui_source and "def show_report" in gui_source)
-    check("13_成績を見る.bat がある", (ROOT / "13_成績を見る.bat").exists())
-    task = (ROOT / "scripts" / "sns_publish_task.cmd").read_bytes()
-    check("毎日のタスクにweight更新が入っている", b"weights update" in task)
-    check("毎日のタスクは反応データ取得のあとに更新する",
-          task.index(b"collect --due") < task.index(b"weights update"))
-    env_example = (ROOT / ".env.example").read_text(encoding="utf-8")
-    check("WEIGHT_* が .env.example に載っている",
-          all(f"{k}=" in env_example for k in
-              ("WEIGHT_AUTO", "WEIGHT_METRIC", "WEIGHT_SNAPSHOT", "WEIGHT_WINDOW",
-               "WEIGHT_MIN_SAMPLES", "WEIGHT_MIN", "WEIGHT_MAX", "WEIGHT_MAX_STEP",
-               "WEIGHT_SENSITIVITY")))
+    catalog_source = (ROOT / "autopost" / "gui_catalog.py").read_text(encoding="utf-8")
+    check("運用・Category・生成・成績のタブがある",
+          all(f'text="{name}"' in gui_source for name in ("運用", "Category", "生成", "成績")))
+    check("Categoryから媒体を接続できる", "connect_platform" in catalog_source)
+    check("SubCategoryは選択式（入力欄ではない）",
+          'state="readonly"' in catalog_source)
+    check("投稿先はCategoryから自動で決まる",
+          "connected_platforms" in catalog_source)
+    check("成績画面に自動ON/OFF・固定・初期値復元がある",
+          all(name in catalog_source for name in
+              ("set_auto_enabled", "set_locked", "reset_weights")))
+    check("成績画面に変更理由が出る", "reason_var" in catalog_source)
+    check("生成に渡すのはID（名前ではない）",
+          "--sub-category-id" in gui_source and "--category-id" in gui_source)
+
+    if os.environ.get("DISPLAY") or shutil.which("xvfb-run"):
+        launcher = (["xvfb-run", "-a"] if not os.environ.get("DISPLAY") else [])
+        script = (
+            "import tkinter as tk;"
+            "from autopost.gui import AutoPostApp;"
+            "root = tk.Tk(); app = AutoPostApp(root); root.update();"
+            "tabs = [app.notebook.tab(i, 'text') for i in range(len(app.notebook.tabs()))];"
+            "assert tabs == ['運用', 'Category', '生成', '成績'], tabs;"
+            "assert len(app.category_tab.sub_tree.get_children()) > 0, 'SubCategoryが空';"
+            "assert len(app.analytics_tab.tree.get_children()) > 0, '成績が空';"
+            "assert str(app.generate_tab.sub_box.cget('state')) == 'readonly';"
+            "print('ok')"
+        )
+        result = subprocess.run([*launcher, sys.executable, "-c", script],
+                                cwd=ROOT, capture_output=True, text=True, timeout=180)
+        check("画面が実際に開いて中身が出る", result.returncode == 0,
+              (result.stderr or result.stdout).strip()[-250:])
+    else:
+        check("画面の起動確認（表示環境が無いため省略）", True)
 
     section("CLI")
     for args in (["version"], ["doctor", "--offline", "--out", tempfile.mkstemp(suffix=".txt")[1]],

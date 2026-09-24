@@ -90,6 +90,9 @@ def enqueue_folder(
             store,
             platforms,
             content_category=bundle.meta.get("category", ""),
+            # 生成時に決まったIDをそのまま引き継ぐ（名前で突き合わせない）
+            category_id=bundle.meta.get("category_id"),
+            sub_category_id=bundle.meta.get("sub_category_id"),
             hook=title,
             text=description,
             image_url=urls[0],

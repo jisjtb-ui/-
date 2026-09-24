@@ -5,6 +5,17 @@
   2. POST /v2/post/publish/content/init/         … media_type=PHOTO, source=PULL_FROM_URL
   3. POST /v2/post/publish/status/fetch/         … publish_id で状態確認
 
+反応データ（2026年9月時点で公式ドキュメントを確認）:
+  Display API の POST /v2/video/query/ が like_count / comment_count /
+  share_count / view_count を返す。必要スコープは video.list、
+  1回につき video_id 20件まで。ただし
+    - 返るのは **動画** の情報で、写真投稿（カルーセル）が対象かは
+      公式ドキュメントに記載が無い。対象と決めつけない
+    - 下書き転送（MEDIA_UPLOAD）では publish_id しか手元に残らない。
+      publish_id は動画IDではないので、この問い合わせには使えない
+  そのため、公開済みの動画IDが手元にある場合だけ問い合わせ、
+  それ以外は「取得不可」として記録する（失敗として数えない）。
+
 制約:
   - 写真は PULL_FROM_URL のみ（所有権を検証したドメインの公開HTTPS URLが必要）
   - 1投稿あたり最大35枚
@@ -23,9 +34,13 @@ from ..models import PlatformContent, PostBundle
 from ..oauth import tiktok_oauth
 from ..oauth.store import TokenStore
 from .base import (
+    PermissionDenied,
+    NotSupported,
+    AnalyticsResult,
     ManualRequired,
     Pacer,
     PermanentError,
+    PermissionDenied,
     PublishResult,
     Publisher,
     TransientError,
@@ -36,6 +51,11 @@ API = "https://open.tiktokapis.com/v2"
 CREATOR_INFO_URL = f"{API}/post/publish/creator_info/query/"
 INIT_URL = f"{API}/post/publish/content/init/"
 STATUS_URL = f"{API}/post/publish/status/fetch/"
+VIDEO_QUERY_URL = f"{API}/video/query/"
+# 反応データに必要なスコープ
+ANALYTICS_SCOPE = "video.list"
+# 問い合わせできる指標（公式ドキュメントに載っているもの）
+VIDEO_FIELDS = ("id", "like_count", "comment_count", "share_count", "view_count")
 
 # ユーザーあたり6リクエスト/分 → 余裕をみて11秒間隔
 PACE_SECONDS = 11.0
@@ -278,6 +298,65 @@ class TikTokPublisher(Publisher):
         return (data.get("data") or {}).get("status", "unknown")
 
     # ------------------------------------------------------------------
+    def get_analytics(self, external_post_id: str, start_date: str = "",
+                      end_date: str = "") -> AnalyticsResult:
+        """公開済み動画の反応データを取る。
+
+        下書き転送のままの投稿と、写真投稿については取得手段が無いため
+        NotSupported を返す（「取得不可」。取得失敗とは区別する）。
+        """
+        if not _looks_like_video_id(external_post_id):
+            raise NotSupported(
+                "TikTokは下書き転送のため、公開された動画IDが手元にありません"
+                "（publish_id では反応データを取得できません）"
+            )
+        if not self._has_analytics_scope():
+            raise PermissionDenied(
+                f"TikTokの反応データには {ANALYTICS_SCOPE} スコープが必要です"
+                "（開発者ポータルで追加し、接続をやり直してください）"
+            )
+
+        self.preflight()
+        headers = {
+            "Authorization": f"Bearer {self._token.access_token}",
+            "Content-Type": "application/json; charset=UTF-8",
+        }
+        self.pacer.wait()
+        data = request_json(
+            "POST", f"{VIDEO_QUERY_URL}?fields={','.join(VIDEO_FIELDS)}",
+            headers=headers, json={"filters": {"video_ids": [external_post_id]}},
+        )
+        self._raise_for_error(data)
+        videos = (data.get("data") or {}).get("videos") or []
+        if not videos:
+            # 写真投稿など、この問い合わせの対象外だった可能性がある。
+            # 0件と「取得できなかった」を混同しないよう、数字は作らない。
+            raise NotSupported(
+                "この投稿はTikTokの動画問い合わせでは返りませんでした"
+                "（写真投稿は対象外の可能性があります）"
+            )
+
+        video = videos[0]
+        result = AnalyticsResult(
+            platform=self.name, external_post_id=external_post_id,
+            platform_metrics={k: v for k, v in video.items() if k != "id"},
+        )
+        for field_name, attribute in (("view_count", "views"), ("like_count", "likes"),
+                                      ("comment_count", "comments"),
+                                      ("share_count", "shares")):
+            value = video.get(field_name)
+            if isinstance(value, (int, float)):
+                setattr(result, attribute, int(value))
+        return result
+
+    def _has_analytics_scope(self) -> bool:
+        token = self.store.load(self.name)
+        if token is None or not token.scope:
+            return False
+        granted = {s.strip() for s in token.scope.replace(",", " ").split()}
+        return ANALYTICS_SCOPE in granted
+
+    # ------------------------------------------------------------------
     def _creator_info(self, headers: dict) -> dict:
         self.pacer.wait()
         data = request_json("POST", CREATOR_INFO_URL, headers=headers, json={})
@@ -357,3 +436,13 @@ class TikTokPublisher(Publisher):
         if "rate_limit" in code or "too_many" in code:
             raise TransientError(f"レート制限（{code}）: {message}")
         raise PermanentError(f"TikTokエラー（{code}）: {message}")
+
+
+def _looks_like_video_id(external_post_id: str) -> bool:
+    """公開済み動画のIDらしいか。
+
+    TikTokの動画IDは数字だけの文字列。下書き転送で残る publish_id は
+    ``v_pub_...`` のように記号や英字を含むため、これで区別できる。
+    """
+    value = (external_post_id or "").strip()
+    return bool(value) and value.isdigit()
