@@ -460,7 +460,8 @@ def main(argv: list[str] | None = None) -> int:
 
     history.save()
     print("-" * 56)
-    print(f"完了: {created} 投稿 / 画像 {created * 10} 枚")
+    # 枚数は構成で変わるので、決め打ちにしない（フックありなら 1+問題数×2）
+    print(f"完了: {created} 投稿 / 画像 {created * page_count} 枚")
     if created:
         print(f"確認: {output_dir / post_folder_name(start_id)} を開いて preview.jpg を見てください")
         print("投稿後: python manage.py posted post_001 のように移動できます")
