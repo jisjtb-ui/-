@@ -65,6 +65,7 @@ def metrics_from_result(
     due: "DueSnapshot | None" = None,
     sub_category_id: int | None = None,
     content_id: str = "",
+    hook_variant: str = "",
 ) -> Metrics:
     """AnalyticsResult を保存用の Metrics へ移す。
 
@@ -81,6 +82,7 @@ def metrics_from_result(
         external_post_id=publication.external_post_id or "",
         published_at=publication.published_at or "",
         sub_category_id=sub_category_id,
+        hook_variant=hook_variant,
         content_id=content_id,
         period_start=result.period_start,
         period_end=result.period_end,
@@ -266,6 +268,7 @@ class AnalyticsCollector:
             publication, result, due,
             sub_category_id=getattr(experiment, "sub_category_id", None) if experiment else None,
             content_id=getattr(experiment, "source_post_id", "") if experiment else "",
+            hook_variant=getattr(experiment, "hook_variant", "") if experiment else "",
         )
         if not self.store.save_metrics(metrics):
             self.log(f"  {tag}: {due.label} は既に測定済みのため追加しません")

@@ -93,6 +93,7 @@ def enqueue_folder(
             # 生成時に決まったIDをそのまま引き継ぐ（名前で突き合わせない）
             category_id=bundle.meta.get("category_id"),
             sub_category_id=bundle.meta.get("sub_category_id"),
+            hook_variant=bundle.meta.get("hook_variant") or "",
             hook=title,
             text=description,
             image_url=urls[0],
@@ -329,7 +330,10 @@ def topup(
     root = Path(__file__).resolve().parent.parent
     result = subprocess.run(
         [sys.executable, "generate.py", "--posts", str(generate_count),
-         "--category", category],
+         "--category", category,
+         # 1枚目のフックも設定に従う（既定は自動ローテーション）
+         "--hook", settings.hook_variant or "rotate",
+         "--tests-per-post", str(settings.tests_per_post)],
         cwd=root,
     )
     if result.returncode != 0:

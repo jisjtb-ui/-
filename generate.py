@@ -21,6 +21,12 @@ from night_test.builder import build_post, post_folder_name
 from night_test.captions import load_caption_data, load_header_data, pick_header
 from night_test.actions import ActionConfig, ActionCtaError, empty as empty_actions
 from night_test.cta import CtaConfig, CtaError, empty as empty_cta
+from night_test.hooks import (
+    ROTATE as HOOK_ROTATE,
+    HookConfig,
+    HookError,
+    empty as empty_hook,
+)
 from night_test.config import DEFAULT_SIZE, PRESET_SIZES, TESTS_PER_POST, Layout
 from night_test.content import (
     RANDOM_CATEGORY,
@@ -52,6 +58,9 @@ def equal_draw(weights: dict[str, float], rng: random.Random) -> str:
     """
     return rng.choice(sorted(weights))
 ACTION_CTA_PATH = DATA_DIR / "cta_actions.json"
+HOOKS_PATH = DATA_DIR / "hooks.json"
+# Instagramのカルーセル上限（公式仕様。2026-09時点で10枚）
+INSTAGRAM_CAROUSEL_LIMIT = 10
 DEFAULT_OUTPUT = ROOT / "output"
 DEFAULT_HISTORY = ROOT / "history.json"
 
@@ -113,7 +122,16 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--list-cta", action="store_true", help="CTAセット一覧を表示して終了")
     parser.add_argument(
-        "--tests-per-post", type=int, default=TESTS_PER_POST, help="1投稿の問題数（既定: 4／占いで2枚使うため）"
+        "--tests-per-post", type=int, default=TESTS_PER_POST,
+        help="1投稿の問題数（フックありなら 1+問題数×2 が枚数になる）",
+    )
+    parser.add_argument(
+        "--hook", default=None,
+        help="1枚目のフック。rotate=自動ローテーション（既定） / A / B / C。"
+             "none でフックなし（従来の占い2枚組）",
+    )
+    parser.add_argument(
+        "--list-hooks", action="store_true", help="使えるフックを表示して終了",
     )
     parser.add_argument("--start-index", type=int, help="投稿番号の開始値（既定: 履歴の続きから）")
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT, help="出力先（既定: output/）")
@@ -186,15 +204,26 @@ def main(argv: list[str] | None = None) -> int:
     try:
         cta_config = CtaConfig.load(CTA_PATH)
         cta = empty_cta() if args.no_cta else cta_config.select(args.cta_set)
+        hook_config = HookConfig.load(HOOKS_PATH)
         action_config = ActionConfig.load(ACTION_CTA_PATH)
         actions = (
             empty_actions()
             if (args.no_action_cta or args.no_cta)
             else action_config.get(args.action_set)
         )
-    except (CtaError, ActionCtaError) as exc:
+    except (CtaError, ActionCtaError, HookError) as exc:
         print(f"[エラー] {exc}", file=sys.stderr)
         return 1
+
+    if args.list_hooks:
+        print(f"1枚目のフック（既定: {hook_config.active}）:")
+        for variant in hook_config.usable():
+            print(f"  {variant.id:<8}{variant.label}")
+            for line in variant.lines:
+                print(f"          {line}")
+        print(f"\n  {HOOK_ROTATE:<8}投稿ごとに順番で切り替える（時間帯も偏らないようにずらす）")
+        print(f"  {'none':<8}フックなし（従来の占い2枚組）")
+        return 0
 
     if args.list_cta:
         print(f"CTAセット（既定: {cta_config.active}）:")
@@ -318,7 +347,22 @@ def main(argv: list[str] | None = None) -> int:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     start_id = args.start_index if args.start_index is not None else history.next_post_id()
+    # 枚数を先に出す。Instagramのカルーセルは10枚が上限なので、
+    # 超える構成のときは生成の前に気づけるようにする（投稿時に初めて
+    # 弾かれると、作り直しになる）。
+    hook_in_use = (args.hook or "").strip().lower() != "none" and bool(hook_config.usable())
+    page_count = (1 + args.tests_per_post * 2) if hook_in_use else (2 + args.tests_per_post * 2)
     print(f"ネタ {len(items)} 件 / カテゴリ: {args.category} / サイズ: {width}x{height}")
+    layout_note = ("1枚目フック + 問題×2" if hook_in_use else "占い2枚 + 問題×2")
+    print(f"構成: {layout_note} = 画像{page_count}枚"
+          + (f" / フック: {args.hook or HOOK_ROTATE}" if hook_in_use else ""))
+    if page_count > INSTAGRAM_CAROUSEL_LIMIT:
+        print(f"[注意] Instagramのカルーセルは{INSTAGRAM_CAROUSEL_LIMIT}枚が上限です"
+              f"（公式仕様）。{page_count}枚はInstagramへ投稿できません。", file=sys.stderr)
+        print(f"        Instagramにも出すなら --tests-per-post "
+              f"{(INSTAGRAM_CAROUSEL_LIMIT - 1) // 2} を使ってください"
+              f"（{1 + ((INSTAGRAM_CAROUSEL_LIMIT - 1) // 2) * 2}枚）。"
+              f"Threads（20枚）とTikTokはそのままで問題ありません。", file=sys.stderr)
     print(f"CTA: {cta.name}" + (f"（{cta.first_page}）" if cta.first_page else "（なし）"))
     print(f"フォント: {font_path}")
     print(f"出力先: {output_dir}")
@@ -328,6 +372,16 @@ def main(argv: list[str] | None = None) -> int:
     comment_prompts = cta.comment_prompt_cycle(rng, args.tests_per_post)
     for offset in range(args.posts):
         post_id = start_id + offset
+        # 1枚目のフックを決める。rotate なら投稿ごとに順番で切り替える。
+        # 位置は「この実行の何本目か」ではなく通し番号（post_id）で決めるので、
+        # 何回に分けて生成しても A/B/C が均等に出る。
+        try:
+            hook = (empty_hook() if (args.hook or "").strip().lower() == "none"
+                    else hook_config.select(args.hook, post_id - 1))
+        except HookError as exc:
+            print(f"[エラー] {exc}", file=sys.stderr)
+            return 1
+
         post_category = args.category
         sub_category_id = picked_sub_id
         if picked_sub_id is not None:
@@ -348,7 +402,8 @@ def main(argv: list[str] | None = None) -> int:
         apply_header(tests, header)
 
         if args.dry_run:
-            print(f"{post_folder_name(post_id)}  （dry-run）  見出し: {header}")
+            hook_mark = f"フック{hook.id} / " if not hook.is_empty() else ""
+            print(f"{post_folder_name(post_id)}  （dry-run）  {hook_mark}見出し: {header}")
             for test in tests:
                 head = (test["question"].replace("\n", " ")).strip()
                 print(
@@ -380,6 +435,7 @@ def main(argv: list[str] | None = None) -> int:
                 cta=cta,
                 actions=actions,
                 comment_prompt=next(comment_prompts),
+                hook=hook,
                 extra_meta={"category_id": category_id,
                             "sub_category_id": sub_category_id,
                             "sub_category_name": sub_names.get(sub_category_id)},
@@ -393,7 +449,8 @@ def main(argv: list[str] | None = None) -> int:
         )
         created += 1
         titles = " / ".join(t["title"] for t in tests)
-        print(f"{result.folder.name}  画像{len(result.images)}枚  [{header}]")
+        hook_mark = f"  フック{hook.id}" if not hook.is_empty() else ""
+        print(f"{result.folder.name}  画像{len(result.images)}枚{hook_mark}  [{header}]")
         print(f"          {titles}")
 
     if args.dry_run:

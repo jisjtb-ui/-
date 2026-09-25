@@ -67,14 +67,17 @@ class Renderer:
     def render_message(
         self, headline: str, items: list[str], footer: str = "",
         emphasis: bool = True, cta_top: str = "", note: str = "",
+        hero: bool = False,
     ) -> Image.Image:
         """占いの「選ぶ」「答え」ページ。見出し＋並び＋締めの3段だけ。
 
         note は最下部に小さく置く一文（コメント誘導）。本文より目立たせない。
+        hero=True は1枚目のフック用。フィードで一瞬で読めるよう、
+        見出しに既存の見出しサイズ（title）をそのまま使う。新しい寸法は作らない。
         """
         return self._render(
             lambda s: self._build_message(
-                headline, items, footer, emphasis, s, cta_top, note
+                headline, items, footer, emphasis, s, cta_top, note, hero
             )
         )
 
@@ -437,7 +440,7 @@ class Renderer:
 
     def _build_message(
         self, headline: str, items: list[str], footer: str, emphasis: bool,
-        scale: float, cta_top: str = "", note: str = "",
+        scale: float, cta_top: str = "", note: str = "", hero: bool = False,
     ) -> Stack:
         """テストのページより余白を多くとり、行動に集中させる。"""
         lay = self.layout
@@ -456,7 +459,7 @@ class Renderer:
                 )
             )
 
-        f_head = self._font(lay.sizes.title * 0.72, scale)
+        f_head = self._font(lay.sizes.title * (1.0 if hero else 0.72), scale)
         f_item = self._font(lay.sizes.question * (1.0 if emphasis else 0.86), scale)
         f_foot = self._font(lay.sizes.cta_secondary, scale)
 

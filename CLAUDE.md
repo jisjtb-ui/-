@@ -34,8 +34,11 @@ push → `main` へ反映 まで進む。**利用者から毎回の許可を取�
 
 ## 画像とコンテンツ
 
-- 1投稿 = 画像10枚（占いCTA2枚 + 心理テスト4問×2枚）。
-  **Instagramのカルーセル上限が10枚**なので増やさない
+- 構成は2通り。枚数は自動で決まる
+  - フックあり: 1枚目フック + 問題×2（5問なら**11枚**。既定）
+  - フックなし: 占い2枚 + 問題×2（4問なら10枚。従来の形）
+- **Instagramのカルーセル上限は10枚**（公式仕様）。11枚はInstagramへ投稿できない。
+  Instagramにも出すなら `TESTS_PER_POST=4`（9枚）。generate.py が生成時に警告する
 - 文字は安全域の内側に収める。`python tools/check_layout.py output` で確認
 - CTAの文言・重みは `data/*.json` に置く。コードに固定しない
 
@@ -53,6 +56,21 @@ push → `main` へ反映 まで進む。**利用者から毎回の許可を取�
 - 投稿先は Category に紐づく `social_accounts` から自動で決める
 - 台帳は `autopost/catalog.py`、画面は `autopost/gui_catalog.py`
 - トークンは台帳に入れない。`.tokens/cat<番号>/<platform>.json`
+
+## 1枚目のフック（A/B/Cテスト）
+
+- 文言は `data/hooks.json` だけに置く。コードへ書かない。D・E… は1件足すだけ
+- **変えるのは1枚目だけ。** 問題・回答・デザイン・投稿時刻は揃える。
+  フックを使うときは占いの2枚組を併用しない（1枚目がどちらか分からなくなる）
+- 既定は自動ローテーション。`(i + i // n) % n` でずらし、
+  回数だけでなく**時間帯の位置**も偏らないようにしている
+- `hook_variant` を meta.json → experiments → experiment_metrics まで通す
+- 比較は率（保存率・共有率・コメント率＝各数 ÷ 表示数）の中央値。
+  **総再生数だけで勝敗を決めない**
+- 各フック10件そろうまでは「まだ判断しないでください」と出す。
+  サンプルが少ないうちに自動最適化を始めない（weights.py はフックを見ない）
+
+検証: `python tools/test_hooks.py`
 
 ## SubCategoryの生成割合
 
@@ -105,6 +123,7 @@ push → `main` へ反映 まで進む。**利用者から毎回の許可を取�
 Analytics / weight だけなら `python tools/test_analytics.py` が速い。
 Worker を触ったら `node worker/test.mjs` と `node worker/test-cloud.mjs`。
 クラウドの受け渡しを触ったら `python tools/test_cloud.py`。
+フックを触ったら `python tools/test_hooks.py`。
 
 新しいファイルを足したら、**目録（`update_manifest.json`）に載ることを
 確かめる**。載っていないと利用者のPCへ届かない（v1.14.0 で実際に起きた）。

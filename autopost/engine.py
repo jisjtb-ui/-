@@ -207,6 +207,7 @@ class ExperimentEngine:
                 publication, result,
                 sub_category_id=getattr(experiment, "sub_category_id", None) if experiment else None,
                 content_id=getattr(experiment, "source_post_id", "") if experiment else "",
+                hook_variant=getattr(experiment, "hook_variant", "") if experiment else "",
             )
             if not self.store.save_metrics(metrics, allow_duplicate=True):
                 continue
@@ -224,6 +225,7 @@ def create_experiment(
     content_category: str = "",
     category_id: int | None = None,
     sub_category_id: int | None = None,
+    hook_variant: str = "",
     hook: str = "",
     text: str = "",
     image_prompt: str = "",
@@ -241,6 +243,7 @@ def create_experiment(
         content_category=content_category,
         category_id=category_id,
         sub_category_id=sub_category_id,
+        hook_variant=hook_variant,
         hook=hook,
         text=text,
         image_prompt=image_prompt,

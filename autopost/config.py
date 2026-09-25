@@ -108,6 +108,8 @@ class Settings:
     auto_topup_min: int = 10
     auto_topup_count: int = 30
     auto_topup_category: str = "auto"   # auto=weightで抽選 / random / 固定名
+    hook_variant: str = "rotate"        # 1枚目フック。rotate=自動ローテーション / A / B / C / none
+    tests_per_post: int = 5             # 1投稿の問題数（フックありなら 1+問題数×2 が枚数）
     # 画像を公開するコマンド（未設定なら手動デプロイが必要）
     pages_deploy_command: str = ""
 
@@ -233,6 +235,8 @@ class Settings:
             auto_topup_min=_get_int("AUTO_TOPUP_MIN", 10),
             auto_topup_count=_get_int("AUTO_TOPUP_COUNT", 30),
             auto_topup_category=_get("AUTO_TOPUP_CATEGORY", "auto"),
+            hook_variant=_get("HOOK_VARIANT", "rotate"),
+            tests_per_post=_get_int("TESTS_PER_POST", 5),
             pages_deploy_command=_get("PAGES_DEPLOY_COMMAND"),
             default_category_name=_get("DEFAULT_CATEGORY_NAME", "心理テスト"),
             metric_snapshots=_get("METRIC_SNAPSHOTS", "1h=1,6h=6,24h=24,72h=72,7d=168"),

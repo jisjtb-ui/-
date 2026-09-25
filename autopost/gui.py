@@ -467,6 +467,35 @@ class AutoPostApp:
             if tab is not None:
                 tab.reload()
 
+    # ------------------------------------------------------------------
+    # 1枚目フック（A/B/Cテスト）
+    # ------------------------------------------------------------------
+    def _hook_config(self):
+        from night_test.hooks import HookConfig
+
+        return HookConfig.load(self.tests_dir.parent / "hooks.json")
+
+    def hook_choices(self) -> list[tuple[str, str]]:
+        """画面の選択肢（値, 表示名）。文言は data/hooks.json から引く。"""
+        options = self._hook_config().choices()
+        return options + [("none", "フックなし（従来の占い2枚組）")]
+
+    def hook_lines(self, variant: str) -> list[str]:
+        found = self._hook_config().get(variant)
+        return list(found.lines) if found else []
+
+    def hook_setting(self, category_id: int | None) -> str:
+        """Categoryごとの設定。無ければ .env の既定を使う。"""
+        if category_id is None:
+            return self.settings.hook_variant or "rotate"
+        stored = self.experiments.get_flag(f"hook:{category_id}")
+        return stored or (self.settings.hook_variant or "rotate")
+
+    def set_hook_setting(self, category_id: int | None, value: str) -> None:
+        if category_id is None:
+            return
+        self.experiments.set_flag(f"hook:{category_id}", value)
+
     def weight_table(self, category_id: int) -> dict[int, float]:
         """そのCategoryのSubCategoryごとの生成割合。"""
         from .weights import SubWeightStore
@@ -483,7 +512,9 @@ class AutoPostApp:
 
         root = Path(__file__).resolve().parent.parent
         command = [_sys.executable, "generate.py", "--posts", str(count),
-                   "--category-id", str(category_id)]
+                   "--category-id", str(category_id),
+                   "--hook", self.hook_setting(category_id),
+                   "--tests-per-post", str(self.settings.tests_per_post)]
         if sub_category_id is None:
             command += ["--category", "auto"]
         else:

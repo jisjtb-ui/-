@@ -311,6 +311,17 @@ def main() -> int:
     check("Gitに登録していないファイルが残っていない",
           not leftover, "未登録: " + ", ".join(leftover[:6]))
 
+    section("1枚目フック（A/B/Cテスト）")
+    result = subprocess.run([sys.executable, "tools/test_hooks.py"], cwd=ROOT,
+                            capture_output=True, text=True, timeout=600)
+    check("フックの独立テスト", result.returncode == 0,
+          (result.stdout + result.stderr).strip()[-500:])
+    gui_hook = (ROOT / "autopost" / "gui_catalog.py").read_text(encoding="utf-8")
+    check("画面からフックを選べる（入力欄ではない）",
+          "1枚目フック" in gui_hook and "hook_box" in gui_hook)
+    check("成績画面にフック比較がある", "hook_tree" in gui_hook)
+    check("フック文言が data/hooks.json にある", (ROOT / "data" / "hooks.json").is_file())
+
     section("Analytics と SubCategory weight")
     try:
         from tools import test_analytics

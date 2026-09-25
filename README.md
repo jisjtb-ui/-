@@ -316,7 +316,8 @@ python generate.py --validate
 │  ├─ tests/*.json         ネタ元（ここを増やす）
 │  ├─ captions.json        キャプションの断片
 │  ├─ headers.json         見出し文言のパターン
-│  └─ cta.json             CTA文言（ここだけ直せば全投稿に反映）
+│  ├─ cta.json             CTA文言（ここだけ直せば全投稿に反映）
+│  └─ hooks.json           1枚目フック A/B/C（D・E…はここへ足す）
 ├─ 1_セットアップ.bat      ← TikTok下書き用のボタン
 ├─ 2_下書きを送る.bat
 ├─ 3_毎日自動で送る.bat

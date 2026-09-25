@@ -299,6 +299,11 @@ def build_parser() -> argparse.ArgumentParser:
     probe.add_argument("--category-id", type=int,
                        help="Categoryごとに接続している場合の対象Category")
 
+    hooks_parser = sub.add_parser("hooks", help="1枚目フック（A/B/Cテスト）")
+    h_sub = hooks_parser.add_subparsers(dest="hooks_command", required=True)
+    h_sub.add_parser("list", help="使えるフックと文言を表示")
+    h_sub.add_parser("compare", help="フック別の成績を比べる")
+
     analytics = sub.add_parser("analytics", help="SubCategory別の成績レポート")
     analytics.add_argument("--out", default="カテゴリ成績.txt")
     analytics.add_argument("--category-id", type=int)
@@ -362,6 +367,7 @@ def main(argv: list[str] | None = None) -> int:
         "weights": cmd_weights,
         "cloud": cmd_cloud,
         "probe": cmd_probe,
+        "hooks": cmd_hooks,
         "analytics": cmd_analytics,
         "version": cmd_version,
         "update": cmd_update,
@@ -829,6 +835,34 @@ def cmd_probe(args, settings: Settings, queue: Queue) -> int:
             print("  ※ 表示系の数字がすべて0または未取得です。"
                   "公開直後、または到達がまだ無い可能性があります。")
         print()
+    return 0
+
+
+def cmd_hooks(args, settings: Settings, queue: Queue) -> int:
+    """1枚目フック（A/B/C…）の一覧と成績。"""
+    from pathlib import Path as _Path
+
+    from night_test.hooks import HookConfig
+
+    from . import report
+    from .experiments import ExperimentStore
+
+    root = _Path(__file__).resolve().parent.parent
+    config = HookConfig.load(root / "data" / "hooks.json")
+
+    if args.hooks_command == "list":
+        print(f"1枚目フック（文言は data/hooks.json で管理）")
+        for variant in config.usable():
+            print(f"\n  {variant.id}  {variant.label}")
+            for line in variant.lines:
+                print(f"      {line}")
+        print(f"\n  画面・生成では rotate（自動ローテーション）が既定です。")
+        print(f"  D・E… を足すときは data/hooks.json の variants に1件加えてください。")
+        return 0
+
+    # compare
+    store = ExperimentStore(settings.experiments_db_path)
+    print(report.hook_report(settings, store))
     return 0
 
 

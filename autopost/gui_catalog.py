@@ -109,6 +109,20 @@ class CategoryTab(ttk.Frame):
         ttk.Button(sub_buttons, text="抽選に入れる／外す",
                    command=self.toggle_sub).pack(side=LEFT, padx=4)
 
+        hook_frame = ttk.LabelFrame(right, text="1枚目フック（A/B/Cテスト）")
+        hook_frame.pack(fill=X, **PAD)
+        ttk.Label(hook_frame, text="使うフック").grid(row=0, column=0, sticky=W,
+                                                 padx=8, pady=6)
+        self.hook_var = StringVar()
+        self.hook_box = ttk.Combobox(hook_frame, textvariable=self.hook_var,
+                                     state="readonly", width=26)
+        self.hook_box.grid(row=0, column=1, sticky=W)
+        self.hook_box.bind("<<ComboboxSelected>>", lambda e: self.save_hook())
+        self.hook_note = StringVar(value="")
+        ttk.Label(hook_frame, textvariable=self.hook_note, foreground="#555",
+                  wraplength=430, justify=LEFT).grid(row=1, column=0, columnspan=3,
+                                                     sticky=W, padx=8, pady=(0, 6))
+
         account_frame = ttk.LabelFrame(right, text="このCategoryのSNSアカウント")
         account_frame.pack(fill=X, **PAD)
         for index, platform in enumerate(CONNECTABLE):
@@ -144,6 +158,7 @@ class CategoryTab(ttk.Frame):
     def on_select_category(self) -> None:
         self.reload_subs()
         self.reload_accounts()
+        self.reload_hooks()
         self.app.on_category_changed()
 
     def reload_subs(self) -> None:
@@ -170,6 +185,46 @@ class CategoryTab(ttk.Frame):
         accounts = sync_accounts(self.app.settings, self.catalog, category_id, list(CONNECTABLE))
         for account in accounts:
             self.account_labels[account.platform].set(account.label())
+
+    # ------------------------------------------------------------------
+    def reload_hooks(self) -> None:
+        """1枚目フックの選択肢を data/hooks.json から作る（手入力させない）。"""
+        options = self.app.hook_choices()
+        self.hooks = Choice()
+        labels = self.hooks.set([(index, label) for index, (_, label)
+                                 in enumerate(options)])
+        self._hook_values = [value for value, _ in options]
+        self.hook_box.configure(values=labels)
+        current = self.app.hook_setting(self.category_id)
+        if current in self._hook_values:
+            self.hook_var.set(labels[self._hook_values.index(current)])
+        elif labels:
+            self.hook_var.set(labels[0])
+        self._describe_hook()
+
+    def _describe_hook(self) -> None:
+        value = self._selected_hook()
+        if value == "rotate":
+            self.hook_note.set(
+                "投稿ごとに A → B → C の順で切り替えます。"
+                "時間帯にも偏らないようにずらすので、まず均等にデータを集められます。")
+        elif value == "none":
+            self.hook_note.set("フックを使いません（従来の占い2枚組のまま）。")
+        else:
+            lines = self.app.hook_lines(value)
+            self.hook_note.set("この文言で固定します：" + " / ".join(lines))
+
+    def _selected_hook(self) -> str:
+        index = self.hooks.id_of(self.hook_var.get())
+        if index is None or index >= len(self._hook_values):
+            return "rotate"
+        return self._hook_values[index]
+
+    def save_hook(self) -> None:
+        value = self._selected_hook()
+        self.app.set_hook_setting(self.category_id, value)
+        self._describe_hook()
+        self.app.log(f"1枚目フックを「{self.hook_var.get()}」にしました")
 
     # ------------------------------------------------------------------
     def add_category(self) -> None:
@@ -449,6 +504,26 @@ class AnalyticsTab(ttk.Frame):
         ttk.Label(self, textvariable=self.reason_var, wraplength=680,
                   justify=LEFT).pack(anchor=W, padx=12, pady=(0, 4))
 
+        hook_frame = ttk.LabelFrame(self, text="1枚目フックの比較（A/B/Cテスト）")
+        hook_frame.pack(fill=X, **PAD)
+        hook_columns = ("variant", "posts", "views", "save", "share", "comment")
+        self.hook_tree = ttk.Treeview(hook_frame, columns=hook_columns,
+                                      show="headings", height=4)
+        for name, title, width, anchor in (
+            ("variant", "フック", 170, W),
+            ("posts", "投稿", 60, "e"),
+            ("views", "表示（中央値）", 110, "e"),
+            ("save", "保存率", 80, "e"),
+            ("share", "共有率", 80, "e"),
+            ("comment", "コメント率", 90, "e"),
+        ):
+            self.hook_tree.heading(name, text=title)
+            self.hook_tree.column(name, width=width, anchor=anchor)
+        self.hook_tree.pack(fill=X, padx=6, pady=6)
+        self.hook_note = StringVar()
+        ttk.Label(hook_frame, textvariable=self.hook_note, wraplength=680,
+                  justify=LEFT, foreground="#555").pack(anchor=W, padx=8, pady=(0, 6))
+
         controls = ttk.Frame(self)
         controls.pack(fill=X, padx=8, pady=(0, 6))
         ttk.Button(controls, text="選んだ行を固定／解除",
@@ -517,6 +592,32 @@ class AnalyticsTab(ttk.Frame):
                 row.measured,
                 " / ".join(marks),
             ))
+        self.reload_hooks()
+
+    def reload_hooks(self) -> None:
+        from . import report as report_module
+
+        rows, note = report_module.hook_comparison(self.app.settings, self.app.experiments)
+        self.hook_tree.delete(*self.hook_tree.get_children())
+        for row in rows:
+            def pct(value):
+                return f"{value * 100:.2f}%" if value is not None else "—"
+            self.hook_tree.insert("", END, values=(
+                f"{row.variant} {row.label}",
+                row.posts,
+                f"{row.views:,.0f}" if row.views is not None else "—",
+                pct(row.save_rate), pct(row.share_rate), pct(row.comment_rate),
+            ))
+        if not rows:
+            self.hook_note.set("まだフック付きの投稿がありません。")
+        elif not note["ready"]:
+            self.hook_note.set(
+                f"【まだ判断しないでください】各フック{note['min_posts']}件以上そろってから比べます。"
+                + ("　不足: " + " / ".join(note["missing"]) if note["missing"] else ""))
+        else:
+            self.hook_note.set(
+                "総再生数だけで決めないでください。保存率・共有率は投稿の規模に"
+                "左右されにくく、1枚目の良し悪しが出やすい指標です。")
 
     def show_reason(self) -> None:
         selection = self.tree.selection()

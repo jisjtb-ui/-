@@ -1,4 +1,9 @@
-"""1投稿分（画像10枚 + caption.txt + meta.json）の書き出し。"""
+"""1投稿分（画像 + caption.txt + meta.json）の書き出し。
+
+枚数は構成で決まる:
+  フックあり … 1枚目フック + 問題数×2      （5問なら11枚）
+  フックなし … 占い2枚 + 問題数×2          （4問なら10枚。従来の形）
+"""
 
 from __future__ import annotations
 
@@ -15,6 +20,7 @@ from .captions import build_caption
 from .config import Layout
 from .actions import ActionSet, empty as empty_actions
 from .cta import CtaTexts, empty as empty_cta
+from .hooks import HookVariant, empty as empty_hook
 from .renderer import Renderer, build_contact_sheet
 
 PREVIEW_NAME = "preview.jpg"
@@ -66,6 +72,7 @@ def build_post(
     actions: ActionSet | None = None,
     comment_prompt: str | None = None,
     extra_meta: dict | None = None,
+    hook: HookVariant | None = None,
 ) -> PostResult:
     """画像10枚と caption.txt / meta.json を1フォルダに書き出す。
 
@@ -77,6 +84,7 @@ def build_post(
     """
     cta = cta or empty_cta()
     actions = actions or empty_actions()
+    hook = hook or empty_hook()
 
     # アクション別CTAを使うときは、最終ページを「保存→共有→コメント」から
     # 「プロフィール／いいね／フォロー／共有 → それぞれの結果」に置き換える。
@@ -95,11 +103,21 @@ def build_post(
         shutil.rmtree(folder)
     folder.mkdir(parents=True)
 
-    # ページの並びを先に決める。占いは2枚1組で、指定した問題の後ろに入る。
+    # ページの並びを先に決める。
+    #   フックあり: 1枚目フック → 問題/答え を問題数ぶん
+    #   フックなし: 占い2枚組（従来どおり指定した問題の後ろに入る）
+    # フックを使うときに占いも入れると1枚目がどちらか分からなくなるので、
+    # 併用しない。比べたいのは「1枚目の違い」だけ。
     pages: list[tuple] = []
-    insert_at = max(0, min(actions.insert_after, len(tests))) if assigned else -1
-    if insert_at == 0:
-        pages += [("choose", None), ("reveal", None)]
+    use_hook = not hook.is_empty()
+    if use_hook:
+        assigned = []
+        pages.append(("hook", None))
+        insert_at = -1
+    else:
+        insert_at = max(0, min(actions.insert_after, len(tests))) if assigned else -1
+        if insert_at == 0:
+            pages += [("choose", None), ("reveal", None)]
     for index, test in enumerate(tests):
         pages.append(("question", (index, test)))
         pages.append(("answer", (index, test)))
@@ -110,7 +128,14 @@ def build_post(
     slot = 0
     for kind, payload in pages:
         slot += 1
-        if kind == "choose":
+        if kind == "hook":
+            path = folder / f"{slot:02d}_hook.png"
+            # フィードで一瞬で読めることを優先し、文字を足さない。
+            # コメント誘導だけ最下部に小さく置く（本文より目立たせない）。
+            renderer.render_message(
+                hook.headline, hook.rest, "", note=comment_prompt, hero=True,
+            ).save(path, "PNG", optimize=True)
+        elif kind == "choose":
             path = folder / f"{slot:02d}_choose.png"
             renderer.render_message(
                 actions.headline,
@@ -150,6 +175,8 @@ def build_post(
         "post_id": post_id,
         "folder": folder.name,
         "category": category,
+        # フック別に成績を比べるための鍵。必ず残す
+        **hook.to_meta(),
         # Category / SubCategory のID。投稿・集計まで同じIDで追える
         **{k: v for k, v in (extra_meta or {}).items() if v is not None},
         "header": tests[0].get("header", "") if tests else "",

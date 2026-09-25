@@ -284,3 +284,187 @@ def run(settings: Settings, output: Path | None = None,
     target.write_text(text + "\n", encoding="utf-8")
     print(f"\nこの内容を {target} に保存しました。")
     return 0
+
+
+# ----------------------------------------------------------------------
+# 1枚目フックの比較（A/B/C…）
+# ----------------------------------------------------------------------
+@dataclass
+class HookRow:
+    """フック1種類ぶんの成績。取れなかった指標は None のまま。"""
+
+    variant: str
+    label: str = ""
+    posts: int = 0
+    measured: int = 0
+    views: float | None = None
+    reach: float | None = None
+    likes: float | None = None
+    comments: float | None = None
+    shares: float | None = None
+    saves: float | None = None
+    watch_time: float | None = None
+    completion_rate: float | None = None
+    save_rate: float | None = None
+    share_rate: float | None = None
+    comment_rate: float | None = None
+    like_rate: float | None = None
+    enough: bool = False
+
+
+# 率の分母。表示回数で割って、投稿の規模をそろえる
+RATE_BASE = ("views", "impressions", "reach")
+# これだけ集まるまでは勝敗を決めない
+MIN_POSTS_PER_HOOK = 10
+
+
+def _median(values: list[float]) -> float | None:
+    import statistics
+
+    return statistics.median(values) if values else None
+
+
+def hook_comparison(settings: Settings, store: ExperimentStore | None = None,
+                    snapshot: str = "") -> tuple[list[HookRow], dict]:
+    """フック別の成績。
+
+    単純な総再生数では比べない:
+      - 投稿ごとに率（保存率・共有率・コメント率）を出してから中央値をとる
+      - 分母は views。無ければ impressions → reach（実測値だけを使う）
+      - 取れない指標は作らない。空欄のまま返す
+    """
+    store = store or ExperimentStore(settings.experiments_db_path)
+    snapshot = snapshot or settings.weight_snapshot
+
+    with store._connect() as conn:
+        rows = [dict(r) for r in conn.execute(
+            "SELECT m.*, e.hook_variant AS exp_hook"
+            "  FROM experiment_metrics m"
+            "  JOIN experiments e ON e.experiment_id = m.experiment_id"
+            " WHERE m.snapshot = ? AND m.late = 0"
+            " ORDER BY m.collected_at DESC", (snapshot,)).fetchall()]
+        posts = [dict(r) for r in conn.execute(
+            "SELECT hook_variant, COUNT(*) AS n FROM experiments"
+            " WHERE hook_variant <> '' GROUP BY hook_variant").fetchall()]
+
+    labels = _hook_labels()
+    counted: dict[str, int] = {r["hook_variant"]: r["n"] for r in posts}
+    buckets: dict[str, dict[str, list[float]]] = {}
+    seen: set[tuple] = set()
+
+    for row in rows:
+        variant = row.get("hook_variant") or row.get("exp_hook") or ""
+        if not variant:
+            continue
+        key = (row["experiment_id"], row["platform"], row["snapshot"])
+        if key in seen:
+            continue
+        seen.add(key)
+        bucket = buckets.setdefault(variant, {})
+        bucket.setdefault("_n", []).append(1.0)
+
+        for name in ("views", "reach", "likes", "comments", "shares", "saves",
+                     "watch_time_seconds", "completion_rate"):
+            value = row.get(name)
+            if value is not None:
+                bucket.setdefault(name, []).append(float(value))
+
+        base = next((row[n] for n in RATE_BASE if row.get(n)), None)
+        if base:
+            for name, target in (("saves", "save_rate"), ("shares", "share_rate"),
+                                 ("comments", "comment_rate"), ("likes", "like_rate")):
+                if row.get(name) is not None:
+                    bucket.setdefault(target, []).append(float(row[name]) / float(base))
+
+    out: list[HookRow] = []
+    for variant in sorted(set(list(counted) + list(buckets))):
+        bucket = buckets.get(variant, {})
+        out.append(HookRow(
+            variant=variant,
+            label=labels.get(variant, ""),
+            posts=counted.get(variant, 0),
+            measured=len(bucket.get("_n", [])),
+            views=_median(bucket.get("views", [])),
+            reach=_median(bucket.get("reach", [])),
+            likes=_median(bucket.get("likes", [])),
+            comments=_median(bucket.get("comments", [])),
+            shares=_median(bucket.get("shares", [])),
+            saves=_median(bucket.get("saves", [])),
+            watch_time=_median(bucket.get("watch_time_seconds", [])),
+            completion_rate=_median(bucket.get("completion_rate", [])),
+            save_rate=_median(bucket.get("save_rate", [])),
+            share_rate=_median(bucket.get("share_rate", [])),
+            comment_rate=_median(bucket.get("comment_rate", [])),
+            like_rate=_median(bucket.get("like_rate", [])),
+            enough=counted.get(variant, 0) >= MIN_POSTS_PER_HOOK,
+        ))
+
+    note = {
+        "snapshot": snapshot,
+        "min_posts": MIN_POSTS_PER_HOOK,
+        "ready": all(r.enough for r in out) and len(out) >= 2,
+        "missing": [f"{r.variant}（あと{MIN_POSTS_PER_HOOK - r.posts}件）"
+                    for r in out if not r.enough],
+    }
+    return out, note
+
+
+def _hook_labels() -> dict[str, str]:
+    """フックの表示名。data/hooks.json から引く（コードに書かない）。"""
+    from pathlib import Path as _Path
+
+    try:
+        from night_test.hooks import HookConfig
+
+        root = _Path(__file__).resolve().parent.parent
+        config = HookConfig.load(root / "data" / "hooks.json")
+        return {v.id: v.label for v in config.variants}
+    except Exception:
+        return {}
+
+
+def hook_report(settings: Settings, store: ExperimentStore | None = None) -> str:
+    """フック別の比較を文字で出す。"""
+    rows, note = hook_comparison(settings, store)
+    lines: list[str] = []
+    add = lines.append
+    add("=" * 62)
+    add(" 1枚目フックの比較")
+    add("=" * 62)
+    add(f"評価: {note['snapshot']}時点 / 投稿ごとの率を出してから中央値")
+    add(f"分母: views（無ければ impressions → reach）")
+    if not rows:
+        add("\nまだフック付きの投稿がありません。")
+        return "\n".join(lines)
+
+    if not note["ready"]:
+        add(f"\n【まだ判断しないでください】各フック{note['min_posts']}件以上でそろえてから比べます。")
+        if note["missing"]:
+            add("  不足: " + " / ".join(note["missing"]))
+
+    add("")
+    add(f"  {'':<4}{'フック':<14}{'投稿':>5}{'測定':>5}{'表示':>9}"
+        f"{'保存率':>8}{'共有率':>8}{'コメ率':>8}")
+    for row in rows:
+        def pct(value):
+            return f"{value * 100:.2f}%" if value is not None else "—"
+        views = f"{row.views:,.0f}" if row.views is not None else "—"
+        add(f"  {row.variant:<4}{row.label:<14}{row.posts:>5}{row.measured:>5}{views:>9}"
+            f"{pct(row.save_rate):>8}{pct(row.share_rate):>8}{pct(row.comment_rate):>8}")
+
+    watched = [r for r in rows if r.watch_time is not None or r.completion_rate is not None]
+    if watched:
+        add("")
+        add("  視聴（取得できた媒体のみ）")
+        for row in watched:
+            watch = f"{row.watch_time:.1f}秒" if row.watch_time is not None else "—"
+            done = f"{row.completion_rate * 100:.1f}%" if row.completion_rate is not None else "—"
+            add(f"    {row.variant}  平均視聴 {watch} / 完了率 {done}")
+    else:
+        add("")
+        add("  平均視聴時間・完了率: この投稿形式では取得できません（Reel専用の指標）")
+
+    add("")
+    add("  ※ 総再生数だけで決めないでください。保存率・共有率は規模の影響を")
+    add("     受けにくく、フックの良し悪しが出やすい指標です。")
+    return "\n".join(lines)
