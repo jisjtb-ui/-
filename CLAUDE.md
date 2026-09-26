@@ -57,6 +57,26 @@ push → `main` へ反映 まで進む。**利用者から毎回の許可を取�
 - 台帳は `autopost/catalog.py`、画面は `autopost/gui_catalog.py`
 - トークンは台帳に入れない。`.tokens/cat<番号>/<platform>.json`
 
+## 恋愛心理の軽量テンプレート（love_psychology_v2_light）
+
+情報量を減らした効果を見るための7枚構成（`night_test/light.py`）。
+
+- **短く要約するのではなく、無くても成立する情報を作らない。** 1枚 = 1判断
+- 7枚固定: フック + Q1〜Q5 + 結果。説明ページ・導入ページ・
+  「結果を見る→」のページ・補足・心理学的解説は作らない
+- 質問は原則2択。質問18字・選択肢8字・結果の説明2行までを
+  `validate()` が**生成のたびに検査して弾く**（プロンプト任せにしない）
+- 1枚目はテーマ（`hook_title`）を最大の文字に。「占い」とは書かない
+- 点数（`value`）は内部だけ。画面には出さない。0〜満点すべてに結果を用意する
+- 文言は `data/love_light/*.json` にだけ置く。テーマを足すのは1ファイル追加
+- **デザインは変えない**（既存の書体・寸法・余白・3:4のまま）。
+  情報量とデザインを同時に変えると原因が分からなくなる
+- `template_version` を meta.json → experiments → experiment_metrics まで通し、
+  v1 と v2_light を比較できるようにする
+- 従来のテンプレート（11枚・10枚）はそのまま残す。過去の投稿は書き換えない
+
+検証: `python tools/test_light.py`
+
 ## 1枚目のフック（A/B/Cテスト）
 
 - 文言は `data/hooks.json` だけに置く。コードへ書かない。D・E… は1件足すだけ
@@ -124,6 +144,7 @@ Analytics / weight だけなら `python tools/test_analytics.py` が速い。
 Worker を触ったら `node worker/test.mjs` と `node worker/test-cloud.mjs`。
 クラウドの受け渡しを触ったら `python tools/test_cloud.py`。
 フックを触ったら `python tools/test_hooks.py`。
+軽量テンプレートを触ったら `python tools/test_light.py`。
 
 新しいファイルを足したら、**目録（`update_manifest.json`）に載ることを
 確かめる**。載っていないと利用者のPCへ届かない（v1.14.0 で実際に起きた）。

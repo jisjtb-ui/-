@@ -94,6 +94,8 @@ def enqueue_folder(
             category_id=bundle.meta.get("category_id"),
             sub_category_id=bundle.meta.get("sub_category_id"),
             hook_variant=bundle.meta.get("hook_variant") or "",
+            # テンプレートの版。無ければ従来版として記録する
+            template_version=bundle.meta.get("template_version") or "love_psychology_v1",
             hook=title,
             text=description,
             image_url=urls[0],

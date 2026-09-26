@@ -1,9 +1,15 @@
 {
-  "version": "1.17.1",
-  "released_at": "2026-09-25T03:37:21+00:00",
+  "version": "1.18.0",
+  "released_at": "2026-09-26T17:48:07+00:00",
   "channel": "main",
   "notes": [
-    "生成完了の表示が「画像10枚」で固定されていたのを、実際の構成から計算するように修正（11枚でも10枚と出ていた）"
+    "恋愛心理カテゴリに軽量テンプレート（love_psychology_v2_light）を追加。フック + 5問 + 結果 = 7枚固定",
+    "質問は原則2択。説明ページ・導入ページ・「結果を見る」ページ・補足説明を作らない",
+    "質問18字・選択肢8字・結果2行の上限を生成のたびに検査して弾く",
+    "内部に点数を持たせ、YESの数から3段階の結果を出す（点数は画面に出さない）",
+    "template_version をDBまで通し、v1とv2_lightを保存率・共有率で比較できるようにした",
+    "テーマは data/love_light に5種類。追加は1ファイルだけで済む",
+    "デザイン（書体・寸法・余白・3:4）と従来テンプレート・過去データは変更なし"
   ],
   "files": {
     ".env.example": {
@@ -91,12 +97,12 @@
       "size": 70
     },
     "CHANGELOG.md": {
-      "sha256": "3151d5468e1be04221f9c901fc41c9046c55d92c27882843689f346713e7d542",
-      "size": 12147
+      "sha256": "125908acc46f0940f070f10946b434f190db208a78c8d553bd90f03089cfab23",
+      "size": 12918
     },
     "CLAUDE.md": {
-      "sha256": "12ac3f070a385a601cbf2c538bfeb9ebddf8bb08466eb11f15d24dbf834bcd1e",
-      "size": 7866
+      "sha256": "d74e09c7651fd94efa91689a1e1b60deadb66e993fa6cd973ed53e73890577f4",
+      "size": 9320
     },
     "README.md": {
       "sha256": "ddd32adcf84086128bd2b278d789da387700f5ee5bc4f79dec7827e98b0628ec",
@@ -107,7 +113,7 @@
       "size": 62039
     },
     "VERSION": {
-      "sha256": "b1529c94047dde76b6f72d4c16618daae5a7b89be3b36604513c1ec4c5a24b8d",
+      "sha256": "04d659518a1793d5396007fcabdc9211a8c1db8406bf4e0fa8069171fdb06518",
       "size": 7
     },
     "autopost.py": {
@@ -123,16 +129,16 @@
       "size": 16023
     },
     "autopost/cli.py": {
-      "sha256": "62151142c8a386b84d8cd0de643e7ac52166bc7a3fbbda30f4fd79e00bb534c8",
-      "size": 71411
+      "sha256": "d7e94803865ea26cdf0adf557e136b0f749bf55de96d951f505fbce47e59c9d8",
+      "size": 71695
     },
     "autopost/cloud.py": {
       "sha256": "96246e8a5663c3b623d45f05da7bcf9462daf59f8452fd771d41ac07886a6769",
       "size": 15117
     },
     "autopost/collector.py": {
-      "sha256": "c076e531ba3fc88947b6392774ef574fe9a01c2f15ce4687b570907bcd774c03",
-      "size": 12713
+      "sha256": "3cdb3a3c5f0c282743a3db176ec4c62abe1778e09994f267c8049f332113e49d",
+      "size": 12884
     },
     "autopost/config.py": {
       "sha256": "8023ca1fedecf69862ca99b79d9c822a0a9d5ca3853bc14619b0c934f275a642",
@@ -147,20 +153,20 @@
       "size": 14828
     },
     "autopost/engine.py": {
-      "sha256": "697bff7ba64d05fe99a6eef14e4c2c6bc217cbdebe3e629b4dd5556ae1ca4780",
-      "size": 10476
+      "sha256": "9dd8940f3640b285c5b47ecd901041f87edda301220e8bc7bcd96788a77cbc20",
+      "size": 10651
     },
     "autopost/experiments.py": {
-      "sha256": "2b2d4ce6c3a970dc7a236837dc810a34df1348378a7c0eedb5b32c2796393019",
-      "size": 37670
+      "sha256": "7eede3074f8456024d6211704a486c58de0626ea6ba6981a6648302bbcabd220",
+      "size": 38269
     },
     "autopost/gui.py": {
       "sha256": "9f0120bf2e21f072344c6a05feb5284b3882aa1368e71dd1023783a330b32c9c",
       "size": 26936
     },
     "autopost/gui_catalog.py": {
-      "sha256": "0efc65c49563b163af52c8b2588f9ffef6cb40049a33d60f09842b7dcd5bfaa2",
-      "size": 30951
+      "sha256": "d44203ea3506d89b004c05b31ef6af770464ee0aa7527ca30d310de73bab03a6",
+      "size": 32522
     },
     "autopost/hosting/__init__.py": {
       "sha256": "651877132d7779df36ed4fb179a7e7cf1e9e771cb9254b2126f7f8bc0cc3ff07",
@@ -255,12 +261,12 @@
       "size": 19743
     },
     "autopost/queueing.py": {
-      "sha256": "e5d27eb53dc85a70f8908b6a4edaca77430f8f404af9eeef65e9bd1c44ecf687",
-      "size": 14479
+      "sha256": "57a62cb339ef9085840319ddf7ba6587271773c58764361d14cd9ba3a534f045",
+      "size": 14653
     },
     "autopost/report.py": {
-      "sha256": "6bfe0cfb6ff115d8a16e7ec7fbfabbf9a0e51f1784ec561bb47fd0cfa912246f",
-      "size": 18300
+      "sha256": "6e5d7b579cddf420bbaf2a532a1a144c4add99cbf09a61d109965e326e6e8c81",
+      "size": 21656
     },
     "autopost/scheduler.py": {
       "sha256": "79f58fe313af3c2e3d0553cc145893340ca6fcd48241eab855f5cb74aa7facb0",
@@ -309,6 +315,26 @@
     "data/hooks.json": {
       "sha256": "172523d5ec0fb413d6b49653ce59b24223c0bf31ebefe14c5487a77345ed437e",
       "size": 1285
+    },
+    "data/love_light/dependence.json": {
+      "sha256": "f21bbb536d8150bdb543c9063cef10f9ac33ceaed7001388449d911196e01bab",
+      "size": 1997
+    },
+    "data/love_light/heavy.json": {
+      "sha256": "3d521dd643ab0e45a9f706123e0fd2371cb42829e4a0a3c29f46095a165460ac",
+      "size": 2055
+    },
+    "data/love_light/jealousy.json": {
+      "sha256": "88bef4844fb296906070ff8a7562e3ab76b77f9ffe915920abd0fcf385a76e3f",
+      "size": 1997
+    },
+    "data/love_light/serious.json": {
+      "sha256": "a9844c4fef735a92a9b4f84573807d1703b26a1712f8271df865d4491b7e4ff3",
+      "size": 2037
+    },
+    "data/love_light/who_deeper.json": {
+      "sha256": "5bc3275db550fe3e0027143439767e83745ba010875223810a4cffcf192b32c6",
+      "size": 2036
     },
     "data/tests/alone.json": {
       "sha256": "67b353174c280315b4f08e36e6b17fc1f0f653abc55808d013a57dd3786aa066",
@@ -395,8 +421,8 @@
       "size": 11738
     },
     "generate.py": {
-      "sha256": "22411ed115ec5df1c83defc1893cb5c857950ac4c54149a89d448e5287c39d6d",
-      "size": 21465
+      "sha256": "1c68ad432380fbbc17ebd37b6778a1ae8bba24fd1a2a18770e7e4cfd68e906f3",
+      "size": 25667
     },
     "manage.py": {
       "sha256": "6b2a0095633cc9a6200221c2c7c73cc338810d558808cdcded1f5478e854546e",
@@ -411,8 +437,8 @@
       "size": 7659
     },
     "night_test/builder.py": {
-      "sha256": "7f93f630d68b08db4621f3026cd6963cce1224393e31d8b6576999d480b57c76",
-      "size": 9181
+      "sha256": "164a577963eb49c9df25334f5fc3c6c67e518d6ea291086032dc08f53ee87d13",
+      "size": 12637
     },
     "night_test/captions.py": {
       "sha256": "d03a2060c8a1199a4f8c7a9dcd36ca4bab7297b871c745917762790c959a8916",
@@ -446,9 +472,13 @@
       "sha256": "a6be5b9a8dee83092ccbbe95188ed32486dbd00541ca5efa3c766156ce631081",
       "size": 5302
     },
+    "night_test/light.py": {
+      "sha256": "1a0eb1ca6e2d492b74631551f01633fc992247069dc5d4573812bafa28b8e9ad",
+      "size": 9083
+    },
     "night_test/renderer.py": {
-      "sha256": "1128c388290eb8a897e434219f0a78914215edcfafc731b8750e65bd344ebe9f",
-      "size": 22114
+      "sha256": "4cfaeec92f42267280d0a922ad34c0b8ca775434520a0405b319dc48a4722d41",
+      "size": 25015
     },
     "night_test/textlayout.py": {
       "sha256": "66ca63638b383c2fffba1f222cd06f51069a72fcb048e89a97ad446d737571f4",
@@ -607,8 +637,8 @@
       "size": 12377
     },
     "tools/selftest.py": {
-      "sha256": "703b9d61064c2048d7d5080157b25d912f448bdb5f99ef7f6d4805cba1aa9e30",
-      "size": 19324
+      "sha256": "8f7ab27b8c54bb50513a400744b8410a08de685a76cd07cf8ce48ef36bdfa97b",
+      "size": 19950
     },
     "tools/setup_all.py": {
       "sha256": "d6263fb81a999642bff2c39378fabaa9ab3ba9d2d82121f5945efe2e156e31a0",
@@ -629,6 +659,10 @@
     "tools/test_hooks.py": {
       "sha256": "43e73ee683aedd6244e8e681983f7ab47c66b4873a1d7a0e7bf63d538d040a68",
       "size": 11456
+    },
+    "tools/test_light.py": {
+      "sha256": "d9d9a78e81221b9dc81d0aa1bd8179dfc3b5d76c786990d8b5b8d7f3a72b6ac3",
+      "size": 12925
     },
     "worker/fake-d1.mjs": {
       "sha256": "c5644f483d9ee3a74fcb298bf143ac7f315e54d31e5c4ed6d0daf76f904242a9",

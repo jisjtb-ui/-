@@ -228,3 +228,92 @@ def build_post(
         sheet.save(folder / PREVIEW_NAME, "JPEG", quality=88, optimize=True)
 
     return PostResult(post_id=post_id, folder=folder, images=images, caption=caption)
+
+
+# ----------------------------------------------------------------------
+# 恋愛心理カテゴリの軽量テンプレート（7枚）
+# ----------------------------------------------------------------------
+def build_light_post(
+    post_id: int,
+    light,
+    output_dir: Path,
+    renderer: Renderer,
+    caption_data: dict,
+    rng: random.Random,
+    layout: Layout,
+    make_preview: bool = True,
+    overwrite: bool = False,
+    comment_prompt: str | None = None,
+    extra_meta: dict | None = None,
+) -> PostResult:
+    """1枚目フック + Q1〜Q5 + 結果 = 7枚。
+
+    1枚 = 1判断。説明ページも「結果を見る→」のページも作らない。
+    使う書体・寸法・余白は既存のまま（情報量だけを変えて効果を見るため）。
+    """
+    from .light import TEMPLATE_VERSION, validate
+
+    problems = validate(light)
+    if problems:
+        raise ValueError("軽量テンプレートの内容に問題があります:\n  - "
+                         + "\n  - ".join(problems))
+
+    folder = output_dir / post_folder_name(post_id)
+    if folder.exists():
+        if not overwrite:
+            raise FileExistsError(f"すでに存在します: {folder}")
+        shutil.rmtree(folder)
+    folder.mkdir(parents=True)
+
+    images: list[Path] = []
+
+    # 1枚目: この5問で何が分かるか
+    hook_path = folder / "01_hook.png"
+    # テーマをいちばん大きく、「が分かる5問」は小さく添える
+    renderer.render_message(
+        light.hook_title or light.hook,
+        [light.hook_suffix] if light.hook_suffix else [],
+        "", emphasis=False, hero=True,
+    ).save(hook_path, "PNG", optimize=True)
+    images.append(hook_path)
+
+    # 2〜6枚目: 質問。見出し＝問い、その下に2択だけ
+    for index, question in enumerate(light.questions, start=1):
+        path = folder / f"{index + 1:02d}_q{index}.png"
+        # 問いがいちばん大きい。選択肢はその下に控えめに置く
+        renderer.render_message(
+            question.text, [c.label for c in question.choices], "",
+            emphasis=False, hero=True,
+        ).save(path, "PNG", optimize=True)
+        images.append(path)
+
+    # 7枚目: 結果。3段階を1枚に出す（静止画なので読む人が自分で探す）
+    result_path = folder / f"{len(light.questions) + 2:02d}_result.png"
+    renderer.render_result(
+        "YESの数", light.tiers(), note=comment_prompt or "",
+    ).save(result_path, "PNG", optimize=True)
+    images.append(result_path)
+
+    set_sequence_times(images)
+
+    caption = build_caption(caption_data, rng, light.axis, [])
+    (folder / "caption.txt").write_text(caption, encoding="utf-8")
+
+    meta = {
+        "post_id": post_id,
+        "folder": folder.name,
+        "category": light.axis,
+        **light.to_meta(),
+        **{k: v for k, v in (extra_meta or {}).items() if v is not None},
+        "created_at": datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds"),
+        "image_size": {"width": layout.width, "height": layout.height},
+        "image_count": len(images),
+        "caption": caption,
+    }
+    (folder / "meta.json").write_text(
+        json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    if make_preview:
+        build_contact_sheet(images).save(folder / PREVIEW_NAME, "JPEG", quality=88)
+
+    return PostResult(post_id=post_id, folder=folder, images=images, caption=caption)

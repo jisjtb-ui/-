@@ -21,6 +21,13 @@ from night_test.builder import build_post, post_folder_name
 from night_test.captions import load_caption_data, load_header_data, pick_header
 from night_test.actions import ActionConfig, ActionCtaError, empty as empty_actions
 from night_test.cta import CtaConfig, CtaError, empty as empty_cta
+from night_test.builder import build_light_post
+from night_test.light import (
+    TEMPLATE_VERSION as LIGHT_VERSION,
+    LightError,
+    load_all as load_light,
+    pick as pick_light,
+)
 from night_test.hooks import (
     ROTATE as HOOK_ROTATE,
     HookConfig,
@@ -59,6 +66,7 @@ def equal_draw(weights: dict[str, float], rng: random.Random) -> str:
     return rng.choice(sorted(weights))
 ACTION_CTA_PATH = DATA_DIR / "cta_actions.json"
 HOOKS_PATH = DATA_DIR / "hooks.json"
+LIGHT_DIR = DATA_DIR / "love_light"
 # Instagramのカルーセル上限（公式仕様。2026-09時点で10枚）
 INSTAGRAM_CAROUSEL_LIMIT = 10
 DEFAULT_OUTPUT = ROOT / "output"
@@ -132,6 +140,17 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--list-hooks", action="store_true", help="使えるフックを表示して終了",
+    )
+    parser.add_argument(
+        "--template", default="v1", choices=("v1", "v2_light"),
+        help="v1=従来（既定） / v2_light=恋愛心理の軽量7枚構成",
+    )
+    parser.add_argument(
+        "--axis", default="",
+        help="v2_light のテーマ（dependence / jealousy / serious / heavy / who_deeper）",
+    )
+    parser.add_argument(
+        "--list-axes", action="store_true", help="軽量テンプレートのテーマを表示して終了",
     )
     parser.add_argument("--start-index", type=int, help="投稿番号の開始値（既定: 履歴の続きから）")
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT, help="出力先（既定: output/）")
@@ -214,6 +233,22 @@ def main(argv: list[str] | None = None) -> int:
     except (CtaError, ActionCtaError, HookError) as exc:
         print(f"[エラー] {exc}", file=sys.stderr)
         return 1
+
+    if args.list_axes:
+        try:
+            for light in load_light(LIGHT_DIR):
+                print(f"  {light.axis:<12}{light.hook}")
+                for question in light.questions:
+                    body = question.text.replace("\n", " ")
+                    labels = " / ".join(c.label for c in question.choices)
+                    print(f"        {body}   [{labels}]")
+                for result in light.results:
+                    print(f"        {result.span}  {result.name}")
+                print()
+        except LightError as exc:
+            print(f"[エラー] {exc}", file=sys.stderr)
+            return 1
+        return 0
 
     if args.list_hooks:
         print(f"1枚目のフック（既定: {hook_config.active}）:")
@@ -350,12 +385,21 @@ def main(argv: list[str] | None = None) -> int:
     # 枚数を先に出す。Instagramのカルーセルは10枚が上限なので、
     # 超える構成のときは生成の前に気づけるようにする（投稿時に初めて
     # 弾かれると、作り直しになる）。
+    light_mode = args.template == "v2_light"
     hook_in_use = (args.hook or "").strip().lower() != "none" and bool(hook_config.usable())
-    page_count = (1 + args.tests_per_post * 2) if hook_in_use else (2 + args.tests_per_post * 2)
+    if light_mode:
+        page_count = 7
+        hook_in_use = False
+    else:
+        page_count = (1 + args.tests_per_post * 2) if hook_in_use else (2 + args.tests_per_post * 2)
     print(f"ネタ {len(items)} 件 / カテゴリ: {args.category} / サイズ: {width}x{height}")
-    layout_note = ("1枚目フック + 問題×2" if hook_in_use else "占い2枚 + 問題×2")
+    if light_mode:
+        layout_note = "フック + 5問 + 結果（軽量テンプレート）"
+    else:
+        layout_note = ("1枚目フック + 問題×2" if hook_in_use else "占い2枚 + 問題×2")
     print(f"構成: {layout_note} = 画像{page_count}枚"
-          + (f" / フック: {args.hook or HOOK_ROTATE}" if hook_in_use else ""))
+          + (f" / フック: {args.hook or HOOK_ROTATE}" if hook_in_use else "")
+          + (f" / {LIGHT_VERSION}" if light_mode else ""))
     if page_count > INSTAGRAM_CAROUSEL_LIMIT:
         print(f"[注意] Instagramのカルーセルは{INSTAGRAM_CAROUSEL_LIMIT}枚が上限です"
               f"（公式仕様）。{page_count}枚はInstagramへ投稿できません。", file=sys.stderr)
@@ -370,6 +414,66 @@ def main(argv: list[str] | None = None) -> int:
 
     created = 0
     comment_prompts = cta.comment_prompt_cycle(rng, args.tests_per_post)
+
+    # --- 恋愛心理の軽量テンプレート（7枚） ---
+    if light_mode:
+        # このテンプレートは必ず5問。CTAの「{n}問」がずれないよう数を合わせる
+        from night_test.light import QUESTION_COUNT as LIGHT_QUESTIONS
+
+        comment_prompts = cta.comment_prompt_cycle(rng, LIGHT_QUESTIONS)
+        try:
+            light_sets = load_light(LIGHT_DIR)
+        except LightError as exc:
+            print(f"[エラー] {exc}", file=sys.stderr)
+            return 1
+        for offset in range(args.posts):
+            post_id = start_id + offset
+            try:
+                light = pick_light(light_sets, rng, args.axis)
+            except LightError as exc:
+                print(f"[エラー] {exc}", file=sys.stderr)
+                return 1
+
+            if args.dry_run:
+                print(f"{post_folder_name(post_id)}  （dry-run）  {light.hook}")
+                for question in light.questions:
+                    body = question.text.replace("\n", " ")
+                    print(f"        {body}   [{' / '.join(c.label for c in question.choices)}]")
+                created += 1
+                continue
+
+            try:
+                result = build_light_post(
+                    post_id=post_id,
+                    light=light,
+                    output_dir=output_dir,
+                    renderer=renderer,
+                    caption_data=caption_data,
+                    rng=rng,
+                    layout=layout,
+                    make_preview=args.preview,
+                    overwrite=args.overwrite,
+                    comment_prompt=next(comment_prompts),
+                    extra_meta={"category_id": category_id},
+                )
+            except FileExistsError as exc:
+                print(f"[スキップ] {exc}（上書きするなら --overwrite）", file=sys.stderr)
+                continue
+            except ValueError as exc:
+                print(f"[中断] {exc}", file=sys.stderr)
+                break
+
+            history.record_post(post_id, light.axis, result.folder.name, [],
+                                cta_set=cta.name)
+            created += 1
+            print(f"{result.folder.name}  画像{len(result.images)}枚  {light.hook}")
+        history.save()
+        print("-" * 56)
+        print(f"完了: {created} 投稿 / 画像 {created * page_count} 枚")
+        if created and not args.dry_run:
+            print(f"確認: {output_dir / post_folder_name(start_id)} を開いて preview.jpg を見てください")
+        return 0
+
     for offset in range(args.posts):
         post_id = start_id + offset
         # 1枚目のフックを決める。rotate なら投稿ごとに順番で切り替える。

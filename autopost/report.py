@@ -324,6 +324,18 @@ def _median(values: list[float]) -> float | None:
     return statistics.median(values) if values else None
 
 
+def template_comparison(settings: Settings, store: ExperimentStore | None = None,
+                        snapshot: str = "") -> tuple[list[HookRow], dict]:
+    """テンプレートの版ごとの成績（love_psychology_v1 vs v2_light）。
+
+    情報量を減らした効果を見るためのもの。比べ方はフック比較と同じで、
+    投稿ごとに率を出してから中央値をとる。
+    """
+    return _compare_by(settings, store, snapshot, field="template_version",
+                       labels={"love_psychology_v1": "従来（v1）",
+                               "love_psychology_v2_light": "軽量7枚（v2_light）"})
+
+
 def hook_comparison(settings: Settings, store: ExperimentStore | None = None,
                     snapshot: str = "") -> tuple[list[HookRow], dict]:
     """フック別の成績。
@@ -333,27 +345,34 @@ def hook_comparison(settings: Settings, store: ExperimentStore | None = None,
       - 分母は views。無ければ impressions → reach（実測値だけを使う）
       - 取れない指標は作らない。空欄のまま返す
     """
+    return _compare_by(settings, store, snapshot, field="hook_variant",
+                       labels=_hook_labels())
+
+
+def _compare_by(settings: Settings, store: ExperimentStore | None,
+                snapshot: str, field: str,
+                labels: dict[str, str]) -> tuple[list[HookRow], dict]:
+    """ある項目（フック / テンプレートの版）ごとに成績をまとめる。"""
     store = store or ExperimentStore(settings.experiments_db_path)
     snapshot = snapshot or settings.weight_snapshot
 
     with store._connect() as conn:
         rows = [dict(r) for r in conn.execute(
-            "SELECT m.*, e.hook_variant AS exp_hook"
+            f"SELECT m.*, e.{field} AS exp_key"
             "  FROM experiment_metrics m"
             "  JOIN experiments e ON e.experiment_id = m.experiment_id"
             " WHERE m.snapshot = ? AND m.late = 0"
             " ORDER BY m.collected_at DESC", (snapshot,)).fetchall()]
         posts = [dict(r) for r in conn.execute(
-            "SELECT hook_variant, COUNT(*) AS n FROM experiments"
-            " WHERE hook_variant <> '' GROUP BY hook_variant").fetchall()]
+            f"SELECT {field} AS key, COUNT(*) AS n FROM experiments"
+            f" WHERE {field} <> '' GROUP BY {field}").fetchall()]
 
-    labels = _hook_labels()
-    counted: dict[str, int] = {r["hook_variant"]: r["n"] for r in posts}
+    counted: dict[str, int] = {r["key"]: r["n"] for r in posts}
     buckets: dict[str, dict[str, list[float]]] = {}
     seen: set[tuple] = set()
 
     for row in rows:
-        variant = row.get("hook_variant") or row.get("exp_hook") or ""
+        variant = row.get(field) or row.get("exp_key") or ""
         if not variant:
             continue
         key = (row["experiment_id"], row["platform"], row["snapshot"])
@@ -423,6 +442,15 @@ def _hook_labels() -> dict[str, str]:
         return {}
 
 
+def template_report(settings: Settings, store: ExperimentStore | None = None) -> str:
+    """テンプレートの版ごとの比較（情報量を減らした効果）。"""
+    return _comparison_text(
+        *template_comparison(settings, store),
+        title=" テンプレートの比較（情報量）",
+        empty="まだ版の記録がある投稿がありません。",
+    )
+
+
 def hook_report(settings: Settings, store: ExperimentStore | None = None) -> str:
     """フック別の比較を文字で出す。"""
     rows, note = hook_comparison(settings, store)
@@ -467,4 +495,49 @@ def hook_report(settings: Settings, store: ExperimentStore | None = None) -> str
     add("")
     add("  ※ 総再生数だけで決めないでください。保存率・共有率は規模の影響を")
     add("     受けにくく、フックの良し悪しが出やすい指標です。")
+    return "\n".join(lines)
+
+
+def _comparison_text(rows: list[HookRow], note: dict, title: str, empty: str) -> str:
+    """フック比較と同じ体裁で、別の切り口の表を出す。"""
+    lines: list[str] = []
+    add = lines.append
+    add("=" * 62)
+    add(title)
+    add("=" * 62)
+    add(f"評価: {note['snapshot']}時点 / 投稿ごとの率を出してから中央値")
+    if not rows:
+        add("")
+        add(empty)
+        return "\n".join(lines)
+
+    if not note["ready"]:
+        add(f"\n【まだ判断しないでください】それぞれ{note['min_posts']}件以上でそろえてから比べます。")
+        if note["missing"]:
+            add("  不足: " + " / ".join(note["missing"]))
+
+    add("")
+    add(f"  {'':<28}{'投稿':>5}{'測定':>5}{'表示':>9}"
+        f"{'保存率':>8}{'共有率':>8}{'コメ率':>8}")
+    for row in rows:
+        def pct(value):
+            return f"{value * 100:.2f}%" if value is not None else "—"
+        views = f"{row.views:,.0f}" if row.views is not None else "—"
+        name = row.label or row.variant
+        add(f"  {name:<28}{row.posts:>5}{row.measured:>5}{views:>9}"
+            f"{pct(row.save_rate):>8}{pct(row.share_rate):>8}{pct(row.comment_rate):>8}")
+
+    watched = [r for r in rows if r.watch_time is not None or r.completion_rate is not None]
+    if watched:
+        add("")
+        add("  視聴（取得できた媒体のみ）")
+        for row in watched:
+            watch = f"{row.watch_time:.1f}秒" if row.watch_time is not None else "—"
+            done = f"{row.completion_rate * 100:.1f}%" if row.completion_rate is not None else "—"
+            add(f"    {row.label or row.variant}  平均視聴 {watch} / 完了率 {done}")
+    else:
+        add("")
+        add("  平均視聴時間・完了率: この投稿形式では取得できません（Reel専用の指標）")
+    add("")
+    add("  ※ 総再生数だけで決めないでください。")
     return "\n".join(lines)

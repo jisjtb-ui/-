@@ -81,6 +81,17 @@ class Renderer:
             )
         )
 
+    def render_result(
+        self, headline: str, tiers: list[tuple[str, str, str]], note: str = "",
+    ) -> Image.Image:
+        """結果ページ（7枚目）。範囲・タイプ名・ひとこと を3組並べる。
+
+        静止画のカルーセルなので、読む人は自分で数えて自分の結果を探す。
+        3つとも1枚に出す必要がある。
+        使う書体・寸法・余白は既存のものだけ。新しい見た目は作らない。
+        """
+        return self._render(lambda s: self._build_result(headline, tiers, note, s))
+
     # ------------------------------------------------------------------
     # 自動フィット
     # ------------------------------------------------------------------
@@ -216,6 +227,65 @@ class Renderer:
     def _wrap_width(self, font: ImageFont.FreeTypeFont) -> int:
         """折り返し幅。行頭禁則のぶら下げで安全エリアを越えないよう1文字分引く。"""
         return int(self.layout.safe_width - font.size)
+
+    def _build_result(
+        self, headline: str, tiers: list[tuple[str, str, str]], note: str, scale: float,
+    ) -> Stack:
+        lay = self.layout
+        sp = lay.spacing
+        stack = Stack()
+
+        f_head = self._font(lay.sizes.title * 0.72, scale)
+        f_name = self._font(lay.sizes.question * 0.94, scale)
+        f_body = self._font(lay.sizes.answer, scale)
+
+        if headline:
+            stack.add(
+                Block(
+                    lines=wrap_balanced(headline, f_head, self._wrap_width(f_head)),
+                    font=f_head,
+                    line_height=self._lh(f_head, lay.line_heights.title),
+                    tracking=lay.px(2 * scale),
+                    space_after=lay.px(sp.after_title * scale),
+                )
+            )
+            stack.add(self._divider(lay.px(sp.after_divider * 1.2 * scale)))
+
+        for index, (span, name, description) in enumerate(tiers):
+            last = index == len(tiers) - 1
+            label = f"{span}　{name}".strip()
+            stack.add(
+                Block(
+                    lines=wrap_balanced(label, f_name, self._wrap_width(f_name)),
+                    font=f_name,
+                    line_height=self._lh(f_name, lay.line_heights.question),
+                    tracking=lay.px(1 * scale),
+                    space_after=lay.px(sp.between_choices * 0.5 * scale),
+                )
+            )
+            if description:
+                stack.add(
+                    Block(
+                        lines=wrap_balanced(description, f_body, self._wrap_width(f_body)),
+                        font=f_body,
+                        line_height=self._lh(f_body, lay.line_heights.answer),
+                        space_after=lay.px(
+                            (sp.before_cta if last else sp.between_choices * 1.6) * scale
+                        ),
+                    )
+                )
+
+        if note:
+            f_note = self._font(lay.sizes.cta_secondary * 0.88, scale)
+            stack.add(
+                Block(
+                    lines=wrap_balanced(note, f_note, self._wrap_width(f_note)),
+                    font=f_note,
+                    line_height=self._lh(f_note, lay.line_heights.cta),
+                    tracking=lay.px(1 * scale),
+                )
+            )
+        return stack
 
     def _divider(self, space_after: int) -> Block:
         lay = self.layout

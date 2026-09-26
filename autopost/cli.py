@@ -303,6 +303,7 @@ def build_parser() -> argparse.ArgumentParser:
     h_sub = hooks_parser.add_subparsers(dest="hooks_command", required=True)
     h_sub.add_parser("list", help="使えるフックと文言を表示")
     h_sub.add_parser("compare", help="フック別の成績を比べる")
+    h_sub.add_parser("template", help="テンプレートの版ごとに比べる（情報量の効果）")
 
     analytics = sub.add_parser("analytics", help="SubCategory別の成績レポート")
     analytics.add_argument("--out", default="カテゴリ成績.txt")
@@ -849,6 +850,11 @@ def cmd_hooks(args, settings: Settings, queue: Queue) -> int:
 
     root = _Path(__file__).resolve().parent.parent
     config = HookConfig.load(root / "data" / "hooks.json")
+
+    if args.hooks_command == "template":
+        store = ExperimentStore(settings.experiments_db_path)
+        print(report.template_report(settings, store))
+        return 0
 
     if args.hooks_command == "list":
         print(f"1枚目フック（文言は data/hooks.json で管理）")

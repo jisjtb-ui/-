@@ -57,6 +57,7 @@ CREATE TABLE IF NOT EXISTS experiments (
     category_id       INTEGER,
     sub_category_id   INTEGER,
     hook_variant      TEXT NOT NULL DEFAULT '',   -- 1枚目のフック（A/B/C…）
+    template_version  TEXT NOT NULL DEFAULT '',   -- love_psychology_v1 / v2_light など
     hook              TEXT NOT NULL DEFAULT '',
     text              TEXT NOT NULL DEFAULT '',
     image_prompt      TEXT NOT NULL DEFAULT '',
@@ -114,6 +115,7 @@ CREATE TABLE IF NOT EXISTS experiment_metrics (
     published_at      TEXT NOT NULL DEFAULT '',
     sub_category_id   INTEGER,
     hook_variant      TEXT NOT NULL DEFAULT '',   -- 1枚目のフック（A/B/C…）
+    template_version  TEXT NOT NULL DEFAULT '',   -- テンプレートの版
     content_id        TEXT NOT NULL DEFAULT '',   -- 生成物の投稿ID（post_001 など）
     late              INTEGER NOT NULL DEFAULT 0, -- 許容時間を過ぎてから測った
     window_hours      REAL,                       -- その計測区分の予定経過時間
@@ -249,6 +251,7 @@ class Experiment:
     category_id: int | None = None
     sub_category_id: int | None = None
     hook_variant: str = ""
+    template_version: str = ""
     hook: str = ""
     text: str = ""
     image_prompt: str = ""
@@ -308,6 +311,7 @@ class Metrics:
     published_at: str = ""
     sub_category_id: int | None = None
     hook_variant: str = ""                 # 1枚目のフック（A/B/C…）
+    template_version: str = ""             # テンプレートの版
     content_id: str = ""                   # 生成物の投稿ID（post_001 など）
     period_start: str | None = None
     period_end: str | None = None
@@ -366,6 +370,8 @@ class ExperimentStore:
              "ALTER TABLE experiment_metrics ADD COLUMN content_id TEXT NOT NULL DEFAULT ''"),
             ("hook_variant",
              "ALTER TABLE experiment_metrics ADD COLUMN hook_variant TEXT NOT NULL DEFAULT ''"),
+            ("template_version",
+             "ALTER TABLE experiment_metrics ADD COLUMN template_version TEXT NOT NULL DEFAULT ''"),
             ("late",
              "ALTER TABLE experiment_metrics ADD COLUMN late INTEGER NOT NULL DEFAULT 0"),
             ("window_hours",
@@ -388,6 +394,8 @@ class ExperimentStore:
             ("sub_category_id", "ALTER TABLE experiments ADD COLUMN sub_category_id INTEGER"),
             ("hook_variant",
              "ALTER TABLE experiments ADD COLUMN hook_variant TEXT NOT NULL DEFAULT ''"),
+            ("template_version",
+             "ALTER TABLE experiments ADD COLUMN template_version TEXT NOT NULL DEFAULT ''"),
         ):
             if name not in exp_columns:
                 conn.execute(ddl)
@@ -438,14 +446,15 @@ class ExperimentStore:
         with self._connect() as conn:
             conn.execute(
                 "INSERT INTO experiments (experiment_id, hypothesis, content_category,"
-                " category_id, sub_category_id, hook_variant, hook,"
+                " category_id, sub_category_id, hook_variant, template_version, hook,"
                 " text, image_prompt, image_url, link, source_post_id, source_folder, tags,"
                 " extra, created_at, updated_at)"
-                " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (
                     experiment.experiment_id, experiment.hypothesis, experiment.content_category,
                     experiment.category_id, experiment.sub_category_id,
-                    experiment.hook_variant, experiment.hook, experiment.text, experiment.image_prompt, experiment.image_url,
+                    experiment.hook_variant, experiment.template_version,
+                    experiment.hook, experiment.text, experiment.image_prompt, experiment.image_url,
                     experiment.link, experiment.source_post_id, experiment.source_folder,
                     json.dumps(experiment.tags, ensure_ascii=False),
                     json.dumps(experiment.extra, ensure_ascii=False),

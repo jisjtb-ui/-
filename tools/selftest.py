@@ -311,6 +311,15 @@ def main() -> int:
     check("Gitに登録していないファイルが残っていない",
           not leftover, "未登録: " + ", ".join(leftover[:6]))
 
+    section("恋愛心理の軽量テンプレート（7枚）")
+    result = subprocess.run([sys.executable, "tools/test_light.py"], cwd=ROOT,
+                            capture_output=True, text=True, timeout=900)
+    check("軽量テンプレートの独立テスト", result.returncode == 0,
+          (result.stdout + result.stderr).strip()[-500:])
+    check("テーマが data/love_light にある", (ROOT / "data" / "love_light").is_dir())
+    gui_source = (ROOT / "autopost" / "gui_catalog.py").read_text(encoding="utf-8")
+    check("成績画面にテンプレート比較がある", "template_tree" in gui_source)
+
     section("1枚目フック（A/B/Cテスト）")
     result = subprocess.run([sys.executable, "tools/test_hooks.py"], cwd=ROOT,
                             capture_output=True, text=True, timeout=600)

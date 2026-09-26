@@ -1,0 +1,100 @@
+{
+  "axis": "jealousy",
+  "label": "隠れ嫉妬度",
+  "hook": "「隠れ嫉妬度」が分かる5問",
+  "hook_title": "「隠れ嫉妬度」",
+  "hook_suffix": "が分かる5問",
+  "score_direction": "YESが多いほど嫉妬を隠している",
+  "questions": [
+    {
+      "id": "jea_01",
+      "text": "異性と遊んでたら\n嫉妬する？",
+      "choices": [
+        {
+          "label": "YES",
+          "value": 1
+        },
+        {
+          "label": "NO",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "id": "jea_02",
+      "text": "元恋人の話\n聞きたい？",
+      "choices": [
+        {
+          "label": "YES",
+          "value": 1
+        },
+        {
+          "label": "NO",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "id": "jea_03",
+      "text": "モヤっとしたら？",
+      "choices": [
+        {
+          "label": "言わない",
+          "value": 1
+        },
+        {
+          "label": "すぐ言う",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "id": "jea_04",
+      "text": "SNSのいいね\n見てる？",
+      "choices": [
+        {
+          "label": "YES",
+          "value": 1
+        },
+        {
+          "label": "NO",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "id": "jea_05",
+      "text": "嫉妬してる自分\n好き？",
+      "choices": [
+        {
+          "label": "YES",
+          "value": 0
+        },
+        {
+          "label": "NO",
+          "value": 1
+        }
+      ]
+    }
+  ],
+  "results": [
+    {
+      "min": 0,
+      "max": 1,
+      "name": "そのままタイプ",
+      "description": "思ったことは\nだいたい口に出る"
+    },
+    {
+      "min": 2,
+      "max": 3,
+      "name": "半分隠すタイプ",
+      "description": "言うか迷って\n結局少しだけ言う"
+    },
+    {
+      "min": 4,
+      "max": 5,
+      "name": "隠れ嫉妬タイプ",
+      "description": "平気な顔をして\n一人で抱えている"
+    }
+  ]
+}

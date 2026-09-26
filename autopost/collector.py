@@ -66,6 +66,7 @@ def metrics_from_result(
     sub_category_id: int | None = None,
     content_id: str = "",
     hook_variant: str = "",
+    template_version: str = "",
 ) -> Metrics:
     """AnalyticsResult を保存用の Metrics へ移す。
 
@@ -83,6 +84,7 @@ def metrics_from_result(
         published_at=publication.published_at or "",
         sub_category_id=sub_category_id,
         hook_variant=hook_variant,
+        template_version=template_version,
         content_id=content_id,
         period_start=result.period_start,
         period_end=result.period_end,
@@ -269,6 +271,7 @@ class AnalyticsCollector:
             sub_category_id=getattr(experiment, "sub_category_id", None) if experiment else None,
             content_id=getattr(experiment, "source_post_id", "") if experiment else "",
             hook_variant=getattr(experiment, "hook_variant", "") if experiment else "",
+            template_version=getattr(experiment, "template_version", "") if experiment else "",
         )
         if not self.store.save_metrics(metrics):
             self.log(f"  {tag}: {due.label} は既に測定済みのため追加しません")

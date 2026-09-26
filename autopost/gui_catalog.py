@@ -524,6 +524,22 @@ class AnalyticsTab(ttk.Frame):
         ttk.Label(hook_frame, textvariable=self.hook_note, wraplength=680,
                   justify=LEFT, foreground="#555").pack(anchor=W, padx=8, pady=(0, 6))
 
+        template_frame = ttk.LabelFrame(self, text="テンプレートの比較（情報量）")
+        template_frame.pack(fill=X, **PAD)
+        template_columns = ("version", "posts", "views", "save", "share")
+        self.template_tree = ttk.Treeview(template_frame, columns=template_columns,
+                                          show="headings", height=3)
+        for name, title, width, anchor in (
+            ("version", "テンプレート", 200, W),
+            ("posts", "投稿", 60, "e"),
+            ("views", "表示（中央値）", 110, "e"),
+            ("save", "保存率", 80, "e"),
+            ("share", "共有率", 80, "e"),
+        ):
+            self.template_tree.heading(name, text=title)
+            self.template_tree.column(name, width=width, anchor=anchor)
+        self.template_tree.pack(fill=X, padx=6, pady=6)
+
         controls = ttk.Frame(self)
         controls.pack(fill=X, padx=8, pady=(0, 6))
         ttk.Button(controls, text="選んだ行を固定／解除",
@@ -593,6 +609,7 @@ class AnalyticsTab(ttk.Frame):
                 " / ".join(marks),
             ))
         self.reload_hooks()
+        self.reload_templates()
 
     def reload_hooks(self) -> None:
         from . import report as report_module
@@ -618,6 +635,21 @@ class AnalyticsTab(ttk.Frame):
             self.hook_note.set(
                 "総再生数だけで決めないでください。保存率・共有率は投稿の規模に"
                 "左右されにくく、1枚目の良し悪しが出やすい指標です。")
+
+    def reload_templates(self) -> None:
+        from . import report as report_module
+
+        rows, _ = report_module.template_comparison(self.app.settings,
+                                                    self.app.experiments)
+        self.template_tree.delete(*self.template_tree.get_children())
+        for row in rows:
+            def pct(value):
+                return f"{value * 100:.2f}%" if value is not None else "—"
+            self.template_tree.insert("", END, values=(
+                row.label or row.variant, row.posts,
+                f"{row.views:,.0f}" if row.views is not None else "—",
+                pct(row.save_rate), pct(row.share_rate),
+            ))
 
     def show_reason(self) -> None:
         selection = self.tree.selection()
