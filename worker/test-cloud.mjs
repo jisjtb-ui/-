@@ -182,6 +182,68 @@ fakeFetch();
 }
 
 // ===================================================================
+// 2b) Instagram Reel：動画1本として投稿される（画像に化けない）
+{
+  const { env, accountId } = await makeEnv();
+  CURRENT_ENV = env;
+  const video = [`${PREFIX}post_001/abc/reel.mp4`];
+  await enqueue(env, { id: "RL1", group_id: "GRL", platform: "instagram",
+                       account_id: accountId, caption: "本文", media: video,
+                       media_kind: "reel", scheduled_at: past() });
+
+  calls = [];
+  const bodies = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    if (init?.method === "POST") bodies.push(String(init.body));
+    return realFetch(url, init);
+  };
+  let job = null;
+  const perTick = [];
+  for (let round = 0; round < 4; round += 1) {
+    const before = calls.length;
+    await tick(env);
+    perTick.push(calls.length - before);
+    job = await env.DB.prepare("SELECT * FROM jobs WHERE id = ?1").bind("RL1").first();
+    if (job.status === "posted") break;
+  }
+  globalThis.fetch = realFetch;
+
+  check("Reelを投稿できる", job.status === "posted", `${job.status} / ${job.error}`);
+  check("media_kind が残る", job.media_kind === "reel", job.media_kind);
+  const container = bodies.find((b) => b.includes("media_type"));
+  check("media_type=REELS で作る", String(container).includes("media_type=REELS"),
+        String(container).slice(0, 120));
+  check("video_url を渡す", String(container).includes("reel.mp4"));
+  check("share_to_feed を渡す", String(container).includes("share_to_feed=true"));
+  check("子コンテナを作らない（動画は1本）",
+        !bodies.some((b) => b.includes("is_carousel_item")));
+  check("カルーセルより少ない回数で終わる", Math.max(...perTick) <= 50,
+        perTick.join(" / "));
+
+  // 結果にmedia_kindが載る（PC側が carousel / reel を見分けられる）
+  const results = await (await request("/api/results")).json();
+  check("PCへ media_kind を返す",
+        (results.items || []).some((item) => item.media_kind === "reel"),
+        JSON.stringify(results.items || []).slice(0, 140));
+
+  // Reelを扱えない媒体へReelを渡したら、画像として出さずに失敗させる
+  const th = await makeEnv({ platform: "threads" });
+  CURRENT_ENV = th.env;
+  await enqueue(th.env, { id: "RL2", group_id: "GRL2", platform: "threads",
+                          account_id: th.accountId, caption: "x", media: video,
+                          media_kind: "reel", scheduled_at: past() });
+  await tick(th.env);
+  const rejected = await th.env.DB.prepare("SELECT * FROM jobs WHERE id = ?1")
+    .bind("RL2").first();
+  check("Reelを扱えない媒体では画像に化けさせず止める",
+        rejected.status === "failed" && String(rejected.error).includes("Reel"),
+        `${rejected.status} / ${rejected.error}`);
+  check("止めても投稿内容は消さない", rejected.caption === "x" && Boolean(rejected.media));
+  CURRENT_ENV = env;
+}
+
+// ===================================================================
 // 3) 出来上がるまで待つ（まだ FINISHED でないとき）
 {
   const { env, media, accountId } = await makeEnv();

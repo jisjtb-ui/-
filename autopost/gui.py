@@ -493,6 +493,23 @@ class AutoPostApp:
             ("v1", "従来11枚（フック + 5問×2）"),
         ]
 
+    def post_type_choices(self) -> list[tuple[str, str]]:
+        return [
+            ("carousel", "カルーセル（画像7枚）"),
+            ("reel", "Reel（縦動画・無音）"),
+        ]
+
+    def post_type_setting(self, category_id: int | None) -> str:
+        if category_id is None:
+            return self.settings.instagram_post_type or "carousel"
+        stored = self.experiments.get_flag(f"post_type:{category_id}")
+        return stored or (self.settings.instagram_post_type or "carousel")
+
+    def set_post_type_setting(self, category_id: int | None, value: str) -> None:
+        if category_id is None:
+            return
+        self.experiments.set_flag(f"post_type:{category_id}", value)
+
     def template_setting(self, category_id: int | None) -> str:
         if category_id is None:
             return self.settings.template or "v2_light"

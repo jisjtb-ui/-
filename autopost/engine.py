@@ -136,7 +136,9 @@ class ExperimentEngine:
         )
         status = DRAFT_CREATED if is_draft else PUBLISHED
         self.store.mark_published(
-            publication.id, result.platform_post_id, result.external_url, result.extra, status
+            publication.id, result.platform_post_id, result.external_url, result.extra, status,
+            # carousel / reel。あとで比較するために必ず残す
+            post_type=result.extra.get("post_type", ""),
         )
         for note in result.notes:
             event(note)

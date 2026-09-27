@@ -336,6 +336,21 @@ def template_comparison(settings: Settings, store: ExperimentStore | None = None
                                "love_psychology_v2_light": "軽量7枚（v2_light）"})
 
 
+def post_type_comparison(settings: Settings, store: ExperimentStore | None = None,
+                         snapshot: str = "") -> tuple[list[HookRow], dict]:
+    """Instagram の カルーセル vs Reel。"""
+    return _compare_by(settings, store, snapshot, field="post_type",
+                       labels={"carousel": "カルーセル（画像）", "reel": "Reel（動画）"})
+
+
+def post_type_report(settings: Settings, store: ExperimentStore | None = None) -> str:
+    return _comparison_text(
+        *post_type_comparison(settings, store),
+        title=" 投稿タイプの比較（カルーセル vs Reel）",
+        empty="まだ投稿タイプの記録がある投稿がありません。",
+    )
+
+
 def hook_comparison(settings: Settings, store: ExperimentStore | None = None,
                     snapshot: str = "") -> tuple[list[HookRow], dict]:
     """フック別の成績。
@@ -356,15 +371,22 @@ def _compare_by(settings: Settings, store: ExperimentStore | None,
     store = store or ExperimentStore(settings.experiments_db_path)
     snapshot = snapshot or settings.weight_snapshot
 
+    # post_type は媒体ごとに違うので experiments ではなく publications 側にある
+    source = "experiment_publications" if field == "post_type" else "experiments"
+    join = ("  JOIN experiment_publications e"
+            "    ON e.experiment_id = m.experiment_id AND e.platform = m.platform"
+            if field == "post_type" else
+            "  JOIN experiments e ON e.experiment_id = m.experiment_id")
+
     with store._connect() as conn:
         rows = [dict(r) for r in conn.execute(
             f"SELECT m.*, e.{field} AS exp_key"
             "  FROM experiment_metrics m"
-            "  JOIN experiments e ON e.experiment_id = m.experiment_id"
-            " WHERE m.snapshot = ? AND m.late = 0"
+            + join
+            + " WHERE m.snapshot = ? AND m.late = 0"
             " ORDER BY m.collected_at DESC", (snapshot,)).fetchall()]
         posts = [dict(r) for r in conn.execute(
-            f"SELECT {field} AS key, COUNT(*) AS n FROM experiments"
+            f"SELECT {field} AS key, COUNT(*) AS n FROM {source}"
             f" WHERE {field} <> '' GROUP BY {field}").fetchall()]
 
     counted: dict[str, int] = {r["key"]: r["n"] for r in posts}

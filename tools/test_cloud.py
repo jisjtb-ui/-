@@ -232,9 +232,57 @@ def main() -> int:
           sample["account_id"].startswith("instagram:")
           or sample["account_id"].startswith("threads:"))
 
+    # --- Reelで出す予約は、動画1本として渡る（画像に化けない）---
+    reel = create_experiment(
+        store, ["instagram", "threads"],
+        content_category=subs[0].source_key,
+        category_id=category.id, sub_category_id=subs[0].id,
+        text="本文", source_post_id="post_reel",
+        extra={"image_urls": [f"{PREFIX}post_reel/a/{n:02d}.jpg" for n in range(1, 8)],
+               "post_type": "reel",
+               "video_url": f"{PREFIX}post_reel/a/reel.mp4"},
+    )
+    for platform in ("instagram", "threads"):
+        publication = store.publication(reel.experiment_id, platform)
+        store.set_schedule(publication.id, now + timedelta(hours=200))
+        with store._connect() as conn:
+            conn.execute("UPDATE experiment_publications SET status=? WHERE id=?",
+                         (READY_TO_PUBLISH, publication.id))
+    cloud.push(settings, store, log=lambda m: None)
+    ig_job = FakeWorker.jobs.get(f"{reel.experiment_id}:instagram", {})
+    th_job = FakeWorker.jobs.get(f"{reel.experiment_id}:threads", {})
+    check("InstagramのReelは動画として渡る", ig_job.get("media_kind") == "reel",
+          str(ig_job.get("media_kind")))
+    check("渡すのは動画1本だけ",
+          ig_job.get("media") == [f"{PREFIX}post_reel/a/reel.mp4"],
+          json.dumps(ig_job.get("media")))
+    check("ThreadsはReelにしない（画像のまま）",
+          th_job.get("media_kind") == "image" and len(th_job.get("media") or []) == 7,
+          f'{th_job.get("media_kind")} / {len(th_job.get("media") or [])}枚')
+
+    # 動画URLが無ければカルーセルとして渡す（渡せないまま止めない）
+    no_video = create_experiment(
+        store, ["instagram"],
+        content_category=subs[0].source_key,
+        category_id=category.id, sub_category_id=subs[0].id,
+        text="本文", source_post_id="post_novideo",
+        extra={"image_urls": [f"{PREFIX}post_novideo/a/{n:02d}.jpg" for n in range(1, 8)],
+               "post_type": "reel", "video_url": ""},
+    )
+    publication = store.publication(no_video.experiment_id, "instagram")
+    store.set_schedule(publication.id, now + timedelta(hours=201))
+    with store._connect() as conn:
+        conn.execute("UPDATE experiment_publications SET status=? WHERE id=?",
+                     (READY_TO_PUBLISH, publication.id))
+    cloud.push(settings, store, log=lambda m: None)
+    fallback = FakeWorker.jobs.get(f"{no_video.experiment_id}:instagram", {})
+    check("動画URLが無ければカルーセルとして渡す",
+          fallback.get("media_kind") == "image",
+          str(fallback.get("media_kind")))
+
     # --- 状況を見る ---
     status = cloud.CloudClient(settings).status()
-    check("クラウドの状況を取れる", status["counts"].get("scheduled") == 240,
+    check("クラウドの状況を取れる", status["counts"].get("scheduled") == 243,
           json.dumps(status["counts"]))
 
     # --- クラウドが投稿した結果を取り込む ---

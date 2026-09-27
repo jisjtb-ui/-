@@ -109,6 +109,10 @@ class Settings:
     auto_topup_count: int = 30
     auto_topup_category: str = "auto"   # auto=weightで抽選 / random / 固定名
     template: str = "v2_light"          # v2_light=軽量7枚（既定） / v1=従来
+    instagram_post_type: str = "carousel"  # carousel / reel
+    reel_seconds_page: float = 1.5      # Reelで1枚を映す秒数
+    reel_seconds_last: float = 2.5      # 最後の1枚（結果）だけ長く
+    reel_fps: int = 30
     hook_variant: str = "rotate"        # 1枚目フック。rotate=自動ローテーション / A / B / C / none
     tests_per_post: int = 5             # 1投稿の問題数（フックありなら 1+問題数×2 が枚数）
     # 画像を公開するコマンド（未設定なら手動デプロイが必要）
@@ -237,6 +241,10 @@ class Settings:
             auto_topup_count=_get_int("AUTO_TOPUP_COUNT", 30),
             auto_topup_category=_get("AUTO_TOPUP_CATEGORY", "auto"),
             template=_get("TEMPLATE", "v2_light"),
+            instagram_post_type=_get("INSTAGRAM_POST_TYPE", "carousel"),
+            reel_seconds_page=_get_float("REEL_SECONDS_PAGE", 1.5),
+            reel_seconds_last=_get_float("REEL_SECONDS_LAST", 2.5),
+            reel_fps=_get_int("REEL_FPS", 30),
             hook_variant=_get("HOOK_VARIANT", "rotate"),
             tests_per_post=_get_int("TESTS_PER_POST", 5),
             pages_deploy_command=_get("PAGES_DEPLOY_COMMAND"),

@@ -304,6 +304,7 @@ def build_parser() -> argparse.ArgumentParser:
     h_sub.add_parser("list", help="使えるフックと文言を表示")
     h_sub.add_parser("compare", help="フック別の成績を比べる")
     h_sub.add_parser("template", help="テンプレートの版ごとに比べる（情報量の効果）")
+    h_sub.add_parser("posttype", help="カルーセルとReelを比べる（Instagram）")
 
     analytics = sub.add_parser("analytics", help="SubCategory別の成績レポート")
     analytics.add_argument("--out", default="カテゴリ成績.txt")
@@ -854,6 +855,11 @@ def cmd_hooks(args, settings: Settings, queue: Queue) -> int:
     if args.hooks_command == "template":
         store = ExperimentStore(settings.experiments_db_path)
         print(report.template_report(settings, store))
+        return 0
+
+    if args.hooks_command == "posttype":
+        store = ExperimentStore(settings.experiments_db_path)
+        print(report.post_type_report(settings, store))
         return 0
 
     if args.hooks_command == "list":

@@ -6,6 +6,14 @@
   3. POST /{ig-id}/media          … media_type=CAROUSEL, children=[...], caption
   4. POST /{ig-id}/media_publish  … creation_id を公開
 
+Reels（2026年9月時点で公式ドキュメントを確認）:
+  1. POST /{ig-id}/media          … media_type=REELS, video_url, caption, share_to_feed
+  2. GET  /{container-id}?fields=status_code … FINISHED になるまで待つ（動画は時間がかかる）
+  3. POST /{ig-id}/media_publish  … creation_id を公開
+  動画の条件: MP4/MOV・H264かHEVC・yuv420p・23〜60fps・横1920まで
+             3秒〜15分・300MBまで・AAC 48kHz・moov atom を先頭へ
+  ※ APIからは音源を付けられない。無音のまま公開される
+
 制約:
   - カルーセルは最大10枚
   - 画像は JPEG・8MB以下・アスペクト比 4:5〜1.91:1・幅320〜1440px・公開HTTPS URL
@@ -40,6 +48,10 @@ from .base import (
 # 投稿のInsights。2024年7月以降に作成されたメディアでは impressions が views に置き換わったため、
 # まず新しい指標で取得し、エラーになったら古い指標へ自動でフォールバックする
 MEDIA_METRICS_PRIMARY = ("views", "reach", "likes", "comments", "shares", "saved", "total_interactions")
+# Reel だけで取れる指標（公式仕様。カルーセルでは返らない）
+REEL_METRICS = ("views", "reach", "likes", "comments", "shares", "saved",
+                "total_interactions", "ig_reels_avg_watch_time",
+                "ig_reels_video_view_total_time")
 MEDIA_METRICS_FALLBACK = ("impressions", "reach", "engagement", "saved")
 METRIC_MAP = {
     "views": "views",
@@ -54,6 +66,9 @@ METRIC_MAP = {
 PACE_SECONDS = 1.0
 STATUS_POLL_SECONDS = 5
 STATUS_MAX_POLLS = 36          # 最大3分待つ
+# 動画は画像より処理に時間がかかる。公式は「1分おきに5分まで」を勧めている
+REEL_POLL_SECONDS = 20
+REEL_MAX_POLLS = 30            # 最大10分待つ
 PUBLISH_SETTLE_SECONDS = 3
 
 # 再試行しても直らないエラーコード
@@ -176,12 +191,71 @@ class InstagramPublisher(Publisher):
             raise PermanentError("画像URLがありません")
 
         caption = _compose_caption(experiment)
+
+        # Reelとして出す指定があり、動画の公開URLが用意できていれば縦動画で投稿する。
+        # 用意できていなければカルーセルへ落とす（投稿そのものは止めない）。
+        extra = experiment.extra or {}
+        if extra.get("post_type") == "reel":
+            video_url = extra.get("video_url") or ""
+            if video_url:
+                return self._publish_reel(
+                    experiment.experiment_id, video_url, caption, log)
+            log("  [注意] 動画の公開URLが無いため、カルーセルで投稿します")
+
         if len(image_urls) == 1:
             return self._publish_single(experiment.experiment_id, image_urls[0], caption, log)
 
         pseudo = PostBundle(post_id=experiment.experiment_id, folder=Path("."), images=[])
         return self.publish(
             pseudo, image_urls, PlatformContent(caption=caption, hashtags=[]), log
+        )
+
+    def _publish_reel(
+        self, post_id: str, video_url: str, caption: str, log: Callable[[str], None]
+    ) -> PublishResult:
+        """Reels として公開する（media_type=REELS）。
+
+        APIでは音源を付けられないため、無音のまま公開される。
+        音楽を付けたい場合はアプリから手で投稿する。
+        """
+        self.preflight()
+        token = self._token.access_token
+        base = meta_oauth.graph_base(self.settings)
+        ig_id = self._account_id
+
+        log("Reelのコンテナを作成しています")
+        container_id = self._create_container(base, ig_id, token, {
+            "media_type": "REELS",
+            "video_url": video_url,
+            "caption": caption,
+            # フィードにも出す（Reelsタブだけに置かない）
+            "share_to_feed": "true",
+        })
+        # 動画は処理に時間がかかるので、画像より長めに待つ
+        self._wait_ready(base, container_id, token, log, "Reel",
+                         max_polls=REEL_MAX_POLLS, interval=REEL_POLL_SECONDS)
+
+        log("公開しています")
+        self.pacer.wait()
+        data = request_json(
+            "POST",
+            f"{base}/{ig_id}/media_publish",
+            data={"creation_id": container_id, "access_token": token},
+        )
+        self._raise_for_error(data)
+        media_id = str(data.get("id", ""))
+        if not media_id:
+            raise PermanentError(f"公開結果を取得できませんでした: {str(data)[:200]}")
+        time.sleep(PUBLISH_SETTLE_SECONDS)
+        return PublishResult(
+            platform=self.name,
+            post_id=post_id,
+            platform_post_id=media_id,
+            publish_id=container_id,
+            detail="PUBLISHED",
+            external_url=self._permalink(base, media_id, token),
+            notes=["Reelとして公開しました（APIでは音源を付けられないため無音です）"],
+            extra={"post_type": "reel"},
         )
 
     def _publish_single(
@@ -234,16 +308,21 @@ class InstagramPublisher(Publisher):
         return "published" if data.get("id") else "unknown"
 
     def get_analytics(
-        self, external_post_id: str, start_date: str = "", end_date: str = ""
+        self, external_post_id: str, start_date: str = "", end_date: str = "",
+        post_type: str = "",
     ) -> AnalyticsResult:
-        """投稿のInsightsを共通指標へ正規化して返す。"""
+        """投稿のInsightsを共通指標へ正規化して返す。
+
+        Reel のときは平均視聴時間も取りに行く（カルーセルでは返らない指標）。
+        """
         self.preflight()
         base = meta_oauth.graph_base(self.settings)
         token = self._token.access_token
 
         raw: dict[str, int] = {}
         metric_errors: list[str] = []
-        for metrics in (MEDIA_METRICS_PRIMARY, MEDIA_METRICS_FALLBACK):
+        first = REEL_METRICS if post_type == "reel" else MEDIA_METRICS_PRIMARY
+        for metrics in (first, MEDIA_METRICS_PRIMARY, MEDIA_METRICS_FALLBACK):
             try:
                 self.pacer.wait()
                 data = request_json(
@@ -268,12 +347,12 @@ class InstagramPublisher(Publisher):
             if raw:
                 break
 
-        if metric_errors and len(raw) < len(MEDIA_METRICS_PRIMARY):
+        if metric_errors and len(raw) < len(first):
             # まとめて頼むと、1つでもその投稿形式に無い指標が混ざった時点で
             # 応答全体がエラーになる（views が永久に入らない原因）。
             # まとめて頼んで断られたときだけ、足りない分を1つずつ聞き直す。
             # （断られていないのに毎回聞き直すと、無駄にAPIを叩いてしまう）
-            for metric in MEDIA_METRICS_PRIMARY:
+            for metric in first:
                 if metric in raw:
                     continue
                 value = self._single_metric(base, external_post_id, token, metric)
@@ -292,6 +371,11 @@ class InstagramPublisher(Publisher):
         for metric, attribute in METRIC_MAP.items():
             if metric in raw and getattr(result, attribute) is None:
                 setattr(result, attribute, raw[metric])
+
+        # Reel の平均視聴時間はミリ秒で返るので秒へ直す（推測はしない）
+        average = raw.get("ig_reels_avg_watch_time")
+        if isinstance(average, (int, float)):
+            result.watch_time_seconds = round(float(average) / 1000.0, 2)
         return result
 
     def _single_metric(self, base: str, external_post_id: str, token: str,
@@ -356,10 +440,12 @@ class InstagramPublisher(Publisher):
         return container_id
 
     def _wait_ready(
-        self, base: str, container_id: str, token: str, log: Callable[[str], None], label: str
+        self, base: str, container_id: str, token: str, log: Callable[[str], None],
+        label: str, max_polls: int = STATUS_MAX_POLLS,
+        interval: float = STATUS_POLL_SECONDS,
     ) -> None:
         """コンテナが FINISHED になるまで待つ。"""
-        for attempt in range(STATUS_MAX_POLLS):
+        for attempt in range(max_polls):
             self.pacer.wait()
             data = request_json(
                 "GET",
@@ -376,7 +462,7 @@ class InstagramPublisher(Publisher):
                 raise PermanentError(f"{label}のコンテナが期限切れです（24時間以内に公開が必要）")
             if attempt == 0:
                 log(f"  {label}の処理を待っています")
-            time.sleep(STATUS_POLL_SECONDS)
+            time.sleep(interval)
         raise TransientError(f"{label}の処理が終わりませんでした（あとで再試行します）")
 
     def _raise_for_error(self, data: dict) -> None:

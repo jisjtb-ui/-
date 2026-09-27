@@ -150,7 +150,8 @@ def _jobs_for(store: ExperimentStore, platforms: list[str] | None,
     """
     jobs: list[dict] = []
     for experiment in store.list_experiments(limit=1000):
-        urls = (experiment.extra or {}).get("image_urls") or []
+        extra = experiment.extra or {}
+        urls = extra.get("image_urls") or []
         if not urls:
             continue
         for publication in store.publications(experiment_id=experiment.experiment_id):
@@ -162,6 +163,18 @@ def _jobs_for(store: ExperimentStore, platforms: list[str] | None,
                 log(f"  予約時刻が無いので渡しません: {experiment.experiment_id}"
                     f" / {publication.platform}")
                 continue
+            # Instagram を Reel で出す予約は、動画1本として渡す。
+            # ここで画像に落とすと、PCで投稿したときと形が変わってしまう
+            # （carousel vs reel の比較が成り立たなくなる）。
+            media, media_kind = list(urls), "image"
+            if publication.platform == "instagram" and extra.get("post_type") == "reel":
+                video_url = extra.get("video_url") or ""
+                if video_url:
+                    media, media_kind = [video_url], "reel"
+                else:
+                    log(f"  動画の公開URLが無いのでカルーセルとして渡します:"
+                        f" {experiment.experiment_id}")
+
             jobs.append({
                 "id": f"{experiment.experiment_id}:{publication.platform}",
                 "group_id": experiment.experiment_id,
@@ -170,8 +183,8 @@ def _jobs_for(store: ExperimentStore, platforms: list[str] | None,
                 "category": experiment.content_category or "",
                 "sub_category": str(experiment.sub_category_id or ""),
                 "caption": experiment.text or "",
-                "media": list(urls),
-                "media_kind": "image",
+                "media": media,
+                "media_kind": media_kind,
                 "scheduled_at": _iso(publication.scheduled_at),
                 "_publication_id": publication.id,
             })
@@ -264,12 +277,22 @@ def sync(settings: Settings, store: ExperimentStore, log: LogFn = print) -> dict
         if publication is None or publication.status in DELIVERED:
             continue
         if item.get("status") == "posted":
+            # どの形で出たか（carousel / reel）も残す。これが無いと
+            # クラウドから出た投稿だけ比較から抜け落ちる
+            kind = str(item.get("media_kind") or "")
+            if kind not in ("image", "reel"):
+                experiment = store.get(group)
+                kind = ((experiment.extra or {}).get("post_type") or ""
+                        if experiment else "")
+            post_type = "reel" if kind == "reel" else (
+                "carousel" if platform == "instagram" else "")
             store.mark_published(
                 publication.id,
                 str(item.get("external_post_id") or ""),
                 item.get("external_url") or "",
                 extra={"posted_by": "cloud"},
                 status=DRAFT_CREATED if platform == "tiktok" else PUBLISHED,
+                post_type=post_type,
             )
             applied += 1
         elif item.get("status") == "failed":

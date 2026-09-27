@@ -115,7 +115,7 @@ export async function handleResults(env, url) {
   const since = url.searchParams.get("since") || "";
   const rows = await env.DB.prepare(
     `SELECT id, group_id, platform, account_id, status, external_post_id,
-            external_url, posted_at, error, error_kind, attempts
+            external_url, posted_at, error, error_kind, attempts, media_kind
        FROM jobs
       WHERE status IN (?1, ?2) AND (?3 = '' OR updated_at > ?3)
       ORDER BY updated_at LIMIT 500`

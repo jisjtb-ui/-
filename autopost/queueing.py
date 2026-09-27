@@ -34,6 +34,62 @@ class EnqueueReport:
         )
 
 
+def _post_type_for(settings: Settings, store: ExperimentStore,
+                   category_id) -> str:
+    """このCategoryのInstagram投稿タイプ（carousel / reel）。"""
+    default = settings.instagram_post_type or "carousel"
+    if category_id is None:
+        return default
+    try:
+        return store.get_flag(f"post_type:{category_id}") or default
+    except Exception:
+        return default
+
+
+def _prepare_reel(settings: Settings, bundle, digest: str, base_url: str,
+                  host, log) -> tuple[str, float]:
+    """Instagram Reel 用の縦動画を作り、公開URLを返す。
+
+    作り方は night_test/media.py（ReelRenderer）に任せる。
+    条件を満たさない動画はそこで弾かれるので、ここへは来ない。
+    """
+    from night_test.media import REEL, renderer_for
+    from night_test.video import ReelSpec
+
+    spec = ReelSpec(
+        mode="uniform",
+        fps=settings.reel_fps,
+        seconds_uniform=settings.reel_seconds_page,
+        seconds_last=settings.reel_seconds_last,
+    )
+    renderer = renderer_for(REEL, spec=spec)
+    media = renderer.render(bundle.folder, log=lambda m: log(f"  {m}"))
+
+    # 画像と同じ場所へ置く（同じ公開URLの仕組みを使う）
+    if base_url:
+        url = f"{base_url.rstrip('/')}/{bundle.post_id}/{digest}/{media.video.name}"
+        _copy_for_publishing(settings, bundle.post_id, digest, media.video, log)
+    else:
+        uploaded = host.upload(bundle.post_id, [media.video], digest)
+        url = uploaded[0]
+    log(f"  {bundle.post_id}: Reelを用意しました（{media.seconds:.1f}秒）")
+    return url, media.seconds
+
+
+def _copy_for_publishing(settings: Settings, post_id: str, digest: str,
+                         video: Path, log) -> None:
+    """Pagesで配信するフォルダへ動画を置く。"""
+    import shutil
+
+    root = Path(__file__).resolve().parent.parent
+    destination = root / "pages_media" / post_id / digest / video.name
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    if (not destination.is_file()
+            or destination.stat().st_size != video.stat().st_size):
+        shutil.copy2(video, destination)
+        log(f"  動画を公開用にコピーしました: {post_id}/{video.name}")
+
+
 def enqueue_folder(
     settings: Settings,
     store: ExperimentStore,
@@ -80,6 +136,23 @@ def enqueue_folder(
             log(f"  {bundle.post_id}: 画像を準備できません → {exc}")
             continue
 
+        # Instagram を Reel で出す設定なら、ここで縦動画を作って一緒に公開する。
+        # 作れなかった・条件を満たさない場合は投稿を止めず、カルーセルのまま進める。
+        video_url = ""
+        # 画面（Categoryタブ）の設定を優先し、無ければ .env の既定を使う。
+        # 生成・投稿のどの入口から来ても同じ設定を見るようにする。
+        post_type = _post_type_for(settings, store, bundle.meta.get("category_id"))
+        reel_seconds = 0.0
+        if post_type == "reel":
+            try:
+                video_url, reel_seconds = _prepare_reel(
+                    settings, bundle, digest, base_url, host, log)
+            except Exception as exc:                 # 動画で失敗しても投稿は続ける
+                log(f"  {bundle.post_id}: Reelを用意できません → {exc}")
+                store_note = str(exc)
+                post_type = "carousel"
+                report.failed.append(f"{bundle.post_id}（Reel）: {store_note}")
+
         caption = bundle.caption
         title = (bundle.title or (strip_hashtags(caption).splitlines() or [""])[0])[:TITLE_LIMIT]
         description = "\n\n".join(
@@ -107,6 +180,10 @@ def enqueue_folder(
                 "image_urls": urls,
                 "image_count": len(urls),
                 "content_hash": digest,
+                # Instagram をどう出すか（carousel / reel）。他の媒体には影響しない
+                "post_type": post_type,
+                "video_url": video_url,
+                "reel_seconds": reel_seconds,
             },
         )
         store.log(experiment.experiment_id, f"画像{len(urls)}枚を公開URLに紐付けました")

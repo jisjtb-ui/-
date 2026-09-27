@@ -269,6 +269,26 @@ def main() -> int:
     check("16_クラウドへ渡す.bat がある", (ROOT / "16_クラウドへ渡す.bat").exists())
     check("17_クラウドの状況.bat がある", (ROOT / "17_クラウドの状況.bat").exists())
 
+    section("文章に混ざりもの（別の言語の文字）がないか")
+    import re as _re
+
+    # 過去に実際に混ざった（ロシア語・韓国語の1文字が結果文に入っていた）。
+    # 画面にも画像にも出てしまうので、毎回機械で調べる
+    foreign = _re.compile(r"[\u0400-\u04FF\u0600-\u06FF\uAC00-\uD7AF\u0E00-\u0E7F]")
+    stray: list[str] = []
+    targets = (list((ROOT / "data").rglob("*.json"))
+               + [p for p in ROOT.rglob("*.py") if "__pycache__" not in p.parts])
+    for path in targets:
+        try:
+            lines = path.read_text(encoding="utf-8").splitlines()
+        except (UnicodeDecodeError, OSError):
+            continue
+        for number, line in enumerate(lines, start=1):
+            if foreign.search(line):
+                stray.append(f"{path.relative_to(ROOT)}:{number}")
+    check("日本語の文章に別の言語の文字が混ざっていない",
+          not stray, "混入: " + ", ".join(stray[:6]))
+
     section("配布物の目録")
     import json as _json
 
@@ -276,7 +296,20 @@ def main() -> int:
     if not manifest_path.is_file():
         check("update_manifest.json がある", False, "まだ生成されていません")
     else:
+        # 検査するのは「コミット済みの目録」ではなく「いま作ったら何が載るか」。
+        # 目録はリリースのときに作り直されるので、開発中に足したファイルは
+        # まだ載っていない。**作り方が壊れていないか**を見たいので、
+        # release.py と同じ手順で作り直してから調べる。
         listed = set(_json.loads(manifest_path.read_text(encoding="utf-8"))["files"])
+        try:
+            sys.path.insert(0, str(ROOT / "tools"))
+            import release as _release
+
+            subprocess.run(["git", "add", "-A"], cwd=ROOT,
+                           capture_output=True, text=True)
+            listed |= set(_release.build_manifest("0.0.0", [], "main").files)
+        except Exception as exc:
+            check("目録を作り直せる", False, str(exc)[:200])
         # アプリが実際に読み込むPythonファイルは、すべて目録に載っていなければ
         # 利用者のPCへ届かない（v1.14.0で weights.py が届かなかった）
         modules = sorted(
@@ -292,8 +325,9 @@ def main() -> int:
         )
         buttons = sorted(path.name for path in ROOT.glob("*.bat"))
         missing = [p for p in modules + roots if p not in listed]
-        check("Pythonとボタンがすべて目録に載っている",
-              not missing, "漏れ: " + ", ".join(missing[:6]))
+        check("Pythonとボタンがすべて目録に載る", not missing,
+              "漏れ: " + ", ".join(missing[:6])
+              + "（git add されていないか、.gitignore に入っています）")
         check("ボタンが1つ以上載っている",
               all(b in listed for b in buttons),
               "漏れ: " + ", ".join(b for b in buttons if b not in listed))
@@ -319,6 +353,24 @@ def main() -> int:
     check("テーマが data/love_light にある", (ROOT / "data" / "love_light").is_dir())
     gui_source = (ROOT / "autopost" / "gui_catalog.py").read_text(encoding="utf-8")
     check("成績画面にテンプレート比較がある", "template_tree" in gui_source)
+
+    section("Instagram Reels（画像→MP4→Reel投稿）")
+    result = subprocess.run([sys.executable, "tools/test_reel.py"], cwd=ROOT,
+                            capture_output=True, text=True, timeout=1200)
+    check("Reelsの独立テスト", result.returncode == 0,
+          (result.stdout + result.stderr).strip()[-500:])
+    media_source = (ROOT / "night_test" / "media.py").read_text(encoding="utf-8")
+    check("MediaRendererが分かれている",
+          all(name in media_source
+              for name in ("class MediaRenderer", "class ImageRenderer",
+                           "class ReelRenderer")))
+    ig_source = (ROOT / "autopost" / "publishers" / "instagram.py").read_text(encoding="utf-8")
+    check("Instagram投稿処理に動画の作り方を書いていない",
+          "libx264" not in ig_source and "ffmpeg" not in ig_source)
+    check("画面から投稿タイプを選べる（入力欄ではない）",
+          "post_type_box" in gui_source)
+    check("秒数を .env で変えられる",
+          "REEL_SECONDS_PAGE" in (ROOT / ".env.example").read_text(encoding="utf-8"))
 
     section("1枚目フック（A/B/Cテスト）")
     result = subprocess.run([sys.executable, "tools/test_hooks.py"], cwd=ROOT,

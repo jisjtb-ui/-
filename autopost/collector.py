@@ -85,6 +85,7 @@ def metrics_from_result(
         sub_category_id=sub_category_id,
         hook_variant=hook_variant,
         template_version=template_version,
+        post_type=getattr(publication, "post_type", "") or "",
         content_id=content_id,
         period_start=result.period_start,
         period_end=result.period_end,
@@ -244,7 +245,13 @@ class AnalyticsCollector:
 
         try:
             publisher = self.publisher(publication.platform)
-            result = publisher.get_analytics(publication.external_post_id)
+            post_type = getattr(publication, "post_type", "") or ""
+            try:
+                # Reel は取れる指標が違う。対応していないAdapterには渡さない
+                result = publisher.get_analytics(publication.external_post_id,
+                                                 post_type=post_type)
+            except TypeError:
+                result = publisher.get_analytics(publication.external_post_id)
         except NotSupported as exc:
             self.log(f"  {tag}: 取得不可 {exc}")
             return note(UNAVAILABLE, f"反応データの取得手段がありません: {exc}", "info")

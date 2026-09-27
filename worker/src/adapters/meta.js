@@ -9,6 +9,11 @@
  *   1回目: 子コンテナを作る          → stage=children
  *   2回目: 出来たか確かめ、束を作る    → stage=carousel
  *   3回目: 束が出来たか確かめ、公開     → posted
+ *
+ * Reel（media_kind=reel）は動画1本なので子コンテナが要らない。
+ *   1回目: media_type=REELS のコンテナを作る → stage=publish
+ *   2回目: 出来たか確かめ、公開              → posted
+ * 動画の処理は時間がかかるので、待つのは次のCronの回に任せる。
  */
 
 import { CONTENT, PostError, classifyMeta } from "../errors.js";
@@ -77,12 +82,34 @@ async function allFinished(base, ids, token, label) {
 export async function advanceMeta(config, job, token) {
   const { base, userId, endpoint, publishEndpoint, textField, label } = config;
   const media = JSON.parse(job.media || "[]");
-  if (!media.length) throw new PostError("画像URLがありません", CONTENT);
-  if (media.length > MAX_CAROUSEL) {
-    throw new PostError(`カルーセルは最大${MAX_CAROUSEL}枚です（${media.length}枚）`, CONTENT);
+  // Reelとして渡されたのに、その媒体がReelを扱えないなら黙って画像で出さない。
+  // 形が変わると比較（carousel vs reel）が成り立たなくなる。
+  const isReel = job.media_kind === "reel";
+  if (isReel && !config.supportsReel) {
+    throw new PostError(`${label}はReelを扱えません`, CONTENT);
+  }
+  if (!media.length) {
+    throw new PostError(isReel ? "動画URLがありません" : "画像URLがありません", CONTENT);
   }
   const state = JSON.parse(job.state || "{}");
   const stage = job.stage || "children";
+
+  // --- Reel: 動画1本。コンテナを1つ作って、次の回で公開する ---
+  if (isReel) {
+    if (stage === "children") {
+      const reel = await callApi(`${base}/${userId}/${endpoint}`, {
+        media_type: "REELS",
+        video_url: media[0],
+        [textField]: job.caption || "",
+        share_to_feed: "true",
+        access_token: token,
+      });
+      if (!reel.id) throw new PostError("Reelのコンテナを作れませんでした", "retryable");
+      return { done: false, stage: "publish", state: { creationId: reel.id, reel: true } };
+    }
+  } else if (media.length > MAX_CAROUSEL) {
+    throw new PostError(`カルーセルは最大${MAX_CAROUSEL}枚です（${media.length}枚）`, CONTENT);
+  }
 
   // --- 1段目: 子コンテナを作る（画像の枚数ぶん。10枚なら10リクエスト） ---
   if (stage === "children") {

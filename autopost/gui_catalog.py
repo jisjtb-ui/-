@@ -120,16 +120,24 @@ class CategoryTab(ttk.Frame):
         self.template_box.grid(row=0, column=1, sticky=W)
         self.template_box.bind("<<ComboboxSelected>>", lambda e: self.save_template())
 
-        ttk.Label(hook_frame, text="使うフック").grid(row=1, column=0, sticky=W,
+        ttk.Label(hook_frame, text="Instagram").grid(row=1, column=0, sticky=W,
+                                                    padx=8, pady=6)
+        self.post_type_var = StringVar()
+        self.post_type_box = ttk.Combobox(hook_frame, textvariable=self.post_type_var,
+                                          state="readonly", width=26)
+        self.post_type_box.grid(row=1, column=1, sticky=W)
+        self.post_type_box.bind("<<ComboboxSelected>>", lambda e: self.save_post_type())
+
+        ttk.Label(hook_frame, text="使うフック").grid(row=2, column=0, sticky=W,
                                                  padx=8, pady=6)
         self.hook_var = StringVar()
         self.hook_box = ttk.Combobox(hook_frame, textvariable=self.hook_var,
                                      state="readonly", width=26)
-        self.hook_box.grid(row=1, column=1, sticky=W)
+        self.hook_box.grid(row=2, column=1, sticky=W)
         self.hook_box.bind("<<ComboboxSelected>>", lambda e: self.save_hook())
         self.hook_note = StringVar(value="")
         ttk.Label(hook_frame, textvariable=self.hook_note, foreground="#555",
-                  wraplength=430, justify=LEFT).grid(row=2, column=0, columnspan=3,
+                  wraplength=430, justify=LEFT).grid(row=3, column=0, columnspan=3,
                                                      sticky=W, padx=8, pady=(0, 6))
 
         account_frame = ttk.LabelFrame(right, text="このCategoryのSNSアカウント")
@@ -168,6 +176,7 @@ class CategoryTab(ttk.Frame):
         self.reload_subs()
         self.reload_accounts()
         self.reload_templates()
+        self.reload_post_types()
         self.reload_hooks()
         self.app.on_category_changed()
 
@@ -209,6 +218,26 @@ class CategoryTab(ttk.Frame):
             self.template_var.set(labels[self._template_values.index(current)])
         elif labels:
             self.template_var.set(labels[0])
+
+    def reload_post_types(self) -> None:
+        options = self.app.post_type_choices()
+        self.post_types = Choice()
+        labels = self.post_types.set([(i, label) for i, (_, label) in enumerate(options)])
+        self._post_type_values = [value for value, _ in options]
+        self.post_type_box.configure(values=labels)
+        current = self.app.post_type_setting(self.category_id)
+        if current in self._post_type_values:
+            self.post_type_var.set(labels[self._post_type_values.index(current)])
+        elif labels:
+            self.post_type_var.set(labels[0])
+
+    def save_post_type(self) -> None:
+        index = self.post_types.id_of(self.post_type_var.get())
+        value = (self._post_type_values[index]
+                 if index is not None and index < len(self._post_type_values)
+                 else "carousel")
+        self.app.set_post_type_setting(self.category_id, value)
+        self.app.log(f"Instagramの投稿タイプを「{self.post_type_var.get()}」にしました")
 
     def save_template(self) -> None:
         index = self.templates.id_of(self.template_var.get())
@@ -577,6 +606,26 @@ class AnalyticsTab(ttk.Frame):
             self.template_tree.column(name, width=width, anchor=anchor)
         self.template_tree.pack(fill=X, padx=6, pady=6)
 
+        post_type_frame = ttk.LabelFrame(self, text="投稿タイプの比較（カルーセル vs Reel）")
+        post_type_frame.pack(fill=X, **PAD)
+        post_type_columns = ("variant", "posts", "views", "save", "share", "watch")
+        self.post_type_tree = ttk.Treeview(post_type_frame, columns=post_type_columns,
+                                           show="headings", height=3)
+        for name, title, width, anchor_side in (
+            ("variant", "投稿タイプ", 150, W),
+            ("posts", "投稿", 60, "e"),
+            ("views", "表示（中央値）", 110, "e"),
+            ("save", "保存率", 80, "e"),
+            ("share", "共有率", 80, "e"),
+            ("watch", "平均視聴（秒）", 110, "e"),
+        ):
+            self.post_type_tree.heading(name, text=title)
+            self.post_type_tree.column(name, width=width, anchor=anchor_side)
+        self.post_type_tree.pack(fill=X, padx=6, pady=6)
+        self.post_type_note = StringVar()
+        ttk.Label(post_type_frame, textvariable=self.post_type_note, wraplength=680,
+                  justify=LEFT, foreground="#555").pack(anchor=W, padx=8, pady=(0, 6))
+
         controls = ttk.Frame(self)
         controls.pack(fill=X, padx=8, pady=(0, 6))
         ttk.Button(controls, text="選んだ行を固定／解除",
@@ -647,6 +696,7 @@ class AnalyticsTab(ttk.Frame):
             ))
         self.reload_hooks()
         self.reload_templates()
+        self.reload_post_types()
 
     def reload_hooks(self) -> None:
         from . import report as report_module
@@ -687,6 +737,29 @@ class AnalyticsTab(ttk.Frame):
                 f"{row.views:,.0f}" if row.views is not None else "—",
                 pct(row.save_rate), pct(row.share_rate),
             ))
+
+    def reload_post_types(self) -> None:
+        from . import report as report_module
+
+        rows, _ = report_module.post_type_comparison(self.app.settings,
+                                                     self.app.experiments)
+        self.post_type_tree.delete(*self.post_type_tree.get_children())
+        for row in rows:
+            def pct(value):
+                return f"{value * 100:.2f}%" if value is not None else "—"
+            self.post_type_tree.insert("", END, values=(
+                row.label or row.variant, row.posts,
+                f"{row.views:,.0f}" if row.views is not None else "—",
+                pct(row.save_rate), pct(row.share_rate),
+                f"{row.watch_time:.1f}" if row.watch_time is not None else "—",
+            ))
+        if not rows:
+            self.post_type_note.set(
+                "まだInstagramの投稿がありません（カルーセル・Reelのどちらも）。")
+        else:
+            self.post_type_note.set(
+                "Reelは表示数が伸びやすいので、数だけ見ると必ずReelが勝ちます。"
+                "保存率・共有率で比べてください。平均視聴時間はReelだけ取れます。")
 
     def show_reason(self) -> None:
         selection = self.tree.selection()

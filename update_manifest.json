@@ -1,15 +1,20 @@
 {
-  "version": "1.18.1",
-  "released_at": "2026-09-27T04:09:09+00:00",
+  "version": "1.19.0",
+  "released_at": "2026-09-27T21:46:09+00:00",
   "channel": "main",
   "notes": [
-    "軽量7枚テンプレートを既定にした。GUI・自動補充・generate.py のどこから作っても7枚になる（これまでは --template を手で付けたときだけ7枚だった）",
-    "画面の「Category」タブから投稿の形（軽量7枚 / 従来11枚）を選べるようにした"
+    "InstagramをReel（縦動画）として自動投稿できるようにした。7枚の画像から1080x1920のMP4を作って公開する",
+    "投稿の形（カルーセル / Reel）をCategoryごとに画面から選べるようにした。既定は .env の INSTAGRAM_POST_TYPE",
+    "1枚を映す秒数を設定で変えられるようにした（既定は1枚1.5秒・最後2.5秒＝11.5秒）",
+    "公開前に動画の長さ・大きさ・形式を検査し、条件を外れていれば投稿せず理由をログに残すようにした",
+    "PCを切っていてもクラウド側からReelとして投稿できるようにした（Reelを扱えない媒体へ渡されたら画像に化けさせず止める）",
+    "成績画面とコマンド（autopost.py hooks posttype）で、カルーセルとReelを保存率・共有率・平均視聴時間で比べられるようにした",
+    "結果文に1文字だけ韓国語が混ざっていたのを直し、以後は毎回機械で検査するようにした"
   ],
   "files": {
     ".env.example": {
-      "sha256": "862d7b9df92042cd9e95b2d4ac8c2951d247e41d85eff810d3db66df29ce2ab8",
-      "size": 11599
+      "sha256": "02c263066c8af32661edf1d8ad620f7e9004eae09962fa8c96797205c56e3912",
+      "size": 12086
     },
     ".gitattributes": {
       "sha256": "3fa230e012e5907422ba6c650fd2a1798f7cb7b07a2912285e64790e2ff97fc6",
@@ -92,23 +97,23 @@
       "size": 70
     },
     "CHANGELOG.md": {
-      "sha256": "7d4fc31929c88a35798c3fad21c0db779761e793e328457b1e61f747264a4772",
-      "size": 13239
+      "sha256": "d5284aa7fb8e67425e88c697991dbfb4a63f9b6cd15c8bd56ad06d03860250be",
+      "size": 14254
     },
     "CLAUDE.md": {
-      "sha256": "61626199686da03661a9f4431e21ebecca7a4f95364ca568929ea77bc8ab9ce3",
-      "size": 9668
+      "sha256": "d1a91fa13a8452cb2fc48a2b5831a5e610f89f5f540c0546a15350c371838cde",
+      "size": 11426
     },
     "README.md": {
-      "sha256": "ddd32adcf84086128bd2b278d789da387700f5ee5bc4f79dec7827e98b0628ec",
-      "size": 30281
+      "sha256": "d53a9c581416f82578ea36ed261d82536bfb2d2b11cbb6234281f6c8a1f9db3a",
+      "size": 30384
     },
     "SETUP_AUTOPOST.md": {
-      "sha256": "25e0036dec1870a0c28369d19bf003b9662fab62cb273cc0b898fe7bb07e60d7",
-      "size": 62039
+      "sha256": "6516cd31e5a8860de54b2f9ef798dd46e848770bde1f46b807929dde6bb80577",
+      "size": 64049
     },
     "VERSION": {
-      "sha256": "71fc7bd16b1bc9b3681085fb0be8aea0b3a37d90d1685938dc2e8a31bf8c9b94",
+      "sha256": "c55c898de5079ee498d5f051b29815688154292df4d72ab91f1edb5497ac4e6e",
       "size": 7
     },
     "autopost.py": {
@@ -124,20 +129,20 @@
       "size": 16023
     },
     "autopost/cli.py": {
-      "sha256": "d7e94803865ea26cdf0adf557e136b0f749bf55de96d951f505fbce47e59c9d8",
-      "size": 71695
+      "sha256": "6cf101ac15992441becc2b89ca3521c736f0eb31230ad60bdffcc917633c91f8",
+      "size": 71963
     },
     "autopost/cloud.py": {
-      "sha256": "96246e8a5663c3b623d45f05da7bcf9462daf59f8452fd771d41ac07886a6769",
-      "size": 15117
+      "sha256": "d9a6ee884cdebfd77ded166f9cfde8f71769c4241e980f7431ad62c9b612114b",
+      "size": 16448
     },
     "autopost/collector.py": {
-      "sha256": "3cdb3a3c5f0c282743a3db176ec4c62abe1778e09994f267c8049f332113e49d",
-      "size": 12884
+      "sha256": "b0ec41085dfe0c94f72045df3890cba19423ccf88958550e4f7fca2547a2b71b",
+      "size": 13315
     },
     "autopost/config.py": {
-      "sha256": "54fc0bc948fc2a7279394cbb9cf1700b429274bc9ccaebf2c784f870a8843319",
-      "size": 17446
+      "sha256": "5bafd0037f60a12134d855144f74097b74caaaaa2fb3a3f77ef8380b3c9880fd",
+      "size": 17935
     },
     "autopost/db.py": {
       "sha256": "8028294bf1aa283e90e24a0c3f32f43ce7d81cd3c98de3814740f3d1df527d17",
@@ -148,20 +153,20 @@
       "size": 14828
     },
     "autopost/engine.py": {
-      "sha256": "9dd8940f3640b285c5b47ecd901041f87edda301220e8bc7bcd96788a77cbc20",
-      "size": 10651
+      "sha256": "365dccfc9471a80eae2c3ec16295bf0ab3ac24736b30a5471d457e771860c452",
+      "size": 10784
     },
     "autopost/experiments.py": {
-      "sha256": "7eede3074f8456024d6211704a486c58de0626ea6ba6981a6648302bbcabd220",
-      "size": 38269
+      "sha256": "269a5b56dcd64cfa28c9da6d00c3b6488dbf40763ef052f9d84c0fc9fb3b1a5a",
+      "size": 38925
     },
     "autopost/gui.py": {
-      "sha256": "5d8087fe7ad4843050cf677dd7acd05b3d42dfa5d30b8fecacc120f749b5b849",
-      "size": 27906
+      "sha256": "ab5e1e82dcc0d85cdba93c28fa8055eba632181de5cf1e5e9a078527414da817",
+      "size": 28621
     },
     "autopost/gui_catalog.py": {
-      "sha256": "140965c3b406eeab77d0ba0adaac950ccee218b320f0509242b0de3d54d894b5",
-      "size": 34403
+      "sha256": "c69b8cb416ab1790899f4596483f74f33f13aae95ccce921ac738137c4345dd4",
+      "size": 38358
     },
     "autopost/hosting/__init__.py": {
       "sha256": "651877132d7779df36ed4fb179a7e7cf1e9e771cb9254b2126f7f8bc0cc3ff07",
@@ -236,8 +241,8 @@
       "size": 9017
     },
     "autopost/publishers/instagram.py": {
-      "sha256": "9c8c765eede5fb6da4d8df2bfafbbed53a53bec9cf6dd0fc182a85dd7c05e947",
-      "size": 18847
+      "sha256": "9925382d2ded7f6a5d7ad6e513f9e5fa83f7abbb6da49c31c94301a5ab1d80cf",
+      "size": 23056
     },
     "autopost/publishers/pinterest.py": {
       "sha256": "d60ebaad983670db94250cd74964bad3a34062502e84ad2c9260f1abd3695867",
@@ -256,12 +261,12 @@
       "size": 19743
     },
     "autopost/queueing.py": {
-      "sha256": "38a4b60685f20b08fae6483bf0358daa96c5af9de66e5a5af0ef5025ce66db96",
-      "size": 14709
+      "sha256": "93bffe90cceb4b54e007d4ccc234c43acb3aaf1829f06b0d1701206bc8a8d9ac",
+      "size": 18289
     },
     "autopost/report.py": {
-      "sha256": "6e5d7b579cddf420bbaf2a532a1a144c4add99cbf09a61d109965e326e6e8c81",
-      "size": 21656
+      "sha256": "5518b51e3c70efdc2aa069b698d3822aac5d3ae81a04aa00ad8a2d3a64b83286",
+      "size": 22739
     },
     "autopost/scheduler.py": {
       "sha256": "79f58fe313af3c2e3d0553cc145893340ca6fcd48241eab855f5cb74aa7facb0",
@@ -400,7 +405,7 @@
       "size": 9247
     },
     "data/tests/opener.json": {
-      "sha256": "94c0396896c120dfe293f902430235b000081f42b3a69174235a14c880f40d5d",
+      "sha256": "d390c1ae6d23358b52c6eea36c68a66ca58dc51990d2aee055b111580b00b9c4",
       "size": 13301
     },
     "data/tests/possessive.json": {
@@ -471,6 +476,10 @@
       "sha256": "1a0eb1ca6e2d492b74631551f01633fc992247069dc5d4573812bafa28b8e9ad",
       "size": 9083
     },
+    "night_test/media.py": {
+      "sha256": "f468f83fb338de6112a3ae8cbbebd5138ef880bcef7188cdf162b2f4e09df757",
+      "size": 7736
+    },
     "night_test/renderer.py": {
       "sha256": "4cfaeec92f42267280d0a922ad34c0b8ca775434520a0405b319dc48a4722d41",
       "size": 25015
@@ -480,8 +489,8 @@
       "size": 5248
     },
     "night_test/video.py": {
-      "sha256": "97a6ba35100104bf916cc846f08c67f2faed7307527a5dfb8d48377c56974f1e",
-      "size": 7274
+      "sha256": "34f43876e1546977cde91122c96f198e6d7890fbcc6f43ef654d418c8d6397cb",
+      "size": 9112
     },
     "requirements.txt": {
       "sha256": "d5e1c7f4886bd523aa362ee1daa59c56c2f62081f16bd6eabc65c8d4d155c8bc",
@@ -632,8 +641,8 @@
       "size": 12377
     },
     "tools/selftest.py": {
-      "sha256": "8f7ab27b8c54bb50513a400744b8410a08de685a76cd07cf8ce48ef36bdfa97b",
-      "size": 19950
+      "sha256": "4db91de57ebc9eb16d04b5f5bfb529ed8552278283dce18dc76e83d18caf7091",
+      "size": 22946
     },
     "tools/setup_all.py": {
       "sha256": "d6263fb81a999642bff2c39378fabaa9ab3ba9d2d82121f5945efe2e156e31a0",
@@ -648,8 +657,8 @@
       "size": 34657
     },
     "tools/test_cloud.py": {
-      "sha256": "834e8ff00c0ded5a2a18ef68923a3485af0e0eafc8278e8ecaee38e5a86ac177",
-      "size": 16102
+      "sha256": "d823d782aae43d6ef457d5c9dcc977563ca914a4e3b39273975f34478a57b32d",
+      "size": 18763
     },
     "tools/test_hooks.py": {
       "sha256": "b6ddd6d42906c9a9243e5be648d83e00b66dfd2c7f968b1c8c55794d9136fb79",
@@ -658,6 +667,10 @@
     "tools/test_light.py": {
       "sha256": "d15660d0f729eaea5004d4bc9e14f021bb149a45217d1428a851dde0a9d698bf",
       "size": 14348
+    },
+    "tools/test_reel.py": {
+      "sha256": "1f5d92e203f3c7e73c24547965fe12a126fdab04bf8f9fb7dffb8b6ee26fdd3c",
+      "size": 14475
     },
     "worker/fake-d1.mjs": {
       "sha256": "c5644f483d9ee3a74fcb298bf143ac7f315e54d31e5c4ed6d0daf76f904242a9",
@@ -672,12 +685,12 @@
       "size": 777
     },
     "worker/src/adapters/instagram.js": {
-      "sha256": "67943225b87777a6c10ca2f96c3771bd731b72b8cd6c2cc3695c319025528b2e",
-      "size": 2946
+      "sha256": "f31af61f2d54d3472767e1864002ba1b45295dcfd7a3f372bbe25995cb3e3464",
+      "size": 3600
     },
     "worker/src/adapters/meta.js": {
-      "sha256": "0f4007b0c5f7dda8223bb4ad9e21b7594384c7435357ba5f726b48a1e7737769",
-      "size": 5997
+      "sha256": "33c3c4b109e84731aff44e50e88854f883635b1506cac8c991e3db676a69a9b7",
+      "size": 7306
     },
     "worker/src/adapters/threads.js": {
       "sha256": "3d4210ec007600c6bda3737adadd1c6ccfc25b99cfd38ea28cb36bb967002c12",
@@ -688,8 +701,8 @@
       "size": 5207
     },
     "worker/src/api.js": {
-      "sha256": "d48a2cd22ed1fdc181eb25bd735d6c4caaf251da20768bec2e36f2002d542ef9",
-      "size": 6835
+      "sha256": "ae5c76f9a689b1220fd9c32d52837b283639c9820cb233b9735acdd9e77355f8",
+      "size": 6847
     },
     "worker/src/dashboard.js": {
       "sha256": "7b2b8f810ae9a6c6ed81af00d855abb639062ea1013f13bd4745b0056bb888da",
@@ -724,8 +737,8 @@
       "size": 7918
     },
     "worker/test-cloud.mjs": {
-      "sha256": "c3df6e02e9c5d46325b116fcb871a32a6e02e59781504177f68db6ff5b50b813",
-      "size": 23133
+      "sha256": "6bf057e3b6f80f1867ff4df836b41e91b87401c84e330da75c01ff74afddb450",
+      "size": 26151
     },
     "worker/test.mjs": {
       "sha256": "e0e5ac5b203e12497b820f4c30103a0748b7b640f38513ac9f558ea2203e69c1",

@@ -38,6 +38,19 @@ SECONDS_ANSWER = 2.5
 LEAD_IN_SECONDS = 1.2
 TAIL_SECONDS = 6.0
 
+# 軽量テンプレート（7枚）の既定。1枚 = 1判断なので、どれも同じ長さでよい
+UNIFORM_SECONDS = 1.5
+UNIFORM_LAST_SECONDS = 2.5
+
+# Instagram Reels の公式仕様（2026-09時点で確認）
+#   https://developers.facebook.com/docs/instagram-platform/instagram-graph-api/reference/ig-user/media/
+REELS_MIN_SECONDS = 3.0
+REELS_MAX_SECONDS = 15 * 60
+REELS_MAX_BYTES = 300 * 1024 * 1024
+REELS_MIN_FPS = 23
+REELS_MAX_FPS = 60
+REELS_MAX_HORIZONTAL = 1920
+
 
 class VideoError(RuntimeError):
     """動画を作れなかった。"""
@@ -45,20 +58,31 @@ class VideoError(RuntimeError):
 
 @dataclass
 class ReelSpec:
+    """動画の作り方。秒数はすべてここで変えられる（コードに埋めない）。
+
+    mode:
+      "auto"    問題は長く、答えは短く。冒頭と末尾に余白（従来の11枚向け）
+      "uniform" どの1枚も同じ長さ。最後の1枚だけ少し長い（軽量7枚向け）
+    """
+
     width: int = REEL_WIDTH
     height: int = REEL_HEIGHT
     fps: int = FPS
+    mode: str = "auto"
     seconds_question: float = SECONDS_QUESTION
     seconds_answer: float = SECONDS_ANSWER
     lead_in: float = LEAD_IN_SECONDS
     tail: float = TAIL_SECONDS
+    seconds_uniform: float = UNIFORM_SECONDS
+    seconds_last: float = UNIFORM_LAST_SECONDS
+    # 無音でもAACの音声トラックを入れる。Reelsは音声コーデックが仕様にあり、
+    # 音声トラックの無いファイルは弾かれることがある（音楽は付けない）
+    silent_audio: bool = True
 
     def seconds_for(self, name: str, index: int = 1, total: int = 0) -> float:
-        """その1枚を映す秒数。
-
-        最初の1枚は認知の余白を足して長く、最後の1枚（CTAのページ）は
-        読んで押すまでの時間として、はっきり長く止める。
-        """
+        """その1枚を映す秒数。"""
+        if self.mode == "uniform":
+            return self.seconds_last if (total and index == total) else self.seconds_uniform
         if total and index == total:
             return self.tail
         base = self.seconds_answer if "answer" in name else self.seconds_question
@@ -146,18 +170,33 @@ def build_reel(
         script.write_text("\n".join(listing) + "\n", encoding="utf-8")
 
         total = spec.total_seconds([p.name for p in images])
-        log(f"{len(images)}枚 / {total:.1f}秒 の動画を作ります"
-            f"（冒頭+{spec.lead_in:.1f}秒・末尾{spec.tail:.1f}秒の余白つき）")
+        if spec.mode == "uniform":
+            note = f"1枚{spec.seconds_uniform:.1f}秒・最後{spec.seconds_last:.1f}秒"
+        else:
+            note = f"冒頭+{spec.lead_in:.1f}秒・末尾{spec.tail:.1f}秒の余白つき"
+        log(f"{len(images)}枚 / {total:.1f}秒 の動画を作ります（{note}）")
 
         command = [
             exe, "-y", "-loglevel", "error",
             "-f", "concat", "-safe", "0", "-i", str(script),
+        ]
+        if spec.silent_audio:
+            # 無音のトラックを1本足す。音楽は付けない（APIでは付けられない）
+            command += ["-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo"]
+        command += [
             "-vf", f"fps={spec.fps},format=yuv420p",
             "-c:v", "libx264", "-preset", "medium", "-crf", "20",
-            "-movflags", "+faststart",
-            "-an",                      # 音声なし（自分で付ける前提）
-            str(output),
+            "-pix_fmt", "yuv420p",      # 4:2:0（公式仕様）
+            "-profile:v", "high", "-level", "4.0",
+            "-g", str(spec.fps * 2), "-keyint_min", str(spec.fps),
+            "-movflags", "+faststart",  # moov atom を先頭へ（公式仕様）
         ]
+        if spec.silent_audio:
+            command += ["-c:a", "aac", "-b:a", "128k", "-ar", "48000", "-ac", "2",
+                        "-shortest"]
+        else:
+            command += ["-an"]
+        command += [str(output)]
         result = subprocess.run(command, cwd=workspace, capture_output=True, text=True)
         if result.returncode != 0:
             detail = (result.stderr or result.stdout).strip().splitlines()

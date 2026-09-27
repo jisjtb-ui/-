@@ -134,11 +134,34 @@ push → `main` へ反映 まで進む。**利用者から毎回の許可を取�
 検証: `node worker/test.mjs` `node worker/test-cloud.mjs`
 `python tools/test_cloud.py`（いずれも外部へは投稿しない）
 
+## InstagramのReel投稿
+
+同じ7枚から縦動画を作って `media_type=REELS` で出す。**画像投稿と同じ素材・同じ本文で、
+形だけを変える。** 生成ロジックとThreads・TikTokには触らない。
+
+- 動画の作り方は `night_test/media.py` の Renderer に閉じ込める
+  （`MediaRenderer` → `ImageRenderer` / `ReelRenderer` / 将来 `VideoRenderer`）。
+  **投稿処理（`publishers/instagram.py`）に ffmpeg を書かない**
+- 秒数は `ReelSpec` と `.env`（`REEL_SECONDS_PAGE` / `REEL_SECONDS_LAST`）で変える。
+  7枚なら 1.5×6 + 2.5 = 11.5秒
+- 公開前に `validate_reel()` で長さ・大きさ・コーデック・容量を確かめる。
+  **外れていたら投稿せず、理由をログへ残して止める**
+- `post_type`（carousel / reel）を publications と metrics に必ず残す。
+  比較は率の中央値。**Reelは再生数が伸びやすいので総数で勝敗を決めない**
+- 投稿形式は Category ごと（`post_type:<category_id>` フラグ）。既定は `.env`
+- 動画URLが用意できないときはカルーセルへ落とす（投稿自体は止めない）
+- クラウド側（`worker/`）も `media_kind=reel` で出せる。動画は子コンテナが要らないので
+  2段（作る→公開）。**Reelを扱えない媒体へ渡されたら画像で出さずに失敗させる**
+  （形が変わると carousel vs reel の比較が成り立たない）
+
+検証: `python tools/test_reel.py`（MP4を実際に書き出す。外部へは投稿しない）
+
 ## 外部API
 
 - 公式APIのみ。非公式API、ブラウザ操作による規約回避、Cookie取得は使わない
 - 記憶で書かず、必ず公式ドキュメントで確認する
-- Reel は音源を手で付けるため自動投稿しない（API経由では無音になる）
+- Reel は `media_type=REELS` で自動投稿できる。ただし**API経由では音源を付けられない**
+  ので無音になる。音を付けたいときは従来どおり書き出して手で投稿する（両方残す）
 - TikTok は下書き転送のみ
 
 ## 検証
@@ -149,6 +172,7 @@ Worker を触ったら `node worker/test.mjs` と `node worker/test-cloud.mjs`�
 クラウドの受け渡しを触ったら `python tools/test_cloud.py`。
 フックを触ったら `python tools/test_hooks.py`。
 軽量テンプレートを触ったら `python tools/test_light.py`。
+Reelを触ったら `python tools/test_reel.py`。
 
 新しいファイルを足したら、**目録（`update_manifest.json`）に載ることを
 確かめる**。載っていないと利用者のPCへ届かない（v1.14.0 で実際に起きた）。

@@ -79,6 +79,7 @@ CREATE TABLE IF NOT EXISTS experiment_publications (
     scheduled_at      TEXT,
     external_post_id  TEXT,
     external_url      TEXT,
+    post_type         TEXT NOT NULL DEFAULT '',   -- carousel / reel（媒体ごとに違う）
     published_at      TEXT,
     error_message     TEXT,
     retry_count       INTEGER NOT NULL DEFAULT 0,
@@ -116,6 +117,7 @@ CREATE TABLE IF NOT EXISTS experiment_metrics (
     sub_category_id   INTEGER,
     hook_variant      TEXT NOT NULL DEFAULT '',   -- 1枚目のフック（A/B/C…）
     template_version  TEXT NOT NULL DEFAULT '',   -- テンプレートの版
+    post_type         TEXT NOT NULL DEFAULT '',   -- carousel / reel
     content_id        TEXT NOT NULL DEFAULT '',   -- 生成物の投稿ID（post_001 など）
     late              INTEGER NOT NULL DEFAULT 0, -- 許容時間を過ぎてから測った
     window_hours      REAL,                       -- その計測区分の予定経過時間
@@ -283,6 +285,7 @@ class Publication:
     scheduled_at: str | None = None
     external_post_id: str | None = None
     external_url: str | None = None
+    post_type: str = ""
     published_at: str | None = None
     error_message: str | None = None
     retry_count: int = 0
@@ -312,6 +315,7 @@ class Metrics:
     sub_category_id: int | None = None
     hook_variant: str = ""                 # 1枚目のフック（A/B/C…）
     template_version: str = ""             # テンプレートの版
+    post_type: str = ""                    # carousel / reel
     content_id: str = ""                   # 生成物の投稿ID（post_001 など）
     period_start: str | None = None
     period_end: str | None = None
@@ -372,6 +376,8 @@ class ExperimentStore:
              "ALTER TABLE experiment_metrics ADD COLUMN hook_variant TEXT NOT NULL DEFAULT ''"),
             ("template_version",
              "ALTER TABLE experiment_metrics ADD COLUMN template_version TEXT NOT NULL DEFAULT ''"),
+            ("post_type",
+             "ALTER TABLE experiment_metrics ADD COLUMN post_type TEXT NOT NULL DEFAULT ''"),
             ("late",
              "ALTER TABLE experiment_metrics ADD COLUMN late INTEGER NOT NULL DEFAULT 0"),
             ("window_hours",
@@ -385,6 +391,9 @@ class ExperimentStore:
         }
         if "scheduled_at" not in pub_columns:
             conn.execute("ALTER TABLE experiment_publications ADD COLUMN scheduled_at TEXT")
+        if "post_type" not in pub_columns:
+            conn.execute("ALTER TABLE experiment_publications"
+                         " ADD COLUMN post_type TEXT NOT NULL DEFAULT ''")
 
         # Category / SubCategory への紐付け。既存行は NULL のまま残し、
         # あとで既定Categoryへ結び付ける（データは消さない）。
@@ -602,14 +611,16 @@ class ExperimentStore:
         external_url: str = "",
         extra: dict | None = None,
         status: str = PUBLISHED,
+        post_type: str = "",
     ) -> None:
         """送信完了を記録する（下書き転送の場合は status=draft_created）。"""
         now = _now()
         with self._connect() as conn:
             conn.execute(
                 "UPDATE experiment_publications SET status=?, external_post_id=?, external_url=?,"
+                " post_type=COALESCE(NULLIF(?, ''), post_type),"
                 " published_at=?, error_message=NULL, extra=?, updated_at=? WHERE id=?",
-                (status, external_post_id, external_url, now,
+                (status, external_post_id, external_url, post_type, now,
                  json.dumps(extra or {}, ensure_ascii=False), now, publication_id),
             )
 
