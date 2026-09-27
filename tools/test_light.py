@@ -167,17 +167,39 @@ def run(check) -> None:
         cwd=ROOT, capture_output=True, text=True, timeout=300)
     check("知らないテーマは黙って別のものにしない", unknown.returncode != 0)
 
+    # ---------------------------------------------------------------- 3b
+    # ふだんの経路（引数なし・GUI・自動補充）でも7枚になる
+    plain = subprocess.run(
+        [sys.executable, "generate.py", "--posts", "1",
+         "--output", str(out / "plain"), "--history", str(out / "plain.json")],
+        cwd=ROOT, capture_output=True, text=True, timeout=300)
+    images = sorted(p.name for p in (out / "plain" / "post_001").glob("*.png"))
+    check("--template を付けなくても7枚になる", len(images) == PAGE_COUNT,
+          f"{len(images)}枚（{plain.stderr.strip()[-120:]}）")
+
+    gui_source = (ROOT / "autopost" / "gui.py").read_text(encoding="utf-8")
+    check("GUIが --template を渡す", '"--template", self.template_setting' in gui_source)
+    check("GUIにテンプレートの選択肢がある", "def template_choices" in gui_source)
+    queue_source = (ROOT / "autopost" / "queueing.py").read_text(encoding="utf-8")
+    check("自動補充が --template を渡す", '"--template", settings.template' in queue_source)
+    catalog_source = (ROOT / "autopost" / "gui_catalog.py").read_text(encoding="utf-8")
+    check("画面からテンプレートを選べる", "template_box" in catalog_source)
+    check("設定の既定が軽量7枚", Settings.load().template == "v2_light",
+          Settings.load().template)
+
     # ---------------------------------------------------------------- 4
     # 既存のテンプレートに影響していない
     legacy = subprocess.run(
-        [sys.executable, "generate.py", "--posts", "1", "--tests-per-post", "5",
-         "--hook", "A", "--output", str(out / "v1"), "--history", str(out / "v1.json")],
+        [sys.executable, "generate.py", "--posts", "1", "--template", "v1",
+         "--tests-per-post", "5", "--hook", "A",
+         "--output", str(out / "v1"), "--history", str(out / "v1.json")],
         cwd=ROOT, capture_output=True, text=True, timeout=300)
     names = sorted(p.name for p in (out / "v1" / "post_001").glob("*.png"))
     check("従来のフック構成は11枚のまま", len(names) == 11, f"{len(names)}枚")
     old_style = subprocess.run(
-        [sys.executable, "generate.py", "--posts", "1", "--tests-per-post", "4",
-         "--hook", "none", "--output", str(out / "v0"), "--history", str(out / "v0.json")],
+        [sys.executable, "generate.py", "--posts", "1", "--template", "v1",
+         "--tests-per-post", "4", "--hook", "none",
+         "--output", str(out / "v0"), "--history", str(out / "v0.json")],
         cwd=ROOT, capture_output=True, text=True, timeout=300)
     names = sorted(p.name for p in (out / "v0" / "post_001").glob("*.png"))
     check("さらに従来の占い構成も10枚のまま",

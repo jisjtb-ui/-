@@ -80,8 +80,8 @@ def run(check) -> None:
     out = Path(tempfile.mkdtemp())
     for variant in ("A", "B", "C"):
         result = subprocess.run(
-            [sys.executable, "generate.py", "--posts", "1", "--tests-per-post", "5",
-             "--hook", variant, "--category", "hotel",
+            [sys.executable, "generate.py", "--posts", "1", "--template", "v1",
+             "--tests-per-post", "5", "--hook", variant, "--category", "hotel",
              "--output", str(out / variant), "--history", str(out / f"{variant}.json")],
             cwd=ROOT, capture_output=True, text=True, timeout=300)
         if result.returncode != 0:
@@ -119,22 +119,23 @@ def run(check) -> None:
 
     # 4問なら9枚（Instagramにも出せる）
     nine = subprocess.run(
-        [sys.executable, "generate.py", "--posts", "1", "--tests-per-post", "4",
-         "--hook", "A", "--output", str(out / "nine"), "--history", str(out / "nine.json")],
+        [sys.executable, "generate.py", "--posts", "1", "--template", "v1",
+         "--tests-per-post", "4", "--hook", "A",
+         "--output", str(out / "nine"), "--history", str(out / "nine.json")],
         cwd=ROOT, capture_output=True, text=True, timeout=300)
     images = sorted((out / "nine" / "post_001").glob("*.png"))
     check("問題4問なら9枚（Instagramの10枚上限に収まる）", len(images) == 9, f"{len(images)}枚")
     check("11枚のときはInstagramの上限を警告する",
           "Instagram" in (subprocess.run(
-              [sys.executable, "generate.py", "--posts", "1", "--tests-per-post", "5",
-               "--dry-run", "--output", str(out / "dry"),
+              [sys.executable, "generate.py", "--posts", "1", "--template", "v1",
+               "--tests-per-post", "5", "--dry-run", "--output", str(out / "dry"),
                "--history", str(out / "dry.json")],
               cwd=ROOT, capture_output=True, text=True, timeout=300).stderr))
 
     # フックなしなら従来どおり
     legacy = subprocess.run(
-        [sys.executable, "generate.py", "--posts", "1", "--tests-per-post", "4",
-         "--hook", "none", "--output", str(out / "legacy"),
+        [sys.executable, "generate.py", "--posts", "1", "--template", "v1",
+         "--tests-per-post", "4", "--hook", "none", "--output", str(out / "legacy"),
          "--history", str(out / "legacy.json")],
         cwd=ROOT, capture_output=True, text=True, timeout=300)
     names = sorted(p.name for p in (out / "legacy" / "post_001").glob("*.png"))

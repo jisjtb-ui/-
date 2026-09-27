@@ -334,6 +334,7 @@ def topup(
         [sys.executable, "generate.py", "--posts", str(generate_count),
          "--category", category,
          # 1枚目のフックも設定に従う（既定は自動ローテーション）
+         "--template", settings.template or "v2_light",
          "--hook", settings.hook_variant or "rotate",
          "--tests-per-post", str(settings.tests_per_post)],
         cwd=root,

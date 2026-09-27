@@ -109,18 +109,27 @@ class CategoryTab(ttk.Frame):
         ttk.Button(sub_buttons, text="抽選に入れる／外す",
                    command=self.toggle_sub).pack(side=LEFT, padx=4)
 
-        hook_frame = ttk.LabelFrame(right, text="1枚目フック（A/B/Cテスト）")
+        hook_frame = ttk.LabelFrame(right, text="投稿の形")
         hook_frame.pack(fill=X, **PAD)
-        ttk.Label(hook_frame, text="使うフック").grid(row=0, column=0, sticky=W,
+
+        ttk.Label(hook_frame, text="テンプレート").grid(row=0, column=0, sticky=W,
+                                                  padx=8, pady=6)
+        self.template_var = StringVar()
+        self.template_box = ttk.Combobox(hook_frame, textvariable=self.template_var,
+                                         state="readonly", width=26)
+        self.template_box.grid(row=0, column=1, sticky=W)
+        self.template_box.bind("<<ComboboxSelected>>", lambda e: self.save_template())
+
+        ttk.Label(hook_frame, text="使うフック").grid(row=1, column=0, sticky=W,
                                                  padx=8, pady=6)
         self.hook_var = StringVar()
         self.hook_box = ttk.Combobox(hook_frame, textvariable=self.hook_var,
                                      state="readonly", width=26)
-        self.hook_box.grid(row=0, column=1, sticky=W)
+        self.hook_box.grid(row=1, column=1, sticky=W)
         self.hook_box.bind("<<ComboboxSelected>>", lambda e: self.save_hook())
         self.hook_note = StringVar(value="")
         ttk.Label(hook_frame, textvariable=self.hook_note, foreground="#555",
-                  wraplength=430, justify=LEFT).grid(row=1, column=0, columnspan=3,
+                  wraplength=430, justify=LEFT).grid(row=2, column=0, columnspan=3,
                                                      sticky=W, padx=8, pady=(0, 6))
 
         account_frame = ttk.LabelFrame(right, text="このCategoryのSNSアカウント")
@@ -158,6 +167,7 @@ class CategoryTab(ttk.Frame):
     def on_select_category(self) -> None:
         self.reload_subs()
         self.reload_accounts()
+        self.reload_templates()
         self.reload_hooks()
         self.app.on_category_changed()
 
@@ -187,6 +197,28 @@ class CategoryTab(ttk.Frame):
             self.account_labels[account.platform].set(account.label())
 
     # ------------------------------------------------------------------
+    def reload_templates(self) -> None:
+        """投稿の形（枚数）の選択肢。"""
+        options = self.app.template_choices()
+        self.templates = Choice()
+        labels = self.templates.set([(i, label) for i, (_, label) in enumerate(options)])
+        self._template_values = [value for value, _ in options]
+        self.template_box.configure(values=labels)
+        current = self.app.template_setting(self.category_id)
+        if current in self._template_values:
+            self.template_var.set(labels[self._template_values.index(current)])
+        elif labels:
+            self.template_var.set(labels[0])
+
+    def save_template(self) -> None:
+        index = self.templates.id_of(self.template_var.get())
+        value = (self._template_values[index]
+                 if index is not None and index < len(self._template_values)
+                 else "v2_light")
+        self.app.set_template_setting(self.category_id, value)
+        self.app.log(f"投稿の形を「{self.template_var.get()}」にしました")
+        self._describe_hook()
+
     def reload_hooks(self) -> None:
         """1枚目フックの選択肢を data/hooks.json から作る（手入力させない）。"""
         options = self.app.hook_choices()
@@ -203,6 +235,11 @@ class CategoryTab(ttk.Frame):
         self._describe_hook()
 
     def _describe_hook(self) -> None:
+        if self.app.template_setting(self.category_id) == "v2_light":
+            self.hook_note.set(
+                "軽量7枚では、1枚目は「何が分かるか」のテーマになります"
+                "（A/B/Cのフックは従来11枚のときだけ使います）。")
+            return
         value = self._selected_hook()
         if value == "rotate":
             self.hook_note.set(

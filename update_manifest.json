@@ -1,20 +1,15 @@
 {
-  "version": "1.18.0",
-  "released_at": "2026-09-26T17:48:07+00:00",
+  "version": "1.18.1",
+  "released_at": "2026-09-27T04:09:09+00:00",
   "channel": "main",
   "notes": [
-    "恋愛心理カテゴリに軽量テンプレート（love_psychology_v2_light）を追加。フック + 5問 + 結果 = 7枚固定",
-    "質問は原則2択。説明ページ・導入ページ・「結果を見る」ページ・補足説明を作らない",
-    "質問18字・選択肢8字・結果2行の上限を生成のたびに検査して弾く",
-    "内部に点数を持たせ、YESの数から3段階の結果を出す（点数は画面に出さない）",
-    "template_version をDBまで通し、v1とv2_lightを保存率・共有率で比較できるようにした",
-    "テーマは data/love_light に5種類。追加は1ファイルだけで済む",
-    "デザイン（書体・寸法・余白・3:4）と従来テンプレート・過去データは変更なし"
+    "軽量7枚テンプレートを既定にした。GUI・自動補充・generate.py のどこから作っても7枚になる（これまでは --template を手で付けたときだけ7枚だった）",
+    "画面の「Category」タブから投稿の形（軽量7枚 / 従来11枚）を選べるようにした"
   ],
   "files": {
     ".env.example": {
-      "sha256": "5de0a5722494fd4004e90de14fd6c66f76a5bbc668ed408c63972eaac88a9dbc",
-      "size": 11204
+      "sha256": "862d7b9df92042cd9e95b2d4ac8c2951d247e41d85eff810d3db66df29ce2ab8",
+      "size": 11599
     },
     ".gitattributes": {
       "sha256": "3fa230e012e5907422ba6c650fd2a1798f7cb7b07a2912285e64790e2ff97fc6",
@@ -97,12 +92,12 @@
       "size": 70
     },
     "CHANGELOG.md": {
-      "sha256": "125908acc46f0940f070f10946b434f190db208a78c8d553bd90f03089cfab23",
-      "size": 12918
+      "sha256": "7d4fc31929c88a35798c3fad21c0db779761e793e328457b1e61f747264a4772",
+      "size": 13239
     },
     "CLAUDE.md": {
-      "sha256": "d74e09c7651fd94efa91689a1e1b60deadb66e993fa6cd973ed53e73890577f4",
-      "size": 9320
+      "sha256": "61626199686da03661a9f4431e21ebecca7a4f95364ca568929ea77bc8ab9ce3",
+      "size": 9668
     },
     "README.md": {
       "sha256": "ddd32adcf84086128bd2b278d789da387700f5ee5bc4f79dec7827e98b0628ec",
@@ -113,7 +108,7 @@
       "size": 62039
     },
     "VERSION": {
-      "sha256": "04d659518a1793d5396007fcabdc9211a8c1db8406bf4e0fa8069171fdb06518",
+      "sha256": "71fc7bd16b1bc9b3681085fb0be8aea0b3a37d90d1685938dc2e8a31bf8c9b94",
       "size": 7
     },
     "autopost.py": {
@@ -141,8 +136,8 @@
       "size": 12884
     },
     "autopost/config.py": {
-      "sha256": "8023ca1fedecf69862ca99b79d9c822a0a9d5ca3853bc14619b0c934f275a642",
-      "size": 17309
+      "sha256": "54fc0bc948fc2a7279394cbb9cf1700b429274bc9ccaebf2c784f870a8843319",
+      "size": 17446
     },
     "autopost/db.py": {
       "sha256": "8028294bf1aa283e90e24a0c3f32f43ce7d81cd3c98de3814740f3d1df527d17",
@@ -161,12 +156,12 @@
       "size": 38269
     },
     "autopost/gui.py": {
-      "sha256": "9f0120bf2e21f072344c6a05feb5284b3882aa1368e71dd1023783a330b32c9c",
-      "size": 26936
+      "sha256": "5d8087fe7ad4843050cf677dd7acd05b3d42dfa5d30b8fecacc120f749b5b849",
+      "size": 27906
     },
     "autopost/gui_catalog.py": {
-      "sha256": "d44203ea3506d89b004c05b31ef6af770464ee0aa7527ca30d310de73bab03a6",
-      "size": 32522
+      "sha256": "140965c3b406eeab77d0ba0adaac950ccee218b320f0509242b0de3d54d894b5",
+      "size": 34403
     },
     "autopost/hosting/__init__.py": {
       "sha256": "651877132d7779df36ed4fb179a7e7cf1e9e771cb9254b2126f7f8bc0cc3ff07",
@@ -261,8 +256,8 @@
       "size": 19743
     },
     "autopost/queueing.py": {
-      "sha256": "57a62cb339ef9085840319ddf7ba6587271773c58764361d14cd9ba3a534f045",
-      "size": 14653
+      "sha256": "38a4b60685f20b08fae6483bf0358daa96c5af9de66e5a5af0ef5025ce66db96",
+      "size": 14709
     },
     "autopost/report.py": {
       "sha256": "6e5d7b579cddf420bbaf2a532a1a144c4add99cbf09a61d109965e326e6e8c81",
@@ -421,8 +416,8 @@
       "size": 11738
     },
     "generate.py": {
-      "sha256": "1c68ad432380fbbc17ebd37b6778a1ae8bba24fd1a2a18770e7e4cfd68e906f3",
-      "size": 25667
+      "sha256": "b903d17e48c84cb5913340cea4b90f76b6891d9bebe91f769adb8cbd0fadc1ab",
+      "size": 26054
     },
     "manage.py": {
       "sha256": "6b2a0095633cc9a6200221c2c7c73cc338810d558808cdcded1f5478e854546e",
@@ -657,12 +652,12 @@
       "size": 16102
     },
     "tools/test_hooks.py": {
-      "sha256": "43e73ee683aedd6244e8e681983f7ab47c66b4873a1d7a0e7bf63d538d040a68",
-      "size": 11456
+      "sha256": "b6ddd6d42906c9a9243e5be648d83e00b66dfd2c7f968b1c8c55794d9136fb79",
+      "size": 11545
     },
     "tools/test_light.py": {
-      "sha256": "d9d9a78e81221b9dc81d0aa1bd8179dfc3b5d76c786990d8b5b8d7f3a72b6ac3",
-      "size": 12925
+      "sha256": "d15660d0f729eaea5004d4bc9e14f021bb149a45217d1428a851dde0a9d698bf",
+      "size": 14348
     },
     "worker/fake-d1.mjs": {
       "sha256": "c5644f483d9ee3a74fcb298bf143ac7f315e54d31e5c4ed6d0daf76f904242a9",

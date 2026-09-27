@@ -142,8 +142,9 @@ def build_parser() -> argparse.ArgumentParser:
         "--list-hooks", action="store_true", help="使えるフックを表示して終了",
     )
     parser.add_argument(
-        "--template", default="v1", choices=("v1", "v2_light"),
-        help="v1=従来（既定） / v2_light=恋愛心理の軽量7枚構成",
+        "--template", default=None, choices=("v1", "v2_light"),
+        help="v2_light=恋愛心理の軽量7枚構成（既定） / v1=従来。"
+             "省略すると .env の TEMPLATE に従う",
     )
     parser.add_argument(
         "--axis", default="",
@@ -385,7 +386,16 @@ def main(argv: list[str] | None = None) -> int:
     # 枚数を先に出す。Instagramのカルーセルは10枚が上限なので、
     # 超える構成のときは生成の前に気づけるようにする（投稿時に初めて
     # 弾かれると、作り直しになる）。
-    light_mode = args.template == "v2_light"
+    # --template を省略したら .env の TEMPLATE に従う（既定は軽量7枚）
+    template = args.template
+    if template is None:
+        try:
+            from autopost.config import Settings as _TS
+
+            template = _TS.load().template or "v2_light"
+        except Exception:
+            template = "v2_light"
+    light_mode = template == "v2_light"
     hook_in_use = (args.hook or "").strip().lower() != "none" and bool(hook_config.usable())
     if light_mode:
         page_count = 7

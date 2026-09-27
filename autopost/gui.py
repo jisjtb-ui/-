@@ -484,6 +484,26 @@ class AutoPostApp:
         found = self._hook_config().get(variant)
         return list(found.lines) if found else []
 
+    # ------------------------------------------------------------------
+    # テンプレート（7枚 / 11枚 / 10枚）
+    # ------------------------------------------------------------------
+    def template_choices(self) -> list[tuple[str, str]]:
+        return [
+            ("v2_light", "軽量7枚（フック + 5問 + 結果）"),
+            ("v1", "従来11枚（フック + 5問×2）"),
+        ]
+
+    def template_setting(self, category_id: int | None) -> str:
+        if category_id is None:
+            return self.settings.template or "v2_light"
+        stored = self.experiments.get_flag(f"template:{category_id}")
+        return stored or (self.settings.template or "v2_light")
+
+    def set_template_setting(self, category_id: int | None, value: str) -> None:
+        if category_id is None:
+            return
+        self.experiments.set_flag(f"template:{category_id}", value)
+
     def hook_setting(self, category_id: int | None) -> str:
         """Categoryごとの設定。無ければ .env の既定を使う。"""
         if category_id is None:
@@ -513,6 +533,7 @@ class AutoPostApp:
         root = Path(__file__).resolve().parent.parent
         command = [_sys.executable, "generate.py", "--posts", str(count),
                    "--category-id", str(category_id),
+                   "--template", self.template_setting(category_id),
                    "--hook", self.hook_setting(category_id),
                    "--tests-per-post", str(self.settings.tests_per_post)]
         if sub_category_id is None:
