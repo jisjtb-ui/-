@@ -1,15 +1,12 @@
 {
-  "version": "1.19.0",
-  "released_at": "2026-09-27T21:46:09+00:00",
+  "version": "1.20.0",
+  "released_at": "2026-10-05T08:00:47+00:00",
   "channel": "main",
   "notes": [
-    "InstagramをReel（縦動画）として自動投稿できるようにした。7枚の画像から1080x1920のMP4を作って公開する",
-    "投稿の形（カルーセル / Reel）をCategoryごとに画面から選べるようにした。既定は .env の INSTAGRAM_POST_TYPE",
-    "1枚を映す秒数を設定で変えられるようにした（既定は1枚1.5秒・最後2.5秒＝11.5秒）",
-    "公開前に動画の長さ・大きさ・形式を検査し、条件を外れていれば投稿せず理由をログに残すようにした",
-    "PCを切っていてもクラウド側からReelとして投稿できるようにした（Reelを扱えない媒体へ渡されたら画像に化けさせず止める）",
-    "成績画面とコマンド（autopost.py hooks posttype）で、カルーセルとReelを保存率・共有率・平均視聴時間で比べられるようにした",
-    "結果文に1文字だけ韓国語が混ざっていたのを直し、以後は毎回機械で検査するようにした"
+    "恋愛心理（軽量7枚）の選択肢を全問 YES / NO にそろえた。「自分／相手」などの言い換えをやめ、YESで答えられる問いにした",
+    "1枚目に「YES or NO の5問」と出すようにした。答え方が分かってから1問目に入れる",
+    "YESを必ず加点側にした。結果は「YESの数」で出すので、自分で数えたYESの数と結果が一致するようになった",
+    "YES / NO 以外の選択肢・並び順の逆・1枚目の書き忘れは、生成のたびに検査して弾くようにした"
   ],
   "files": {
     ".env.example": {
@@ -97,12 +94,12 @@
       "size": 70
     },
     "CHANGELOG.md": {
-      "sha256": "d5284aa7fb8e67425e88c697991dbfb4a63f9b6cd15c8bd56ad06d03860250be",
-      "size": 14254
+      "sha256": "e19b8fa394aea4267cf647d9d156d9d359aecac0c7bbe704213ca7ccd6490ac3",
+      "size": 14826
     },
     "CLAUDE.md": {
-      "sha256": "d1a91fa13a8452cb2fc48a2b5831a5e610f89f5f540c0546a15350c371838cde",
-      "size": 11426
+      "sha256": "7b51302edc489dd469efe48dde8ad66b5aef00315d0008048ba8e2f2712897cf",
+      "size": 11902
     },
     "README.md": {
       "sha256": "d53a9c581416f82578ea36ed261d82536bfb2d2b11cbb6234281f6c8a1f9db3a",
@@ -113,7 +110,7 @@
       "size": 64049
     },
     "VERSION": {
-      "sha256": "c55c898de5079ee498d5f051b29815688154292df4d72ab91f1edb5497ac4e6e",
+      "sha256": "26ac7beccb7951efb69255974ffc70a13bb2e68ae84dcb5456c3fb46294bdba8",
       "size": 7
     },
     "autopost.py": {
@@ -317,24 +314,24 @@
       "size": 1285
     },
     "data/love_light/dependence.json": {
-      "sha256": "f21bbb536d8150bdb543c9063cef10f9ac33ceaed7001388449d911196e01bab",
-      "size": 1997
+      "sha256": "f8a84b37e4d47244e112a3a1f99d4ec294e305afab6994444378222df51efb77",
+      "size": 1982
     },
     "data/love_light/heavy.json": {
-      "sha256": "3d521dd643ab0e45a9f706123e0fd2371cb42829e4a0a3c29f46095a165460ac",
-      "size": 2055
+      "sha256": "253838258b786a3942733ad0504ed96f4956235db8b281214ac9df54138ca2fc",
+      "size": 2009
     },
     "data/love_light/jealousy.json": {
-      "sha256": "88bef4844fb296906070ff8a7562e3ab76b77f9ffe915920abd0fcf385a76e3f",
-      "size": 1997
+      "sha256": "4b8a6f43451134d544788b4dcca6d4138df413d3f61954267aa7492f71f5be88",
+      "size": 1988
     },
     "data/love_light/serious.json": {
-      "sha256": "a9844c4fef735a92a9b4f84573807d1703b26a1712f8271df865d4491b7e4ff3",
-      "size": 2037
+      "sha256": "b941c81fefb9dbb5b0cb30c95c030b9784cc78e8575a6a94fda265b24354b0c9",
+      "size": 1966
     },
     "data/love_light/who_deeper.json": {
-      "sha256": "5bc3275db550fe3e0027143439767e83745ba010875223810a4cffcf192b32c6",
-      "size": 2036
+      "sha256": "cb0bb3529d649fb936a6718f81cafcfa4fe4f0bf2a6550833c9fd980d692ea7e",
+      "size": 1957
     },
     "data/tests/alone.json": {
       "sha256": "67b353174c280315b4f08e36e6b17fc1f0f653abc55808d013a57dd3786aa066",
@@ -473,8 +470,8 @@
       "size": 5302
     },
     "night_test/light.py": {
-      "sha256": "1a0eb1ca6e2d492b74631551f01633fc992247069dc5d4573812bafa28b8e9ad",
-      "size": 9083
+      "sha256": "f04e5cee6116a42fa41c6911e697d5b97e666ffe6dc9838424ea48c8ebb89143",
+      "size": 10818
     },
     "night_test/media.py": {
       "sha256": "f468f83fb338de6112a3ae8cbbebd5138ef880bcef7188cdf162b2f4e09df757",
@@ -665,8 +662,8 @@
       "size": 11545
     },
     "tools/test_light.py": {
-      "sha256": "d15660d0f729eaea5004d4bc9e14f021bb149a45217d1428a851dde0a9d698bf",
-      "size": 14348
+      "sha256": "0e61df989bf0ac2120785b14e618bb160d3c298ff3182cffb163b74b8e155c66",
+      "size": 17374
     },
     "tools/test_reel.py": {
       "sha256": "1f5d92e203f3c7e73c24547965fe12a126fdab04bf8f9fb7dffb8b6ee26fdd3c",

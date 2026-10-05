@@ -1,9 +1,9 @@
 {
   "axis": "dependence",
   "label": "恋人への依存度",
-  "hook": "「恋人への依存度」が分かる5問",
+  "hook": "「恋人への依存度」YES or NO の5問",
   "hook_title": "「恋人への依存度」",
-  "hook_suffix": "が分かる5問",
+  "hook_suffix": "YES or NO の5問",
   "score_direction": "YESが多いほど依存が強い",
   "questions": [
     {
@@ -50,29 +50,29 @@
     },
     {
       "id": "dep_04",
-      "text": "予定がない日は？",
+      "text": "予定がない日は\n会いたい？",
       "choices": [
         {
-          "label": "会いたい",
+          "label": "YES",
           "value": 1
         },
         {
-          "label": "一人でいい",
+          "label": "NO",
           "value": 0
         }
       ]
     },
     {
       "id": "dep_05",
-      "text": "別れても\nすぐ切り替えられる？",
+      "text": "別れたら\n長く引きずる？",
       "choices": [
         {
           "label": "YES",
-          "value": 0
+          "value": 1
         },
         {
           "label": "NO",
-          "value": 1
+          "value": 0
         }
       ]
     }

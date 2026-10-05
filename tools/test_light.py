@@ -23,9 +23,9 @@ from autopost.engine import create_experiment
 from autopost.experiments import ExperimentStore, Metrics
 from autopost import report
 from night_test.light import (
-    LEGACY_VERSION, MAX_CHOICE_CHARS, MAX_QUESTION_CHARS, PAGE_COUNT,
-    QUESTION_COUNT, TEMPLATE_VERSION, Choice, LightError, Question,
-    load_all, load_set, pick, validate,
+    CHOICE_LABELS, HOOK_FORMAT_MARK, LEGACY_VERSION, MAX_CHOICE_CHARS,
+    MAX_QUESTION_CHARS, NO_LABEL, PAGE_COUNT, QUESTION_COUNT, TEMPLATE_VERSION,
+    YES_LABEL, Choice, LightError, Question, load_all, load_set, pick, validate,
 )
 
 LIGHT_DIR = ROOT / "data" / "love_light"
@@ -48,8 +48,34 @@ def run(check) -> None:
               for s in sets for q in s.questions for c in q.choices))
     check("フックに「占い」を使っていない", all("占い" not in s.hook for s in sets))
     check("フックが結果テーマを名指ししている",
-          all("が分かる" in s.hook for s in sets), str([s.hook for s in sets]))
+          all(s.hook_title and s.hook_title in s.hook for s in sets),
+          str([s.hook for s in sets]))
     check("テーマ部分を大きく出せる", all(s.hook_title for s in sets))
+
+    # ---- 全問 YES / NO（1枚目で答え方が分かる）----
+    check(f"1枚目に「{HOOK_FORMAT_MARK}」が出る",
+          all(HOOK_FORMAT_MARK in f"{s.hook} {s.hook_title} {s.hook_suffix}"
+              for s in sets),
+          str([s.hook_suffix for s in sets]))
+    off = [f"{s.axis}/{q.id}: {' / '.join(c.label for c in q.choices)}"
+           for s in sets for q in s.questions
+           if tuple(c.label for c in q.choices) != CHOICE_LABELS]
+    check("全問が YES / NO の2択", not off, " ".join(off[:4]))
+    check("YESの位置が全問そろっている（毎回同じ場所にある）",
+          all(q.choices[0].label == YES_LABEL
+              for s in sets for q in s.questions))
+    reversed_q = [f"{s.axis}/{q.id}" for s in sets for q in s.questions
+                  if {c.label: c.value for c in q.choices}[YES_LABEL]
+                  <= {c.label: c.value for c in q.choices}[NO_LABEL]]
+    # 結果ページが「YESの数」なので、YESが加点側でないと数が合わない
+    check("YESが必ず加点側（利用者が数えたYESの数＝結果）",
+          not reversed_q, " ".join(reversed_q[:4]))
+    for light in sets:
+        yes_count = sum(1 for q in light.questions
+                        if {c.label: c.value for c in q.choices}[YES_LABEL] == 1)
+        check(f"{light.axis}: YESを全部選ぶと満点になる",
+              light.result_for(yes_count) is light.results[-1],
+              f"YES{yes_count}個")
     check("補足説明の欄そのものが無い",
           not any(hasattr(q, "note") or hasattr(q, "closing")
                   for s in sets for q in s.questions))
@@ -94,6 +120,35 @@ def run(check) -> None:
     ] + list(sets[0].questions[1:]))
     check("どちらを選んでも同じ点数なら弾く",
           any("点数が同じ" in p for p in validate(same)))
+
+    other_labels = replace(sets[0], questions=[
+        Question(id="x", text="喧嘩したら\nすぐ話す？",
+                 choices=(Choice("すぐ話す", 1), Choice("少し離れる", 0)))
+    ] + list(sets[0].questions[1:]))
+    check("YES / NO 以外の選択肢を弾く",
+          any("YES / NO にしてください" in p for p in validate(other_labels)),
+          str(validate(other_labels)[:1]))
+
+    flipped = replace(sets[0], questions=[
+        Question(id="x", text="一人でも平気？",
+                 choices=(Choice(YES_LABEL, 0), Choice(NO_LABEL, 1)))
+    ] + list(sets[0].questions[1:]))
+    check("YESが減点側なら弾く（YESの数と結果がずれる）",
+          any("YESが加点側" in p for p in validate(flipped)),
+          str(validate(flipped)[:1]))
+
+    swapped = replace(sets[0], questions=[
+        Question(id="x", text="一人でも平気？",
+                 choices=(Choice(NO_LABEL, 0), Choice(YES_LABEL, 1)))
+    ] + list(sets[0].questions[1:]))
+    check("YESとNOの並び順が逆なら弾く",
+          any("YES / NO にしてください" in p for p in validate(swapped)))
+
+    no_mark = replace(sets[0], hook="「隠れ嫉妬度」が分かる5問",
+                      hook_title="「隠れ嫉妬度」", hook_suffix="が分かる5問")
+    check("1枚目に答え方が無ければ弾く",
+          any(HOOK_FORMAT_MARK in p for p in validate(no_mark)),
+          str(validate(no_mark)[:1]))
 
     three_q = replace(sets[0], questions=list(sets[0].questions[:3]))
     check("5問でなければ弾く", any("5問" in p for p in validate(three_q)))

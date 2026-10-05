@@ -1,10 +1,10 @@
 {
   "axis": "serious",
-  "label": "本命にだけする行動",
-  "hook": "「本命にだけする行動」が分かる5問",
+  "label": "本命度",
+  "hook": "「本命にだけする行動」YES or NO の5問",
   "hook_title": "「本命にだけする行動」",
-  "hook_suffix": "が分かる5問",
-  "score_direction": "YESが多いほど本命として扱っている",
+  "hook_suffix": "YES or NO の5問",
+  "score_direction": "YESが多いほど本命あつかい",
   "questions": [
     {
       "id": "ser_01",
@@ -50,28 +50,28 @@
     },
     {
       "id": "ser_04",
-      "text": "返事が遅れたら？",
+      "text": "返事が遅れたら\n先に謝る？",
       "choices": [
         {
-          "label": "先に謝る",
+          "label": "YES",
           "value": 1
         },
         {
-          "label": "気にしない",
+          "label": "NO",
           "value": 0
         }
       ]
     },
     {
       "id": "ser_05",
-      "text": "会う前の準備は？",
+      "text": "会う前の準備\nけっこうする？",
       "choices": [
         {
-          "label": "けっこうする",
+          "label": "YES",
           "value": 1
         },
         {
-          "label": "いつも通り",
+          "label": "NO",
           "value": 0
         }
       ]
@@ -82,19 +82,19 @@
       "min": 0,
       "max": 1,
       "name": "キープ寄り",
-      "description": "楽しいけど\n優先順位は高くない"
+      "description": "会えたら会う\nくらいの距離"
     },
     {
       "min": 2,
       "max": 3,
-      "name": "本命候補",
-      "description": "特別だけど\nまだ決めきれていない"
+      "name": "気になる人",
+      "description": "大事だけど\n全部は見せない"
     },
     {
       "min": 4,
       "max": 5,
-      "name": "完全に本命",
-      "description": "無意識に\nその人を中心に動いてる"
+      "name": "本命",
+      "description": "予定も気持ちも\n先に空けている"
     }
   ]
 }
